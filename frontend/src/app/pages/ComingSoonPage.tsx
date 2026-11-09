@@ -6,9 +6,9 @@ import { StatusPage } from './StatusPage';
 type Section = 'shop' | 'cart' | 'account';
 
 const visuals = {
-  shop: { tone: 'deep', motif: 'shrimp' },
-  cart: { tone: 'sand', motif: 'shell' },
-  account: { tone: 'moss', motif: 'leaf' },
+  shop: { tone: 'sky', motif: 'shrimp' },
+  cart: { tone: 'ice', motif: 'shell' },
+  account: { tone: 'lagoon', motif: 'brand' },
 } as const;
 
 /** Temporary page for sections that are built in later roadmap phases. */

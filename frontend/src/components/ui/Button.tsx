@@ -13,15 +13,18 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-ink text-paper hover:bg-ink-soft focus-visible:outline-ink',
-        accent: 'bg-ember-500 text-paper hover:bg-ember-600 focus-visible:outline-ember-500',
+        /** Main call to action: navy with white text (15.8:1). */
+        primary: 'bg-ink text-white hover:bg-ink-soft focus-visible:outline-ink',
+        /** Brand accent: baby blue with navy text (8:1). */
+        accent: 'bg-brand-400 text-ink hover:bg-brand-300 focus-visible:outline-brand-700',
         secondary:
-          'border border-ink/15 bg-transparent text-ink hover:border-ink/40 hover:bg-ink/[0.03] focus-visible:outline-ink',
-        light: 'bg-paper text-ink hover:bg-white focus-visible:outline-paper',
-        'outline-light':
-          'border border-paper/30 bg-transparent text-paper hover:border-paper/70 hover:bg-paper/5 focus-visible:outline-paper',
+          'border border-ink/20 bg-surface text-ink hover:border-ink/45 hover:bg-mist focus-visible:outline-ink',
+        /** For dark (navy) backgrounds. */
+        inverse: 'bg-white text-ink hover:bg-brand-50 focus-visible:outline-white',
+        'outline-inverse':
+          'border border-white/35 bg-transparent text-white hover:border-white/70 hover:bg-white/5 focus-visible:outline-white',
         ghost: 'bg-transparent text-ink hover:bg-ink/5 focus-visible:outline-ink',
-        link: 'h-auto rounded-none px-0 text-ink underline-offset-4 hover:underline',
+        link: 'h-auto rounded-none px-0 text-brand-700 underline-offset-4 hover:underline',
       },
       size: {
         sm: 'h-9 px-4 text-sm',

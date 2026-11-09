@@ -1,6 +1,6 @@
-import '@fontsource-variable/fraunces/opsz.css';
-import '@fontsource-variable/fraunces/opsz-italic.css';
+import '@fontsource-variable/outfit';
 import '@fontsource-variable/inter';
+import '@fontsource-variable/inter/wght-italic.css';
 import './styles/index.css';
 import './lib/i18n';
 

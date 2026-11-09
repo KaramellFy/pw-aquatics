@@ -15,18 +15,18 @@ export function MobileMenu() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger
-        className="-mr-2 inline-flex size-11 items-center justify-center rounded-full hover:bg-ink/5 lg:hidden"
+        className="-mr-2 inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-brand-50 active:bg-brand-100 lg:hidden"
         aria-label={t('nav.openMenu')}
       >
         <Menu className="size-5" strokeWidth={1.5} />
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm data-[state=open]:animate-[fade-up_200ms_ease-out]" />
-        <Dialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-paper px-6 pt-5 pb-8 shadow-lift focus:outline-none">
+        <Dialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-surface px-6 pt-5 pb-8 shadow-lift focus:outline-none">
           <div className="flex items-center justify-between">
             <Logo />
             <Dialog.Close
-              className="-mr-2 inline-flex size-11 items-center justify-center rounded-full hover:bg-ink/5"
+              className="-mr-2 inline-flex size-11 items-center justify-center rounded-full hover:bg-brand-50 active:bg-brand-100"
               aria-label={t('common.close')}
             >
               <X className="size-5" strokeWidth={1.5} />
@@ -43,8 +43,10 @@ export function MobileMenu() {
                     onClick={() => setOpen(false)}
                     className={({ isActive }) =>
                       cn(
-                        'block py-3 font-serif text-3xl tracking-tight transition-colors',
-                        isActive ? 'text-ink' : 'text-ink/60 hover:text-ink',
+                        'block py-3 font-display text-3xl font-light tracking-tight transition-colors',
+                        isActive
+                          ? 'relative pl-5 text-brand-700 before:absolute before:top-1/2 before:left-0 before:size-2 before:-translate-y-1/2 before:rounded-full before:bg-brand-400'
+                          : 'text-ink hover:text-brand-700',
                       )
                     }
                   >

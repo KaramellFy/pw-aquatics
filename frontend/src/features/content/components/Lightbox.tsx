@@ -12,7 +12,7 @@ interface LightboxProps {
 }
 
 const navButton =
-  'inline-flex size-12 items-center justify-center rounded-full border border-paper/20 text-paper transition-colors hover:bg-paper/10';
+  'inline-flex size-12 items-center justify-center rounded-full border border-line-strong bg-surface text-ink transition-colors hover:bg-brand-50 active:bg-brand-100';
 
 /** Full-screen image viewer with keyboard (← →, Esc) navigation. */
 export function Lightbox({ items, index, onIndexChange }: LightboxProps) {
@@ -33,15 +33,15 @@ export function Lightbox({ items, index, onIndexChange }: LightboxProps) {
   return (
     <Dialog.Root open={item !== undefined} onOpenChange={(open) => !open && onIndexChange(null)}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-deep-900/95 backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-surface/95 backdrop-blur-md" />
         <Dialog.Content
           onKeyDown={onKeyDown}
-          className="fixed inset-0 z-50 flex flex-col p-4 text-paper focus:outline-none sm:p-8"
+          className="fixed inset-0 z-50 flex flex-col p-4 text-ink focus:outline-none sm:p-8"
         >
           {item && index !== null && (
             <>
               <div className="flex items-center justify-between">
-                <p className="text-sm text-paper/60 tabular-nums">
+                <p className="text-sm text-muted tabular-nums">
                   {t('gallery.counter', { current: index + 1, total: count })}
                 </p>
                 <Dialog.Close className={navButton} aria-label={t('common.close')}>
@@ -57,7 +57,7 @@ export function Lightbox({ items, index, onIndexChange }: LightboxProps) {
                   className={`${item.aspect} [height:min(70vh,56rem)] max-h-full w-auto max-w-full animate-fade-up rounded-card`}
                 />
                 <Dialog.Title asChild>
-                  <figcaption className="font-serif text-xl">{t(`gallery.items.${item.key}`)}</figcaption>
+                  <figcaption className="font-display text-xl">{t(`gallery.items.${item.key}`)}</figcaption>
                 </Dialog.Title>
               </figure>
               <Dialog.Description className="sr-only">{t('gallery.lead')}</Dialog.Description>

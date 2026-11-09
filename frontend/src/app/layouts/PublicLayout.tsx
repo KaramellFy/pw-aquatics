@@ -13,7 +13,7 @@ export function PublicLayout() {
     <div className="flex min-h-dvh flex-col">
       <a
         href="#main"
-        className="sr-only z-50 rounded-full bg-ink px-5 py-3 text-paper focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
+        className="sr-only z-50 rounded-full bg-ink px-5 py-3 text-white focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
       >
         {t('common.skipToContent')}
       </a>
@@ -21,7 +21,7 @@ export function PublicLayout() {
       <div
         aria-hidden
         className={cn(
-          'fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-moss-500 transition-transform duration-500',
+          'fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-brand-400 transition-transform duration-500',
           navigating ? 'scale-x-75' : 'scale-x-0',
         )}
       />

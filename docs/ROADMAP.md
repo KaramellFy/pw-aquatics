@@ -1,4 +1,4 @@
-# Wakup Wirbellose — Development Roadmap
+# PW Aquatics — Development Roadmap
 
 > Status: **Proposal — awaiting owner approval.** No phase starts without the
 > owner's go-ahead. Each phase ends with a demo and review before the next begins.
@@ -26,7 +26,8 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 | 0 Foundation | ✅ Vite/React/TS app, Tailwind, router, API client, i18n, tests, lint, Dockerfile, CI | ⏳ not started |
 | 1 Brand & content pages | ✅ design tokens, UI primitives, Home, About, Gallery, Contact, legal shells, 404 | ⏳ `POST /contact` + `contact_messages` |
 
-Open in Phase 1: owner approval of the visual direction, logo, photography and final copy.
+Phase 1 brand applied: PW Aquatics logo, white + baby-blue scheme, English default.
+Open in Phase 1: owner approval of the visual direction, photography, final copy and the real contact email.
 The cookie banner is deferred: the site only uses essential cookies so far, so no consent is needed until analytics or payment scripts are added.
 
 ## Phase overview
@@ -34,7 +35,7 @@ The cookie banner is deferred: the site only uses essential cookies so far, so n
 | Phase | Name | Main outcome |
 |---|---|---|
 | 0 | Foundation | Repo skeleton, Docker Compose, CI, empty but running apps |
-| 1 | Brand, design system & content pages | The site looks like Wakup Wirbellose; Home, About, Gallery (static), Contact |
+| 1 | Brand, design system & content pages | The site looks like PW Aquatics; Home, About, Gallery (static), Contact |
 | 2 | Public catalog | Shop with filters, product and species pages, seed data |
 | 3 | Authentication & accounts | Register, login/logout, verification, password reset, profile, addresses |
 | 4 | Shopping cart | Persistent guest/customer cart with merge on login |
@@ -88,7 +89,7 @@ placeholder page that calls `/api/v1/health`; CI is green.
   About, Gallery (static images for now), Contact (form → `POST /contact`
   with rate limit + honeypot + `contact_messages` table + notification email),
   legal page shells, 404 page.
-- i18n setup (German default).
+- i18n setup (English default, German second).
 
 **Owner input needed:** logo, brand colours approval, photography, about-us text.
 
@@ -301,7 +302,7 @@ Phases 2 and 3 can run in parallel; Phase 6 can start as soon as 2 and 3 are don
 See the open questions in [ARCHITECTURE.md §12](ARCHITECTURE.md#12-open-questions-for-the-owner).
 The ones that block early phases:
 
-1. Gradle or Maven (default: Gradle) and root package name (default: `de.wakup.shop`).
+1. Gradle or Maven (default: Gradle) and root package name (default: `com.pwaquatics.shop`).
 2. Languages at launch (affects Phase 1 setup).
 3. Grade scale design (affects Phase 2 schema).
 4. Whether exact stock counts are public (affects Phase 2 API).

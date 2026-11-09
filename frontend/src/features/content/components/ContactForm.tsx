@@ -83,10 +83,10 @@ export function ContactForm() {
 
   if (mutation.isSuccess) {
     return (
-      <div role="status" className="rounded-card border border-moss-100 bg-moss-50 p-10 text-center">
-        <CheckCircle2 aria-hidden className="mx-auto size-10 text-moss-500" strokeWidth={1.2} />
+      <div role="status" className="rounded-card border border-brand-100 bg-brand-50 p-10 text-center">
+        <CheckCircle2 aria-hidden className="mx-auto size-10 text-brand-700" strokeWidth={1.2} />
         <h2 className="mt-6 text-title">{t('contact.success.title')}</h2>
-        <p className="mt-3 text-ink/70">{t('contact.success.text')}</p>
+        <p className="mt-3 text-ink-soft">{t('contact.success.text')}</p>
         <Button variant="secondary" className="mt-8" onClick={() => mutation.reset()}>
           {t('contact.success.again')}
         </Button>
@@ -100,9 +100,17 @@ export function ContactForm() {
       ? t(`contact.errors.${errorCode}`)
       : t('contact.errors.generic');
 
+  // Errors are shown next to each field; the summary tells screen-reader and
+  // keyboard users that something needs fixing (the first invalid field gets focus).
+  const hasFieldErrors = fieldNames.some((name) => errors[name]);
+
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
-      {mutation.isError && <Alert tone="error">{errorMessage}</Alert>}
+      {mutation.isError ? (
+        <Alert tone="error">{errorMessage}</Alert>
+      ) : (
+        hasFieldErrors && <Alert tone="error">{t('contact.validation.summary')}</Alert>
+      )}
 
       <div className="grid gap-6 sm:grid-cols-2">
         <TextField
@@ -123,7 +131,7 @@ export function ContactForm() {
       <TextField
         label={t('contact.form.orderNumber')}
         hint={t('contact.form.orderNumberHint')}
-        placeholder="WW-2027-000123"
+        placeholder="PW-2027-000123"
         error={errors.orderNumber?.message}
         {...register('orderNumber')}
       />

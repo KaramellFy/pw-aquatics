@@ -33,8 +33,8 @@ export function AboutPage() {
 
       <div className="px-3 sm:px-5">
         <Artwork
-          tone="moss"
-          motif="leaf"
+          tone="sky"
+          motif="brand"
           animated
           className="aspect-[16/10] rounded-[2rem] sm:aspect-[21/9]"
         />
@@ -43,7 +43,7 @@ export function AboutPage() {
       <Section>
         <div className="grid gap-10 lg:grid-cols-12">
           <h2 className="text-headline lg:col-span-4">{t('about.story.title')}</h2>
-          <div className="space-y-6 text-lg leading-relaxed text-ink/75 lg:col-span-7 lg:col-start-6">
+          <div className="space-y-6 text-lg leading-relaxed text-ink-soft lg:col-span-7 lg:col-start-6">
             {paragraphs.map((paragraph) => (
               <Reveal key={paragraph}>
                 <p>{paragraph}</p>
@@ -53,14 +53,14 @@ export function AboutPage() {
         </div>
       </Section>
 
-      <Section tone="sand">
+      <Section tone="mist">
         <SectionHeading title={t('about.principles.title')} />
         <ul className="mt-16 grid gap-12 md:grid-cols-3 md:gap-10 lg:gap-16">
           {principles.map(({ key, Icon }, index) => (
-            <Reveal as="li" key={key} delay={index * 90} className="border-t border-ink/15 pt-8">
-              <Icon aria-hidden className="size-6 text-moss-500" strokeWidth={1.4} />
+            <Reveal as="li" key={key} delay={index * 90} className="border-t border-brand-200 pt-8">
+              <Icon aria-hidden className="size-6 text-brand-700" strokeWidth={1.4} />
               <h3 className="mt-6 text-2xl tracking-tight">{t(`about.principles.items.${key}.title`)}</h3>
-              <p className="mt-3 leading-relaxed text-ink/70">{t(`about.principles.items.${key}.text`)}</p>
+              <p className="mt-3 leading-relaxed text-ink-soft">{t(`about.principles.items.${key}.text`)}</p>
             </Reveal>
           ))}
         </ul>

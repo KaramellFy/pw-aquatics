@@ -11,12 +11,12 @@ export function GalleryTeaser() {
   const [first, second, third] = galleryItems;
 
   return (
-    <Section tone="deep">
+    <Section tone="ice">
       <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeading eyebrow={t('home.gallery.eyebrow')} title={t('home.gallery.title')} />
-        <ButtonLink to="/gallery" variant="outline-light" className="group self-start sm:self-auto">
+        <ButtonLink to="/gallery" variant="secondary" className="group self-start sm:self-auto">
           {t('home.gallery.cta')}
-          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
         </ButtonLink>
       </div>
       <div className="mt-16 grid gap-5 md:grid-cols-12 lg:mt-20">
@@ -41,7 +41,7 @@ export function GalleryTeaser() {
                     label={t(`gallery.items.${item.key}`)}
                     className="aspect-[4/3] rounded-card"
                   />
-                  <p className="mt-3 text-sm text-paper/60">{t(`gallery.items.${item.key}`)}</p>
+                  <p className="mt-3 text-sm text-muted">{t(`gallery.items.${item.key}`)}</p>
                 </Reveal>
               ),
           )}

@@ -1,69 +1,77 @@
 @import 'tailwindcss';
 
 /*
- * Wakup Wirbellose design tokens.
- * Calm, premium, nature-inspired: warm paper, deep ink, moss and river stone,
- * with one sparingly used accent ("ember", a soft shrimp red).
- * Use these tokens via Tailwind utilities (bg-paper, text-ink, font-serif …);
- * never hard-code hex colours in components.
+ * PW Aquatics design tokens.
+ * Clean and light: a white base, soft blue water tints, deep navy text and the
+ * logo's baby blue as the accent.
+ *
+ * Contrast rules (WCAG 2.2 AA):
+ * - brand-400 (#88C0DB, the logo colour) is only 2:1 on white. Never use it for
+ *   text or as the only boundary of a control. Use it for fills, illustrations
+ *   and accent buttons with ink text (8:1).
+ * - Text in brand colour uses brand-700 (5.9:1) or darker.
+ * - Input borders use line-strong (3.2:1); `line` is for decorative dividers only.
+ *
+ * Use these tokens via Tailwind utilities; never hard-code hex colours in components.
  */
 @theme {
-  /* Colour */
-  --color-paper: #f7f6f2;
-  --color-paper-deep: #efede6;
-  --color-sand: #e4dfd2;
+  /* Surfaces */
+  --color-surface: #ffffff;
+  --color-mist: #f5fafd;
+  --color-ice: #e8f3f9;
 
-  --color-ink: #101a1b;
-  --color-ink-soft: #2e3a3b;
-  --color-muted: #5f6b6a;
+  /* Text */
+  --color-ink: #0f2533;
+  --color-ink-soft: #2b4454;
+  --color-muted: #5a6e7a;
 
-  --color-stone-100: #ecebe6;
-  --color-stone-200: #dcdad3;
-  --color-stone-300: #c3c0b7;
-  --color-stone-400: #9d9a91;
+  /* Lines */
+  --color-line: #e1eaef;
+  --color-line-strong: #7d93a0;
 
-  --color-moss-50: #eef2ec;
-  --color-moss-100: #dce5d8;
-  --color-moss-300: #8fa58b;
-  --color-moss-500: #3f5a45;
-  --color-moss-700: #2b4031;
-  --color-moss-900: #1a2a1f;
+  /* Brand: baby blue (400 = logo colour) */
+  --color-brand-50: #f2f8fc;
+  --color-brand-100: #e2f0f8;
+  --color-brand-200: #c5e1f0;
+  --color-brand-300: #a7d0e5;
+  --color-brand-400: #88c0db;
+  --color-brand-500: #5fa6c9;
+  --color-brand-600: #3a86ad;
+  --color-brand-700: #2b6a8c;
+  --color-brand-800: #22556f;
+  --color-brand-900: #183e52;
 
-  --color-deep-700: #12363b;
-  --color-deep-800: #0d2a2e;
-  --color-deep-900: #081c1f;
+  /* Feedback */
+  --color-success: #2e7d5b;
+  --color-success-soft: #e9f5ef;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
 
-  --color-ember-100: #f6e3da;
-  --color-ember-500: #b5482a;
-  --color-ember-600: #9a3b21;
-
-  --color-success: #3f6b4a;
-  --color-danger: #a23b2a;
-
-  /* Typography — self-hosted variable fonts (no Google Fonts CDN, GDPR) */
-  --font-serif: 'Fraunces Variable', ui-serif, Georgia, 'Times New Roman', serif;
+  /* Typography — self-hosted variable fonts (no Google Fonts CDN, GDPR).
+     Outfit echoes the geometric logo wordmark; Inter keeps body text readable. */
+  --font-display: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  --text-display: clamp(2.75rem, 1.6rem + 4.6vw, 5.75rem);
+  --text-display: clamp(2.75rem, 1.5rem + 4.8vw, 5.75rem);
   --text-display--line-height: 1.02;
-  --text-display--letter-spacing: -0.025em;
+  --text-display--letter-spacing: -0.035em;
 
-  --text-headline: clamp(2rem, 1.4rem + 2.4vw, 3.5rem);
+  --text-headline: clamp(2rem, 1.35rem + 2.5vw, 3.5rem);
   --text-headline--line-height: 1.08;
-  --text-headline--letter-spacing: -0.02em;
+  --text-headline--letter-spacing: -0.03em;
 
   --text-title: clamp(1.5rem, 1.25rem + 1vw, 2.125rem);
   --text-title--line-height: 1.2;
-  --text-title--letter-spacing: -0.01em;
+  --text-title--letter-spacing: -0.02em;
 
   --text-eyebrow: 0.75rem;
   --text-eyebrow--line-height: 1.2;
-  --text-eyebrow--letter-spacing: 0.18em;
+  --text-eyebrow--letter-spacing: 0.2em;
 
-  /* Shape & depth */
+  /* Shape & depth (shadows tinted with ink, never pure black) */
   --radius-card: 1.25rem;
-  --shadow-soft: 0 1px 2px rgb(16 26 27 / 0.04), 0 8px 24px -12px rgb(16 26 27 / 0.12);
-  --shadow-lift: 0 2px 4px rgb(16 26 27 / 0.05), 0 24px 48px -24px rgb(16 26 27 / 0.25);
+  --shadow-soft: 0 1px 2px rgb(15 37 51 / 0.04), 0 10px 30px -14px rgb(15 37 51 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(15 37 51 / 0.05), 0 28px 56px -28px rgb(15 37 51 / 0.28);
 
   /* Motion */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -97,7 +105,7 @@
 
 @layer base {
   html {
-    @apply bg-paper text-ink antialiased;
+    @apply bg-surface text-ink antialiased;
     font-family: var(--font-sans);
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
@@ -105,23 +113,22 @@
 
   body {
     @apply min-h-dvh;
-    font-feature-settings: 'ss01', 'cv11';
+    font-feature-settings: 'cv11';
   }
 
   ::selection {
-    @apply bg-moss-100 text-ink;
+    @apply bg-brand-200 text-ink;
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-moss-500;
+    @apply outline-2 outline-offset-2 outline-brand-700;
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-serif);
-    font-optical-sizing: auto;
-    font-weight: 380;
+    font-family: var(--font-display);
+    font-weight: 300;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -149,6 +156,6 @@
 
 /* Scientific names are always set in italics. */
 @utility scientific {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-style: italic;
 }

@@ -25,9 +25,12 @@ export function CategoryShowcase() {
               </div>
               <h3 className="mt-6 text-2xl tracking-tight">{t(`categories.${category.key}.name`)}</h3>
               <p className="mt-2 leading-relaxed text-muted">{t(`categories.${category.key}.description`)}</p>
-              <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium">
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-brand-700">
                 {t('home.categories.cta')}
-                <ArrowRight className="size-4 transition-transform duration-(--duration-base) group-hover:translate-x-1" />
+                <ArrowRight
+                  aria-hidden
+                  className="size-4 transition-transform duration-(--duration-base) group-hover:translate-x-1"
+                />
               </span>
             </Link>
           </Reveal>

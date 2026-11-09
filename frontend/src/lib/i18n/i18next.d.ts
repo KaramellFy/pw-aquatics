@@ -4,7 +4,7 @@ import type { resources } from './index';
 declare module 'i18next' {
   interface CustomTypeOptions {
     defaultNS: 'translation';
-    resources: (typeof resources)['de'];
+    resources: (typeof resources)['en'];
     returnNull: false;
   }
 }

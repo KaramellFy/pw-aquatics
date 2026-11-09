@@ -1,12 +1,13 @@
 import { CalendarDays, Clock, Mail } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Section, SectionHeading } from '@/components/ui/Section';
+import { shopConfig } from '@/config/shop';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { ContactForm } from '../components/ContactForm';
 
 export function ContactPage() {
   const { t } = useTranslation();
-  const email = t('contact.info.email');
+  const email = shopConfig.email;
 
   const info = [
     {
@@ -34,10 +35,10 @@ export function ContactPage() {
               title={t('contact.title')}
               lead={t('contact.lead')}
             />
-            <dl className="mt-12 space-y-6 border-t border-ink/12 pt-10">
+            <dl className="mt-12 space-y-6 border-t border-line pt-10">
               {info.map(({ Icon, title, value }) => (
                 <div key={title} className="flex gap-4">
-                  <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-moss-500" strokeWidth={1.5} />
+                  <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-brand-700" strokeWidth={1.5} />
                   <div>
                     <dt className="text-sm text-muted">{title}</dt>
                     <dd className="mt-1 text-lg">{value}</dd>
@@ -47,7 +48,7 @@ export function ContactPage() {
             </dl>
           </div>
           <div className="lg:col-span-6 lg:col-start-7">
-            <div className="relative rounded-card bg-white/60 p-6 shadow-soft ring-1 ring-ink/5 sm:p-10">
+            <div className="relative rounded-card bg-surface p-6 shadow-soft ring-1 ring-line sm:p-10">
               <ContactForm />
             </div>
           </div>

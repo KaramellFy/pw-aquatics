@@ -9,7 +9,7 @@ import { MobileMenu } from './MobileMenu';
 import { mainNavigation } from './navigation';
 
 const iconLink =
-  'inline-flex size-11 items-center justify-center rounded-full transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-moss-500';
+  'inline-flex size-11 items-center justify-center rounded-full text-ink transition-colors hover:bg-brand-50 active:bg-brand-100';
 
 export function Header() {
   const { t } = useTranslation();
@@ -26,7 +26,7 @@ export function Header() {
     <header
       className={cn(
         'sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-(--duration-base)',
-        scrolled ? 'border-ink/8 bg-paper/85 backdrop-blur-md' : 'border-transparent bg-paper',
+        scrolled ? 'border-line bg-surface/90 backdrop-blur-md' : 'border-transparent bg-surface',
       )}
     >
       <Container className="flex h-18 items-center justify-between gap-6 lg:h-20">
@@ -43,10 +43,10 @@ export function Header() {
                   className={({ isActive }) =>
                     cn(
                       'relative py-2 text-[0.9375rem] transition-colors',
-                      'after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:bg-current after:transition-transform after:duration-(--duration-base)',
+                      'after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-left after:rounded-full after:bg-brand-400 after:transition-transform after:duration-(--duration-base)',
                       isActive
-                        ? 'text-ink after:scale-x-100'
-                        : 'text-ink/65 after:scale-x-0 hover:text-ink hover:after:scale-x-100',
+                        ? 'font-medium text-ink after:scale-x-100'
+                        : 'text-ink-soft after:scale-x-0 hover:text-ink hover:after:scale-x-100',
                     )
                   }
                 >

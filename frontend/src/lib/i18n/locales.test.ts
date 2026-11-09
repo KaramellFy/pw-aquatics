@@ -8,7 +8,7 @@ function keysOf(value: unknown, prefix = ''): string[] {
 }
 
 describe('locales', () => {
-  it('English provides exactly the German keys', () => {
-    expect(keysOf(en).sort()).toEqual(keysOf(de).sort());
+  it('German provides exactly the English keys', () => {
+    expect(keysOf(de).sort()).toEqual(keysOf(en).sort());
   });
 });

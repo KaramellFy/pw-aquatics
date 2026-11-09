@@ -8,7 +8,7 @@ Claude Code and others) and human developers work in this repository.
 
 ## 1. Project
 
-**Wakup Wirbellose** — a premium, custom-built online shop for ornamental
+**PW Aquatics** — a premium, custom-built online shop for ornamental
 freshwater shrimp and other aquatic invertebrates. We sell **live animals**:
 stock can shrink without a sale, shipping depends on weekdays and weather,
 and some species may not be traded legally.
@@ -46,7 +46,7 @@ and updating the docs.
 ## 4. Repository layout (target)
 
 ```
-backend/    Spring Boot API        → backend/src/main/java/de/wakup/shop/<module>/{api,application,domain,infrastructure}
+backend/    Spring Boot API        → backend/src/main/java/com/pwaquatics/shop/<module>/{api,application,domain,infrastructure}
 frontend/   React SPA              → frontend/src/{app,lib,components,features,hooks,styles}
 infra/      Caddy, Postgres scripts
 docs/       Architecture docs and ADRs
@@ -151,8 +151,13 @@ working around them.
 - Performance: lazy-load routes (admin is its own chunk), use `ResponsiveImage`,
   avoid layout shift.
 - TypeScript `strict`; no `any` without a comment explaining why.
-- All user-facing text through i18n keys (German default). `src/lib/i18n/locales/de.ts`
-  defines the keys; `en.ts` must match it exactly (a test enforces this).
+- All user-facing text through i18n keys (English default, German second).
+  `src/lib/i18n/locales/en.ts` defines the keys; `de.ts` must match it exactly
+  (a test enforces this). Untranslated constants (shop name, email) live in `src/config/shop.ts`.
+- **Brand & colour:** use design tokens from `src/styles/index.css`. The logo
+  colour `brand-400` (#88C0DB) is never used for text (2:1 on white); use
+  `brand-700` or darker for brand-coloured text. Use the official logo via
+  `components/layout/Brand.tsx` / `Logo.tsx`; never redraw or recolour its shapes.
 - Until real photos exist, use `<Artwork>` placeholders; switch to
   `<ResponsiveImage>` with backend renditions once images are available.
 

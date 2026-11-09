@@ -3,18 +3,18 @@ import { initReactI18next, useTranslation } from 'react-i18next';
 import { de } from './locales/de';
 import { en } from './locales/en';
 
-export const SUPPORTED_LANGUAGES = ['de', 'en'] as const;
+export const SUPPORTED_LANGUAGES = ['en', 'de'] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
-export const DEFAULT_LANGUAGE: Language = 'de';
-const STORAGE_KEY = 'ww.language';
+export const DEFAULT_LANGUAGE: Language = 'en';
+const STORAGE_KEY = 'pwa.language';
 
 /** Intl locale per UI language (used for money and date formatting). */
-const INTL_LOCALES: Record<Language, string> = { de: 'de-DE', en: 'en-GB' };
+const INTL_LOCALES: Record<Language, string> = { en: 'en-GB', de: 'de-DE' };
 
 export const resources = {
-  de: { translation: de },
   en: { translation: en },
+  de: { translation: de },
 } as const;
 
 function isLanguage(value: unknown): value is Language {

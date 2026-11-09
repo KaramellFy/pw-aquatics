@@ -9,9 +9,9 @@ interface AlertProps {
 }
 
 const tones = {
-  info: 'border-stone-300 bg-paper-deep text-ink',
-  error: 'border-danger/30 bg-ember-100/60 text-ink',
-  success: 'border-success/30 bg-moss-50 text-ink',
+  info: 'border-brand-200 bg-brand-50 text-ink',
+  error: 'border-danger/30 bg-danger-soft text-ink',
+  success: 'border-success/30 bg-success-soft text-ink',
 };
 
 export function Alert({ tone = 'info', title, children, className }: AlertProps) {

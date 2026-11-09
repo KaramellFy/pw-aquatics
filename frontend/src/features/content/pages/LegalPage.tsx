@@ -5,7 +5,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Container } from '@/components/ui/Container';
 import { PageMeta } from '@/lib/seo/PageMeta';
 
-const LEGAL_PAGES = ['impressum', 'datenschutz', 'agb', 'widerruf', 'versand'] as const;
+const LEGAL_PAGES = ['imprint', 'privacy', 'terms', 'withdrawal', 'shipping'] as const;
 type LegalPageKey = (typeof LEGAL_PAGES)[number];
 
 function isLegalPage(value: string | undefined): value is LegalPageKey {

@@ -1,5 +1,5 @@
 {
-  "name": "wakup-wirbellose-frontend",
+  "name": "pw-aquatics-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -19,8 +19,8 @@
     "generate:api": "npx --yes openapi-typescript@7 ${API_DOCS_URL:-http://localhost:8080/api/v3/api-docs} -o src/lib/api/schema.d.ts"
   },
   "dependencies": {
-    "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/outfit": "^5.3.0",
     "@hookform/resolvers": "^7.0.5",
     "@radix-ui/react-dialog": "^1.3.1",
     "@tanstack/react-query": "^5.107.1",

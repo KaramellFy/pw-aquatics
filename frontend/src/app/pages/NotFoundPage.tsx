@@ -12,7 +12,7 @@ export function NotFoundPage() {
         eyebrow={t('notFound.eyebrow')}
         title={t('notFound.title')}
         text={t('notFound.text')}
-        tone="night"
+        tone="deep"
         motif="fish"
         actions={<ButtonLink to="/">{t('common.backToHome')}</ButtonLink>}
       />

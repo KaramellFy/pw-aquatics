@@ -2,10 +2,10 @@ import { useId, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 const controlBase = [
-  'block w-full rounded-xl border border-stone-300 bg-white/70 px-4 text-base text-ink placeholder:text-stone-400',
-  'transition-[border-color,box-shadow,background-color] duration-(--duration-fast)',
-  'hover:border-stone-400 focus:border-moss-500 focus:bg-white focus:ring-4 focus:ring-moss-500/15 focus:outline-none',
-  'aria-invalid:border-danger/70 aria-invalid:focus:ring-danger/15',
+  'block w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-ink placeholder:text-muted/80',
+  'transition-[border-color,box-shadow] duration-(--duration-fast)',
+  'hover:border-ink-soft focus:border-brand-700 focus:ring-4 focus:ring-brand-400/35 focus:outline-none',
+  'aria-invalid:border-danger aria-invalid:focus:ring-danger/15',
   'disabled:cursor-not-allowed disabled:opacity-60',
 ];
 
@@ -102,7 +102,7 @@ export function CheckboxField({ label, error, className, id: idProp, ...props }:
           type="checkbox"
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
-          className="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-stone-300 accent-moss-500"
+          className="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-line-strong accent-brand-700"
           {...props}
         />
         <label htmlFor={id} className="cursor-pointer text-sm leading-relaxed text-ink-soft">

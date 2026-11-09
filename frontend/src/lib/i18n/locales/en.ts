@@ -1,23 +1,26 @@
-import type { Messages } from './de';
-
-/** English UI texts. Must provide exactly the keys defined in `de.ts`. */
-export const en: Messages = {
+/**
+ * English UI texts (default language). This object defines the shape of all
+ * translations; `de.ts` must provide exactly the same keys (a test enforces it).
+ *
+ * Marketing copy is a first draft and must be reviewed by the owner.
+ */
+export const en = {
   common: {
-    brand: 'Wakup Wirbellose',
+    brand: 'PW Aquatics',
     skipToContent: 'Skip to content',
     loading: 'Loading …',
     close: 'Close',
     backToHome: 'Back to home',
     language: 'Language',
-    languages: { de: 'Deutsch', en: 'English' },
+    languages: { en: 'English', de: 'Deutsch' },
     imagePlaceholder: 'Placeholder – photo coming soon',
-    previousPrice: 'Instead of',
+    previousPrice: 'Was',
   },
   nav: {
     main: 'Main navigation',
     shop: 'Shop',
     gallery: 'Gallery',
-    about: 'About us',
+    about: 'About',
     contact: 'Contact',
     account: 'My account',
     cart: 'Cart',
@@ -25,38 +28,38 @@ export const en: Messages = {
     menu: 'Menu',
   },
   footer: {
-    tagline: 'Selected dwarf shrimp and invertebrates – kept with patience, shipped with care.',
+    tagline: 'Ornamental shrimp and aquatic invertebrates – kept with patience, shipped with care.',
     shopTitle: 'Shop',
     infoTitle: 'Information',
     legalTitle: 'Legal',
     allAnimals: 'All animals',
-    shipping: 'Shipping & live animals',
-    copyright: '© {{year}} Wakup Wirbellose. All rights reserved.',
+    shipping: 'Shipping & live arrival',
+    copyright: '© {{year}} PW Aquatics. All rights reserved.',
     vatNote: 'All prices incl. VAT, plus shipping.',
   },
   categories: {
-    shrimp: { name: 'Shrimp', description: 'Neocaridina and Caridina in clear colours and lines.' },
-    snails: { name: 'Snails', description: 'Hard-working helpers for a balanced tank.' },
-    crayfish: { name: 'Crayfish', description: 'Dwarf crayfish with character – for experienced keepers.' },
-    crabs: { name: 'Crabs', description: 'Fascinating residents for specialised aquariums.' },
+    shrimp: { name: 'Shrimp', description: 'Neocaridina and Caridina in clean colours and strong lines.' },
+    snails: { name: 'Snails', description: 'Quiet helpers that keep a tank in balance.' },
+    crayfish: { name: 'Crayfish', description: 'Dwarf crayfish with real character.' },
+    crabs: { name: 'Crabs', description: 'Fascinating residents for specialised setups.' },
   },
   home: {
     meta: {
-      title: 'Wakup Wirbellose – Dwarf shrimp & invertebrates',
+      title: 'PW Aquatics – Ornamental shrimp & aquatic invertebrates',
       description:
-        'Premium dwarf shrimp, snails and crayfish for your aquarium. Healthy animals, transparent grading, careful shipping.',
+        'Premium dwarf shrimp, snails and crayfish for your aquarium. Healthy animals, honest grading and careful live shipping.',
     },
     hero: {
-      eyebrow: 'Ornamental invertebrates for freshwater aquariums',
-      title: 'Small creatures.\nGreat care.',
-      lead: 'We keep and ship selected dwarf shrimp, snails and crayfish – vividly coloured, healthy, and handled with the calm they deserve.',
+      eyebrow: 'Ornamental shrimp & invertebrates',
+      title: 'Clear water.\nVivid life.',
+      lead: 'Hand-selected dwarf shrimp, snails and crayfish – raised in stable water, graded honestly and shipped with care.',
       primaryCta: 'Discover the animals',
-      secondaryCta: 'Our philosophy',
+      secondaryCta: 'Our approach',
     },
     categories: {
       eyebrow: 'Collection',
       title: 'From our water to yours',
-      cta: 'Discover',
+      cta: 'Explore',
     },
     values: {
       eyebrow: 'Our standard',
@@ -64,15 +67,15 @@ export const en: Messages = {
       items: {
         health: {
           title: 'Healthy animals',
-          text: 'Our animals live in stable water conditions and are observed carefully before shipping.',
+          text: 'Our animals live in stable, mature tanks and are observed closely before they are offered for sale.',
         },
         grading: {
           title: 'Honest grading',
-          text: 'Clear, comprehensible grading of colour and pattern – you know what you get.',
+          text: 'Clear, consistent grading of colour and pattern, so you know exactly what you receive.',
         },
         shipping: {
           title: 'Thoughtful shipping',
-          text: 'Insulated packaging, heat or cool packs depending on the weather, and dispatch only on safe weekdays.',
+          text: 'Insulated boxes, heat or cool packs depending on the weather, and dispatch only on safe weekdays.',
         },
       },
     },
@@ -80,7 +83,7 @@ export const en: Messages = {
       eyebrow: 'The way to you',
       title: 'From our tank to yours',
       steps: {
-        select: { title: 'Selection', text: 'We choose every animal for colour, vitality and size.' },
+        select: { title: 'Selection', text: 'Every animal is chosen for colour, vitality and size.' },
         acclimate: {
           title: 'Observation',
           text: 'New animals spend time in separate tanks before they go on sale.',
@@ -91,7 +94,7 @@ export const en: Messages = {
         },
         ship: {
           title: 'Shipping',
-          text: 'Express shipping on selected weekdays so nobody spends the weekend in transit.',
+          text: 'Express shipping on selected weekdays, so nobody spends a weekend in transit.',
         },
       },
     },
@@ -108,17 +111,17 @@ export const en: Messages = {
   },
   about: {
     meta: {
-      title: 'About us – Wakup Wirbellose',
-      description: 'Who is behind Wakup Wirbellose and how we care for our animals.',
+      title: 'About – PW Aquatics',
+      description: 'Who is behind PW Aquatics and how we care for our animals.',
     },
-    eyebrow: 'About us',
-    title: 'A passion for the small things',
-    lead: 'Wakup Wirbellose grew out of a passion for dwarf shrimp – and the wish to sell them the way we would like to buy them ourselves.',
+    eyebrow: 'About',
+    title: 'Small animals, taken seriously',
+    lead: 'PW Aquatics grew out of a passion for dwarf shrimp – and the wish to sell them the way we would want to buy them ourselves.',
     story: {
       title: 'Our story',
       paragraphs: [
-        'What started with a single tank is now a small, carefully run facility. We keep our animals in stable, well-established aquariums and take our time with every line.',
-        'We care about healthy animals, clear colours and happy keepers rather than volume. That is why we describe our grades honestly and only ship when the weather allows it.',
+        'What started with a single tank is now a small, carefully run facility. Our animals live in stable, well-established aquariums, and we take our time with every line.',
+        'We care about healthy animals, clean colours and happy keepers rather than volume. That is why we grade honestly and only ship when the weather allows it.',
       ],
     },
     principles: {
@@ -126,9 +129,9 @@ export const en: Messages = {
       items: {
         care: {
           title: 'Species-appropriate care',
-          text: 'Stable water parameters, a calm environment, high-quality food.',
+          text: 'Stable water parameters, a calm environment and high-quality food.',
         },
-        transparency: { title: 'Transparency', text: 'Comprehensible grades, real photos, honest advice.' },
+        transparency: { title: 'Transparency', text: 'Consistent grades, real photos and honest advice.' },
         responsibility: {
           title: 'Responsibility',
           text: 'No trade in invasive or protected species. Shipping only under safe conditions.',
@@ -139,7 +142,7 @@ export const en: Messages = {
   },
   gallery: {
     meta: {
-      title: 'Gallery – Wakup Wirbellose',
+      title: 'Gallery – PW Aquatics',
       description: 'Impressions from our tanks: shrimp, snails and crayfish.',
     },
     eyebrow: 'Gallery',
@@ -156,22 +159,21 @@ export const en: Messages = {
       tigerShrimp: 'Caridina mariae “Tiger”',
       racingSnail: 'Nerite snail on driftwood',
       dwarfCrayfish: 'Dwarf crayfish in moss',
-      moss: 'Moss and stones – our tank setup',
+      moss: 'Moss and stone – our tank setup',
       yellowFire: 'Neocaridina davidi “Yellow Fire”',
       ramshornSnail: 'Ramshorn snail',
     },
   },
   contact: {
     meta: {
-      title: 'Contact – Wakup Wirbellose',
+      title: 'Contact – PW Aquatics',
       description: 'Write to us with questions about animals, care, shipping or your order.',
     },
     eyebrow: 'Contact',
-    title: 'We look forward to hearing from you',
-    lead: 'Whether it is about care, shipping or an order – we usually reply within one to two working days.',
+    title: 'We would love to hear from you',
+    lead: 'Questions about care, shipping or an order? We usually reply within one to two working days.',
     info: {
       emailTitle: 'Email',
-      email: 'hallo@wakup-wirbellose.de',
       responseTitle: 'Response time',
       response: '1–2 working days',
       shippingTitle: 'Shipping days',
@@ -185,12 +187,13 @@ export const en: Messages = {
       orderNumberHint: 'If your message is about an order.',
       message: 'Message',
       privacyNotice:
-        'When you send this form, your details are processed to handle your enquiry. Learn more in our <privacyLink>privacy policy</privacyLink>.',
+        'When you send this form, your details are processed to answer your enquiry. Learn more in our <privacyLink>privacy policy</privacyLink>.',
       submit: 'Send message',
       submitting: 'Sending …',
       honeypot: 'Please leave this field empty',
     },
     validation: {
+      summary: 'Please correct the highlighted fields.',
       nameRequired: 'Please enter your name.',
       emailInvalid: 'Please enter a valid email address.',
       subjectRequired: 'Please enter a subject.',
@@ -213,22 +216,22 @@ export const en: Messages = {
     placeholder:
       'This legal text will be prepared with legal advice before launch. Until then, this page is a placeholder.',
     pages: {
-      impressum: { title: 'Legal notice (Impressum)' },
-      datenschutz: { title: 'Privacy policy' },
-      agb: { title: 'Terms and conditions' },
-      widerruf: { title: 'Right of withdrawal' },
-      versand: { title: 'Shipping & live animals' },
+      imprint: { title: 'Legal notice' },
+      privacy: { title: 'Privacy policy' },
+      terms: { title: 'Terms and conditions' },
+      withdrawal: { title: 'Right of withdrawal' },
+      shipping: { title: 'Shipping & live arrival' },
     },
   },
   comingSoon: {
     eyebrow: 'Coming soon',
     shop: {
-      title: 'The shop is being built',
-      text: 'We are preparing our collection. Soon you will find all animals here, with filters for species, colour, grade, price and availability.',
+      title: 'The shop is on its way',
+      text: 'We are preparing our collection. Soon you will find every animal here, with filters for species, colour, grade, price and availability.',
     },
     cart: {
       title: 'Your cart',
-      text: 'The cart will open together with the shop.',
+      text: 'The cart opens together with the shop.',
     },
     account: {
       title: 'Customer account',
@@ -237,9 +240,9 @@ export const en: Messages = {
     cta: 'View gallery',
   },
   notFound: {
-    meta: { title: 'Page not found – Wakup Wirbellose' },
+    meta: { title: 'Page not found – PW Aquatics' },
     eyebrow: 'Error 404',
-    title: 'This page has gone under',
+    title: 'This page has drifted away',
     text: 'The page you are looking for does not exist (any more). The home page might help you find what you need.',
   },
   error: {
@@ -248,3 +251,9 @@ export const en: Messages = {
     reload: 'Reload page',
   },
 };
+
+/** The shape every locale must implement. */
+type DeepStringRecord<T> = {
+  [K in keyof T]: T[K] extends string ? string : T[K] extends string[] ? string[] : DeepStringRecord<T[K]>;
+};
+export type Messages = DeepStringRecord<typeof en>;

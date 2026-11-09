@@ -19,9 +19,9 @@ function stubFetch(response: () => Response) {
 async function fillValidForm() {
   const user = userEvent.setup();
   await user.type(screen.getByLabelText('Name'), 'Anna Schmidt');
-  await user.type(screen.getByLabelText('E-Mail-Adresse'), 'anna@example.com');
-  await user.type(screen.getByLabelText('Betreff'), 'Frage zur Haltung');
-  await user.type(screen.getByLabelText('Nachricht'), 'Wie viele Garnelen passen in ein 30-Liter-Becken?');
+  await user.type(screen.getByLabelText('Email address'), 'anna@example.com');
+  await user.type(screen.getByLabelText('Subject'), 'Question about care');
+  await user.type(screen.getByLabelText('Message'), 'How many shrimp can I keep in a 30 litre tank?');
   return user;
 }
 
@@ -32,11 +32,13 @@ describe('ContactForm', () => {
     const fetchMock = stubFetch(() => new Response(null, { status: 202 }));
     renderWithProviders(<ContactForm />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Nachricht senden' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
-    expect(await screen.findByText('Bitte gib deinen Namen an.')).toBeInTheDocument();
-    expect(screen.getByText('Bitte gib eine gültige E-Mail-Adresse an.')).toBeInTheDocument();
+    expect(await screen.findByText('Please enter your name.')).toBeInTheDocument();
+    expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('Please correct the highlighted fields.');
+    expect(screen.getByLabelText('Name')).toHaveFocus();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -45,17 +47,17 @@ describe('ContactForm', () => {
     renderWithProviders(<ContactForm />);
 
     const user = await fillValidForm();
-    await user.click(screen.getByRole('button', { name: 'Nachricht senden' }));
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
 
-    expect(await screen.findByText('Danke für deine Nachricht!')).toBeInTheDocument();
+    expect(await screen.findByText('Thank you for your message!')).toBeInTheDocument();
     const [url, init] = fetchMock.mock.calls.at(-1) as [string, RequestInit];
     expect(url).toBe('/api/v1/contact');
     expect(init.headers).toMatchObject({ 'X-XSRF-TOKEN': 'test-token' });
     expect(JSON.parse(init.body as string)).toEqual({
       name: 'Anna Schmidt',
       email: 'anna@example.com',
-      subject: 'Frage zur Haltung',
-      message: 'Wie viele Garnelen passen in ein 30-Liter-Becken?',
+      subject: 'Question about care',
+      message: 'How many shrimp can I keep in a 30 litre tank?',
       website: '',
     });
   });
@@ -67,7 +69,7 @@ describe('ContactForm', () => {
           JSON.stringify({
             status: 400,
             code: 'VALIDATION_FAILED',
-            errors: [{ field: 'email', code: 'BLOCKED_DOMAIN', message: 'Diese Domain ist nicht erlaubt.' }],
+            errors: [{ field: 'email', code: 'BLOCKED_DOMAIN', message: 'This domain is not allowed.' }],
           }),
           { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
         ),
@@ -75,10 +77,10 @@ describe('ContactForm', () => {
     renderWithProviders(<ContactForm />);
 
     const user = await fillValidForm();
-    await user.click(screen.getByRole('button', { name: 'Nachricht senden' }));
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
 
-    expect(await screen.findByText('Diese Domain ist nicht erlaubt.')).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Bitte überprüfe deine Eingaben.');
+    expect(await screen.findByText('This domain is not allowed.')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Please check your input.');
   });
 
   it('explains when the server is unreachable', async () => {
@@ -87,8 +89,8 @@ describe('ContactForm', () => {
     renderWithProviders(<ContactForm />);
 
     const user = await fillValidForm();
-    await user.click(screen.getByRole('button', { name: 'Nachricht senden' }));
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Keine Verbindung zum Server.'));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No connection to the server.'));
   });
 });

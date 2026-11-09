@@ -7,16 +7,16 @@ export const mainNavigation = [
 ] as const;
 
 export const legalNavigation = [
-  { to: '/legal/impressum', labelKey: 'legal.pages.impressum.title' },
-  { to: '/legal/datenschutz', labelKey: 'legal.pages.datenschutz.title' },
-  { to: '/legal/agb', labelKey: 'legal.pages.agb.title' },
-  { to: '/legal/widerruf', labelKey: 'legal.pages.widerruf.title' },
+  { to: '/legal/imprint', labelKey: 'legal.pages.imprint.title' },
+  { to: '/legal/privacy', labelKey: 'legal.pages.privacy.title' },
+  { to: '/legal/terms', labelKey: 'legal.pages.terms.title' },
+  { to: '/legal/withdrawal', labelKey: 'legal.pages.withdrawal.title' },
 ] as const;
 
 /** Category landing links; slugs must match the backend category slugs (Phase 2). */
 export const categoryLinks = [
-  { slug: 'garnelen', key: 'shrimp', motif: 'shrimp', tone: 'deep' },
-  { slug: 'schnecken', key: 'snails', motif: 'snail', tone: 'moss' },
-  { slug: 'krebse', key: 'crayfish', motif: 'shell', tone: 'ember' },
-  { slug: 'krabben', key: 'crabs', motif: 'waves', tone: 'night' },
+  { slug: 'shrimp', key: 'shrimp', motif: 'shrimp', tone: 'sky' },
+  { slug: 'snails', key: 'snails', motif: 'snail', tone: 'ice' },
+  { slug: 'crayfish', key: 'crayfish', motif: 'shell', tone: 'lagoon' },
+  { slug: 'crabs', key: 'crabs', motif: 'waves', tone: 'deep' },
 ] as const;

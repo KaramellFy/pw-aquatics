@@ -25,7 +25,7 @@ export function RouteErrorPage() {
             eyebrow={t('common.brand')}
             title={t('error.title')}
             text={t('error.text')}
-            tone="stone"
+            tone="pearl"
             motif="waves"
             actions={
               <>

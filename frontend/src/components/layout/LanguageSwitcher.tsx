@@ -14,11 +14,13 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             type="button"
             lang={language}
             aria-pressed={active}
-            onClick={() => void changeLanguage(language)}
             aria-label={t(`common.languages.${language}`)}
+            onClick={() => void changeLanguage(language)}
             className={cn(
-              'rounded-full px-2.5 py-1 text-xs font-medium tracking-widest uppercase transition-colors',
-              active ? 'bg-current/10' : 'opacity-60 hover:opacity-100',
+              'inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3 text-xs font-medium tracking-widest uppercase transition-colors',
+              active
+                ? 'bg-current/12 underline decoration-2 underline-offset-4'
+                : 'opacity-70 hover:opacity-100',
             )}
           >
             {language}

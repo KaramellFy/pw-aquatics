@@ -6,10 +6,10 @@ import { Container } from './Container';
 const sectionVariants = cva('relative', {
   variants: {
     tone: {
-      paper: 'bg-paper text-ink',
-      deep: 'bg-deep-900 text-paper',
-      moss: 'bg-moss-900 text-paper',
-      sand: 'bg-paper-deep text-ink',
+      white: 'bg-surface text-ink',
+      mist: 'bg-mist text-ink',
+      ice: 'bg-ice text-ink',
+      ink: 'bg-ink text-white',
     },
     spacing: {
       default: 'py-24 sm:py-32 lg:py-40',
@@ -17,7 +17,7 @@ const sectionVariants = cva('relative', {
       none: '',
     },
   },
-  defaultVariants: { tone: 'paper', spacing: 'default' },
+  defaultVariants: { tone: 'white', spacing: 'default' },
 });
 
 type SectionProps = ComponentProps<'section'> &
@@ -54,11 +54,11 @@ export function SectionHeading({
 }: SectionHeadingProps) {
   return (
     <div className={cn('max-w-3xl', align === 'center' && 'mx-auto text-center', className)}>
-      {eyebrow && <p className="mb-5 eyebrow text-current/60">{eyebrow}</p>}
+      {eyebrow && <p className="mb-5 eyebrow text-brand-700">{eyebrow}</p>}
       <Heading className={cn('text-balance', size === 'display' ? 'text-display' : 'text-headline')}>
         {title}
       </Heading>
-      {lead && <p className="mt-6 text-lg leading-relaxed text-pretty text-current/70">{lead}</p>}
+      {lead && <p className="mt-6 text-lg leading-relaxed text-pretty text-current/75">{lead}</p>}
     </div>
   );
 }

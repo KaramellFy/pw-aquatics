@@ -11,17 +11,19 @@ beforeAll(() => {
 describe('routes', () => {
   it('renders the home page inside the public layout', async () => {
     renderRoutes(routes, { path: '/' });
-    expect(await screen.findByRole('heading', { level: 1, name: /Kleine Tiere/ })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Hauptnavigation' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Zum Inhalt springen' })).toHaveAttribute('href', '#main');
+    expect(await screen.findByRole('heading', { level: 1, name: /Clear water/ })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main');
+    expect(screen.getAllByRole('link', { name: 'PW Aquatics' })[0]).toHaveAttribute('href', '/');
+    expect(document.title).toContain('PW Aquatics');
   });
 
   it.each([
-    ['/about', 'Aus Leidenschaft für das Kleine'],
-    ['/gallery', 'Eindrücke aus unseren Becken'],
-    ['/contact', 'Wir freuen uns auf deine Nachricht'],
-    ['/legal/impressum', 'Impressum'],
-    ['/shop', 'Der Shop entsteht gerade'],
+    ['/about', 'Small animals, taken seriously'],
+    ['/gallery', 'Impressions from our tanks'],
+    ['/contact', 'We would love to hear from you'],
+    ['/legal/imprint', 'Legal notice'],
+    ['/shop', 'The shop is on its way'],
   ])('renders %s', async (path, heading) => {
     renderRoutes(routes, { path });
     expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
@@ -30,14 +32,14 @@ describe('routes', () => {
   it('shows the 404 page for unknown paths', async () => {
     renderRoutes(routes, { path: '/does-not-exist' });
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Diese Seite ist abgetaucht' }),
+      await screen.findByRole('heading', { level: 1, name: 'This page has drifted away' }),
     ).toBeInTheDocument();
   });
 
   it('shows the 404 page for unknown legal pages', async () => {
     renderRoutes(routes, { path: '/legal/unknown' });
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Diese Seite ist abgetaucht' }),
+      await screen.findByRole('heading', { level: 1, name: 'This page has drifted away' }),
     ).toBeInTheDocument();
   });
 });
