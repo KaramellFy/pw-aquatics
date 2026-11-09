@@ -2,7 +2,17 @@
 
 Premium online shop for ornamental freshwater shrimp and other aquatic invertebrates.
 
-**Status:** planning — architecture proposal awaiting approval. No application code yet.
+**Status:** frontend foundation and content pages built (Roadmap Phases 0–1, frontend side). Backend not started.
+
+## Run the frontend
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Then open http://localhost:5173. See [AGENTS.md](AGENTS.md#5-commands) for lint, test and build commands.
 
 ## Documentation
 

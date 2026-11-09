@@ -101,9 +101,9 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | Rate limiting | Bucket4j | Login, registration, contact, coupon checks |
 | Images | Thumbnailator / ImageIO + WebP | Resize, re-encode, strip EXIF on upload |
 | Build (BE) | Gradle (Kotlin DSL) | Maven is equally fine; one choice, consistently |
-| Language (FE) | TypeScript (strict) | |
-| UI | React 19 + Vite | SPA |
-| Routing | React Router 7 (data/declarative mode) | Not framework mode; lazy-loaded route chunks |
+| Language (FE) | TypeScript 6 (strict) | Stays on 6.x until typescript-eslint supports TypeScript 7 |
+| UI | React 19 + Vite 8 | SPA |
+| Routing | React Router 8 (data mode) | Not framework mode; lazy-loaded route chunks |
 | Server state | TanStack Query | Caching, invalidation, loading/error states |
 | Forms | React Hook Form + Zod | Client validation for UX only — server is authoritative |
 | Styling | Tailwind CSS 4 | Design tokens via `@theme` |

@@ -19,6 +19,16 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 
 ---
 
+## Progress
+
+| Phase | Frontend | Backend |
+|---|---|---|
+| 0 Foundation | ✅ Vite/React/TS app, Tailwind, router, API client, i18n, tests, lint, Dockerfile, CI | ⏳ not started |
+| 1 Brand & content pages | ✅ design tokens, UI primitives, Home, About, Gallery, Contact, legal shells, 404 | ⏳ `POST /contact` + `contact_messages` |
+
+Open in Phase 1: owner approval of the visual direction, logo, photography and final copy.
+The cookie banner is deferred: the site only uses essential cookies so far, so no consent is needed until analytics or payment scripts are added.
+
 ## Phase overview
 
 | Phase | Name | Main outcome |

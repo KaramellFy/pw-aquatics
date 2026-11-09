@@ -1,0 +1,30 @@
+# Serves the built SPA. TLS and the /api proxy are handled by the edge proxy (infra/caddy).
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	root * /srv
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# 'unsafe-inline' for styles is needed for React style attributes; scripts stay strict.
+		# Extend connect-src/frame-src/script-src for Stripe and PayPal in Phase 9.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+	}
+
+	# Hashed build assets can be cached forever; index.html must always be revalidated.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	@document not path /assets/*
+	header @document Cache-Control "no-cache"
+
+	# Client-side routing: unknown paths fall back to index.html.
+	try_files {path} /index.html
+	file_server
+}

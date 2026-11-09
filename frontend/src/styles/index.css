@@ -1,0 +1,154 @@
+@import 'tailwindcss';
+
+/*
+ * Wakup Wirbellose design tokens.
+ * Calm, premium, nature-inspired: warm paper, deep ink, moss and river stone,
+ * with one sparingly used accent ("ember", a soft shrimp red).
+ * Use these tokens via Tailwind utilities (bg-paper, text-ink, font-serif …);
+ * never hard-code hex colours in components.
+ */
+@theme {
+  /* Colour */
+  --color-paper: #f7f6f2;
+  --color-paper-deep: #efede6;
+  --color-sand: #e4dfd2;
+
+  --color-ink: #101a1b;
+  --color-ink-soft: #2e3a3b;
+  --color-muted: #5f6b6a;
+
+  --color-stone-100: #ecebe6;
+  --color-stone-200: #dcdad3;
+  --color-stone-300: #c3c0b7;
+  --color-stone-400: #9d9a91;
+
+  --color-moss-50: #eef2ec;
+  --color-moss-100: #dce5d8;
+  --color-moss-300: #8fa58b;
+  --color-moss-500: #3f5a45;
+  --color-moss-700: #2b4031;
+  --color-moss-900: #1a2a1f;
+
+  --color-deep-700: #12363b;
+  --color-deep-800: #0d2a2e;
+  --color-deep-900: #081c1f;
+
+  --color-ember-100: #f6e3da;
+  --color-ember-500: #b5482a;
+  --color-ember-600: #9a3b21;
+
+  --color-success: #3f6b4a;
+  --color-danger: #a23b2a;
+
+  /* Typography — self-hosted variable fonts (no Google Fonts CDN, GDPR) */
+  --font-serif: 'Fraunces Variable', ui-serif, Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --text-display: clamp(2.75rem, 1.6rem + 4.6vw, 5.75rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.025em;
+
+  --text-headline: clamp(2rem, 1.4rem + 2.4vw, 3.5rem);
+  --text-headline--line-height: 1.08;
+  --text-headline--letter-spacing: -0.02em;
+
+  --text-title: clamp(1.5rem, 1.25rem + 1vw, 2.125rem);
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.01em;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1.2;
+  --text-eyebrow--letter-spacing: 0.18em;
+
+  /* Shape & depth */
+  --radius-card: 1.25rem;
+  --shadow-soft: 0 1px 2px rgb(16 26 27 / 0.04), 0 8px 24px -12px rgb(16 26 27 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(16 26 27 / 0.05), 0 24px 48px -24px rgb(16 26 27 / 0.25);
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 700ms;
+
+  --animate-fade-up: fade-up var(--duration-slow) var(--ease-out-soft) both;
+  --animate-drift: drift 18s ease-in-out infinite alternate;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes drift {
+    from {
+      transform: translate3d(-2%, -1%, 0) scale(1);
+    }
+    to {
+      transform: translate3d(2%, 1%, 0) scale(1.06);
+    }
+  }
+}
+
+@layer base {
+  html {
+    @apply bg-paper text-ink antialiased;
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-dvh;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  ::selection {
+    @apply bg-moss-100 text-ink;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-moss-500;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    font-optical-sizing: auto;
+    font-weight: 380;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility eyebrow {
+  font-size: var(--text-eyebrow);
+  line-height: var(--text-eyebrow--line-height);
+  letter-spacing: var(--text-eyebrow--letter-spacing);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* Scientific names are always set in italics. */
+@utility scientific {
+  font-family: var(--font-serif);
+  font-style: italic;
+}

@@ -22,18 +22,22 @@ and some species may not be traded legally.
 
 ## 2. Current status
 
-**Planning phase.** The architecture is a proposal awaiting the owner's
-approval. **Do not start implementing application code until the owner has
-approved the plan and named the phase to work on.** Work only on the phase you
-were asked to do; do not pull later-phase features forward.
+- **Frontend:** Phase 0 (foundation) and Phase 1 (design system and content
+  pages) are built: Home, About, Gallery, Contact, legal page shells, and
+  placeholder pages for shop, cart and account.
+- **Backend:** not started. The contact form already calls `POST /api/v1/contact`
+  and shows a connection error until the backend exists.
+
+Work only on the phase the owner asked for; do not pull later-phase features forward.
 
 ## 3. Tech stack
 
 - **Backend:** Java 25, Spring Boot 4.x (Web MVC, Security, Data JPA, Validation,
   Mail, Actuator), Spring Session JDBC, Flyway, PostgreSQL 18, MapStruct,
   springdoc-openapi, Gradle (Kotlin DSL).
-- **Frontend:** React 19, TypeScript (strict), Vite, Tailwind CSS 4,
-  React Router 7, TanStack Query, React Hook Form + Zod, Radix UI, react-i18next.
+- **Frontend:** React 19, TypeScript 6 (strict), Vite 8, Tailwind CSS 4,
+  React Router 8 (data mode), TanStack Query, React Hook Form + Zod, Radix UI,
+  react-i18next, Vitest. TypeScript stays on 6.x until typescript-eslint supports 7.
 - **Infra:** Docker, Docker Compose, Caddy, GitHub Actions.
 
 Do not add a new major dependency or framework without stating why in the PR
@@ -50,15 +54,26 @@ docs/       Architecture docs and ADRs
 
 ## 5. Commands
 
-> Filled in during Phase 0. Keep this section accurate whenever scripts change.
+> Keep this section accurate whenever scripts change.
+
+**Frontend** (`frontend/`, Node ≥ 22.22):
 
 ```bash
-docker compose up -d                  # full local stack (postgres, backend, mailpit)
-cd backend && ./gradlew test          # backend tests (needs Docker for Testcontainers)
-cd backend && ./gradlew bootRun --args='--spring.profiles.active=dev'
-cd frontend && npm ci && npm run dev  # SPA on http://localhost:5173 (proxies /api)
-cd frontend && npm run lint && npm run typecheck && npm test
-cd frontend && npm run generate:api   # regenerate API types from the backend OpenAPI spec
+npm ci                 # install exact dependencies
+npm run dev            # http://localhost:5173, proxies /api and /media to :8080
+npm run lint           # ESLint
+npm run format:check   # Prettier (npm run format to fix)
+npm run typecheck      # TypeScript
+npm test               # Vitest
+npm run build          # production build into dist/
+npm run generate:api   # regenerate API types from the backend OpenAPI spec (needs the backend running)
+```
+
+**Backend / full stack** (planned, Phase 0 backend part):
+
+```bash
+docker compose up -d                  # postgres, backend, mailpit
+cd backend && ./gradlew test          # needs Docker for Testcontainers
 ```
 
 ---
@@ -116,9 +131,11 @@ working around them.
 
 ## 8. Frontend conventions
 
-- **Feature folders** under `src/features/<feature>/{api,components,pages}`;
-  shared UI only in `src/components/ui`. Features import each other only through
-  their `index.ts`.
+- **Feature folders** under `src/features/<feature>/{api,components,data,pages}`;
+  shared UI only in `src/components/ui`, site chrome in `src/components/layout`.
+  Features import each other only through their `index.ts`. The router
+  (`src/app/routes.tsx`) imports page modules directly and lazily, so a
+  feature's `index.ts` must not re-export pages (that would defeat code splitting).
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
 - **All HTTP via `src/lib/api/client.ts`** (credentials, CSRF header, Problem
@@ -134,7 +151,10 @@ working around them.
 - Performance: lazy-load routes (admin is its own chunk), use `ResponsiveImage`,
   avoid layout shift.
 - TypeScript `strict`; no `any` without a comment explaining why.
-- All user-facing text through i18n keys (German default).
+- All user-facing text through i18n keys (German default). `src/lib/i18n/locales/de.ts`
+  defines the keys; `en.ts` must match it exactly (a test enforces this).
+- Until real photos exist, use `<Artwork>` placeholders; switch to
+  `<ResponsiveImage>` with backend renditions once images are available.
 
 ## 9. Database conventions
 
