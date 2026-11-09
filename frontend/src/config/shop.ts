@@ -5,5 +5,5 @@
 export const shopConfig = {
   name: 'PW Aquatics',
   /** Placeholder — replace with the real contact address before launch. */
-  email: 'hello@pwaquatics.com',
+  email: 'philwakup@gmail.com',
 } as const;
