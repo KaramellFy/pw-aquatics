@@ -22,3 +22,21 @@ export function formatMoney(money: Money, locale: string): string {
   const fractionDigits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
   return formatter.format(money.amount / 10 ** fractionDigits);
 }
+
+function fractionDigitsOf(currency: string): number {
+  return formatterFor('en', currency).resolvedOptions().maximumFractionDigits ?? 2;
+}
+
+/** "3.90" — plain decimal string for structured data (JSON-LD). Formatting only. */
+export function toDecimalString(money: Money): string {
+  const digits = fractionDigitsOf(money.currency);
+  return (money.amount / 10 ** digits).toFixed(digits);
+}
+
+/**
+ * Converts a price typed by the user in major units (e.g. "3.5" €) to minor units for
+ * filter queries. This parses user input; it never calculates a price.
+ */
+export function majorToMinorUnits(value: number, currency = 'EUR'): number {
+  return Math.round(value * 10 ** fractionDigitsOf(currency));
+}

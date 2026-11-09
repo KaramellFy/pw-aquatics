@@ -25,8 +25,13 @@ and some species may not be traded legally.
 - **Frontend:** Phase 0 (foundation) and Phase 1 (design system and content
   pages) are built: Home, About, Gallery, Contact, legal page shells, and
   placeholder pages for shop, cart and account.
-- **Backend:** not started. The contact form already calls `POST /api/v1/contact`
-  and shows a connection error until the backend exists.
+- **Backend:** Phase 0 foundation (Spring Boot 4.1, Java 25, Flyway, security with
+  CSRF cookie, Problem Details errors, outbox email worker, rate limiting) and the
+  Phase 1 contact endpoint are built. Everything not explicitly opened in
+  `SecurityConfig` is denied until authentication arrives (Phase 3).
+- **Phase 2 (catalog)** is built end to end: public catalog API with filters and
+  facets, shop/product/species pages. Cart (Phase 4) is not built yet; the
+  "Add to cart" button is disabled with an explanation.
 
 Work only on the phase the owner asked for; do not pull later-phase features forward.
 
@@ -66,15 +71,28 @@ npm run format:check   # Prettier (npm run format to fix)
 npm run typecheck      # TypeScript
 npm test               # Vitest
 npm run build          # production build into dist/
-npm run generate:api   # regenerate API types from the backend OpenAPI spec (needs the backend running)
+npm run generate:api   # regenerate src/lib/api/schema.d.ts from the running backend (dev profile); commit the result
 ```
 
-**Backend / full stack** (planned, Phase 0 backend part):
+**Backend** (`backend/`, Java 25, Docker for tests):
 
 ```bash
-docker compose up -d                  # postgres, backend, mailpit
-cd backend && ./gradlew test          # needs Docker for Testcontainers
+./gradlew test                        # unit + integration tests (Testcontainers PostgreSQL)
+./gradlew bootRun --args='--spring.profiles.active=dev'   # API on :8080 (needs postgres + mailpit running)
+./gradlew bootJar                     # build/libs/app.jar
 ```
+
+Behind a Docker Hub rate limit, run tests with `TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX=mirror.gcr.io/`.
+
+**Full stack** (repository root):
+
+```bash
+cp .env.example .env                  # set POSTGRES_PASSWORD
+docker compose up -d                  # postgres, mailpit (http://localhost:8025), backend (:8080)
+docker compose up -d postgres mailpit # infrastructure only, when running the API with bootRun
+```
+
+API docs (dev profile only): http://localhost:8080/swagger-ui.html
 
 ---
 

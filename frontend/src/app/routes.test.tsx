@@ -23,7 +23,7 @@ describe('routes', () => {
     ['/gallery', 'Impressions from our tanks'],
     ['/contact', 'We would love to hear from you'],
     ['/legal/imprint', 'Legal notice'],
-    ['/shop', 'The shop is on its way'],
+    ['/shop', 'All animals'],
   ])('renders %s', async (path, heading) => {
     renderRoutes(routes, { path });
     expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument();

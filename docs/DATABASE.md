@@ -616,7 +616,7 @@ CREATE INDEX idx_contact_messages_status ON contact_messages (status, created_at
 -- delivered by a scheduled worker with retries.
 CREATE TABLE outbox_messages (
     id               uuid PRIMARY KEY,
-    type             varchar(50)  NOT NULL,          -- 'EMAIL_ORDER_CONFIRMATION', 'EMAIL_SHIPPED', ...
+    type             varchar(50)  NOT NULL,          -- 'EMAIL' (payload: to, replyTo, subject, body)
     payload          jsonb        NOT NULL,
     status           varchar(20)  NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'SENT', 'FAILED')),
     attempts         int          NOT NULL DEFAULT 0,
@@ -712,6 +712,10 @@ uniqueness, webhook event uniqueness.
 - **Seed data:** reference data needed in production (default categories,
   shipping methods, settings) goes into normal migrations. Demo products and test
   users live in `db/seed-dev` and are only loaded with the `dev` profile.
+  `R__dev_catalog.sql` is a repeatable migration with fixed IDs and
+  `ON CONFLICT … DO UPDATE`, so editing it refreshes the demo catalog. Don't run
+  a database that has the dev seed with another profile (Flyway would report the
+  repeatable migration as missing).
 - **Zero-downtime habits:** add nullable column → backfill → add constraint;
   never rename/drop in the same release that stops using a column.
 - **Testing:** every migration runs against a real PostgreSQL in CI (Testcontainers).

@@ -1,0 +1,15 @@
+# Local development: insecure cookies over http://localhost, API docs on,
+# demo data loaded from db/seed-dev.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed-dev
+
+app:
+  cookies:
+    secure: false
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

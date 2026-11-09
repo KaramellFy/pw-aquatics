@@ -1,0 +1,11 @@
+app:
+  cookies:
+    secure: false
+  outbox:
+    scheduler-enabled: false
+  mail:
+    shop-inbox: shop@test.local
+
+springdoc:
+  api-docs:
+    enabled: true

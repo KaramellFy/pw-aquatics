@@ -3,10 +3,9 @@ import { ButtonLink } from '@/components/ui/Button';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { StatusPage } from './StatusPage';
 
-type Section = 'shop' | 'cart' | 'account';
+type Section = 'cart' | 'account';
 
 const visuals = {
-  shop: { tone: 'sky', motif: 'shrimp' },
   cart: { tone: 'ice', motif: 'shell' },
   account: { tone: 'lagoon', motif: 'brand' },
 } as const;
@@ -35,6 +34,5 @@ function ComingSoon({ section }: { section: Section }) {
   );
 }
 
-export const ShopComingSoonPage = () => <ComingSoon section="shop" />;
 export const CartComingSoonPage = () => <ComingSoon section="cart" />;
 export const AccountComingSoonPage = () => <ComingSoon section="account" />;

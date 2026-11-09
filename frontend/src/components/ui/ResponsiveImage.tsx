@@ -15,6 +15,8 @@ type ResponsiveImageProps = Omit<ComponentProps<'img'>, 'src' | 'srcSet' | 'alt'
   sizes: string;
   /** Above-the-fold images load eagerly with high priority. */
   priority?: boolean;
+  /** Overrides the image's alt text, e.g. "" for a decorative duplicate. */
+  alt?: string;
 };
 
 /**
@@ -25,6 +27,7 @@ export function ResponsiveImage({
   image,
   sizes,
   priority = false,
+  alt,
   className,
   ...props
 }: ResponsiveImageProps) {
@@ -33,7 +36,7 @@ export function ResponsiveImage({
       src={image.url}
       srcSet={image.srcSet}
       sizes={image.srcSet ? sizes : undefined}
-      alt={image.alt}
+      alt={alt ?? image.alt}
       width={image.width}
       height={image.height}
       loading={priority ? 'eager' : 'lazy'}

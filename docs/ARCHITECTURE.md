@@ -222,6 +222,8 @@ Rules:
   outbox dispatch, expire unpaid orders, purge expired carts and tokens.
 - **Observability:** Actuator health/readiness, structured JSON logs with a request
   ID, Micrometer metrics. No personal data in logs.
+  The mail health check is disabled on purpose: email goes through the retrying
+  outbox, so an SMTP outage must not mark the API unhealthy.
 - **Configuration:** `application.yml` with profile overrides (`dev`, `test`, `prod`);
   every secret comes from environment variables.
 

@@ -1,0 +1,85 @@
+# Defaults for all environments. Secrets and environment-specific values come
+# from environment variables (see ../.env.example); never commit real secrets.
+spring:
+  application:
+    name: pw-aquatics
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/pwaquatics}
+    username: ${SPRING_DATASOURCE_USERNAME:pwaquatics}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        # Loads lazy collections (variants, colours, images) for a whole page in a few queries.
+        default_batch_fetch_size: 50
+  flyway:
+    locations: classpath:db/migration
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  # Applies X-Forwarded-* from the reverse proxy. The backend must only be
+  # reachable through Caddy, never directly from the internet.
+  forward-headers-strategy: framework
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    # Mail is delivered through the retrying outbox; an SMTP outage must not
+    # mark the API as unhealthy.
+    mail:
+      enabled: false
+
+springdoc:
+  api-docs:
+    path: /api/v3/api-docs
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${API_DOCS_ENABLED:false}
+  paths-to-match: /api/**
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:5173}
+  cookies:
+    secure: ${APP_COOKIE_SECURE:true}
+  mail:
+    from: ${MAIL_FROM:PW Aquatics <no-reply@localhost>}
+    shop-inbox: ${SHOP_INBOX_EMAIL:shop@localhost}
+  outbox:
+    scheduler-enabled: true
+    poll-interval: PT10S
+    batch-size: 20
+    max-attempts: 10
+  media:
+    local-path: ${MEDIA_LOCAL_PATH:./media}
+    public-path: /media
+  rate-limits:
+    contact:
+      capacity: 3
+      period: PT1H
