@@ -1,0 +1,59 @@
+# Local development stack: PostgreSQL, Mailpit (catches all email) and the API.
+# The frontend runs separately with `npm run dev` (it proxies /api to :8080).
+#
+#   cp .env.example .env        # then set a local database password
+#   docker compose up -d
+#
+# Ports are bound to 127.0.0.1 only.
+name: pw-aquatics
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pwaquatics}
+      POSTGRES_USER: ${POSTGRES_USER:-pwaquatics}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025" # web inbox: http://localhost:8025
+      - "127.0.0.1:1025:1025" # SMTP
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pwaquatics}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-pwaquatics}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: ${MAIL_FROM:-PW Aquatics <no-reply@localhost>}
+      SHOP_INBOX_EMAIL: ${SHOP_INBOX_EMAIL:-shop@localhost}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
+    volumes:
+      - media:/app/media
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  postgres-data:
+  media:

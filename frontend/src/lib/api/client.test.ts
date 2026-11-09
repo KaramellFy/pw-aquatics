@@ -21,7 +21,11 @@ describe('api client', () => {
     await expect(api.get('/products')).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/products',
-      expect.objectContaining({ method: 'GET', credentials: 'include' }),
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+        headers: expect.objectContaining({ 'Accept-Language': 'en' }),
+      }),
     );
   });
 

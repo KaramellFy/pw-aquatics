@@ -616,7 +616,7 @@ CREATE INDEX idx_contact_messages_status ON contact_messages (status, created_at
 -- delivered by a scheduled worker with retries.
 CREATE TABLE outbox_messages (
     id               uuid PRIMARY KEY,
-    type             varchar(50)  NOT NULL,          -- 'EMAIL_ORDER_CONFIRMATION', 'EMAIL_SHIPPED', ...
+    type             varchar(50)  NOT NULL,          -- 'EMAIL' (payload: to, replyTo, subject, body)
     payload          jsonb        NOT NULL,
     status           varchar(20)  NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'SENT', 'FAILED')),
     attempts         int          NOT NULL DEFAULT 0,

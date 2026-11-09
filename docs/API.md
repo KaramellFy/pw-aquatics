@@ -60,7 +60,7 @@ stable `code` the frontend can switch on:
 
 ```json
 {
-  "type": "https://<shop-domain>/problems/insufficient-stock",
+  "type": "about:blank",
   "title": "Insufficient stock",
   "status": 409,
   "detail": "Only 4 animals of 'Blue Dream' are available.",

@@ -23,8 +23,8 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 
 | Phase | Frontend | Backend |
 |---|---|---|
-| 0 Foundation | ✅ Vite/React/TS app, Tailwind, router, API client, i18n, tests, lint, Dockerfile, CI | ⏳ not started |
-| 1 Brand & content pages | ✅ design tokens, UI primitives, Home, About, Gallery, Contact, legal shells, 404 | ⏳ `POST /contact` + `contact_messages` |
+| 0 Foundation | ✅ Vite/React/TS app, Tailwind, router, API client, i18n, tests, lint, Dockerfile, CI | ✅ Spring Boot 4.1/Java 25, Flyway baseline, CSRF, Problem Details, outbox + email worker, rate limiting, Testcontainers + ArchUnit tests, Docker Compose, CI |
+| 1 Brand & content pages | ✅ design tokens, UI primitives, Home, About, Gallery, Contact, legal shells, 404 | ✅ `POST /contact` (validation, honeypot, rate limit) + `contact_messages` + email to shop inbox |
 
 Phase 1 brand applied: PW Aquatics logo, white + baby-blue scheme, English default.
 Open in Phase 1: owner approval of the visual direction, photography, final copy and the real contact email.

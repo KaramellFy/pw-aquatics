@@ -1,3 +1,4 @@
+import i18n from '@/lib/i18n';
 import type { FieldError, ProblemDetails } from './types';
 
 /**
@@ -79,7 +80,12 @@ async function toApiError(response: Response): Promise<ApiError> {
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET';
-  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    // Server-side validation messages follow the UI language.
+    'Accept-Language': i18n.resolvedLanguage ?? i18n.language,
+    ...options.headers,
+  };
 
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';

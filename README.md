@@ -3,9 +3,16 @@
 Premium online shop for ornamental freshwater shrimp and other aquatic invertebrates.
 (Repository name: `wakupwirbellose`.)
 
-**Status:** frontend foundation and content pages built (Roadmap Phases 0–1, frontend side). Backend not started.
+**Status:** see [Roadmap progress](docs/ROADMAP.md#progress).
 
-## Run the frontend
+## Run locally
+
+Requirements: Docker, Node ≥ 22.22, Java 25 (only to run the API outside Docker).
+
+```bash
+cp .env.example .env          # set POSTGRES_PASSWORD
+docker compose up -d          # PostgreSQL, Mailpit and the API on :8080
+```
 
 ```bash
 cd frontend
@@ -13,7 +20,8 @@ npm ci
 npm run dev
 ```
 
-Then open http://localhost:5173. See [AGENTS.md](AGENTS.md#5-commands) for lint, test and build commands.
+Open http://localhost:5173. Emails sent by the shop appear in Mailpit at http://localhost:8025.
+See [AGENTS.md](AGENTS.md#5-commands) for test, lint and build commands.
 
 ## Documentation
 
