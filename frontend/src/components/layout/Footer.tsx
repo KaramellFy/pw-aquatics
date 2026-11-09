@@ -31,7 +31,7 @@ export function Footer() {
             </li>
             {categoryLinks.map((category) => (
               <li key={category.slug}>
-                <Link to={`/shop?category=${category.slug}`} className={linkClass}>
+                <Link to={`/shop/${category.slug}`} className={linkClass}>
                   {t(`categories.${category.key}.name`)}
                 </Link>
               </li>

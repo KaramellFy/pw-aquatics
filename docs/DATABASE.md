@@ -712,6 +712,10 @@ uniqueness, webhook event uniqueness.
 - **Seed data:** reference data needed in production (default categories,
   shipping methods, settings) goes into normal migrations. Demo products and test
   users live in `db/seed-dev` and are only loaded with the `dev` profile.
+  `R__dev_catalog.sql` is a repeatable migration with fixed IDs and
+  `ON CONFLICT … DO UPDATE`, so editing it refreshes the demo catalog. Don't run
+  a database that has the dev seed with another profile (Flyway would report the
+  repeatable migration as missing).
 - **Zero-downtime habits:** add nullable column → backfill → add constraint;
   never rename/drop in the same release that stops using a column.
 - **Testing:** every migration runs against a real PostgreSQL in CI (Testcontainers).

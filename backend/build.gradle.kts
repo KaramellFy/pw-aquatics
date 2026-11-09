@@ -40,6 +40,7 @@ dependencies {
     implementation("net.javacrumbs.shedlock:shedlock-spring:7.11.0")
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.11.0")
     implementation("com.fasterxml.uuid:java-uuid-generator:5.2.0")
+    implementation("org.commonmark:commonmark:0.32.0")
 
     // Mapping
     implementation("org.mapstruct:mapstruct:$mapstructVersion")

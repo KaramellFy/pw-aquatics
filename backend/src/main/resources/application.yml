@@ -18,6 +18,8 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        # Loads lazy collections (variants, colours, images) for a whole page in a few queries.
+        default_batch_fetch_size: 50
   flyway:
     locations: classpath:db/migration
   mail:

@@ -130,62 +130,94 @@ response is calculated by the server.
 | GET | `/colours` | Colour list |
 | GET | `/grades` | Grade list |
 
-**`GET /products` query parameters**
+**`GET /products` and `GET /products/facets` query parameters**
 
 | Param | Example | Notes |
 |---|---|---|
-| `q` | `blue` | Text search on name, species, colour |
-| `category` | `neocaridina` | Category slug (includes sub-categories) |
-| `species` | `neocaridina-davidi` | Multi-value |
+| `q` | `blue` | Text search on product name and species names (max 100 chars) |
+| `category` | `neocaridina` | Category slug, includes sub-categories |
+| `species` | `neocaridina-davidi` | Multi-value (repeated or comma-separated) |
 | `colour` | `blue,red` | Multi-value |
 | `grade` | `sss` | Multi-value |
-| `minPrice`, `maxPrice` | `500`, `3000` | Cents, compared to the cheapest active variant |
+| `minPrice`, `maxPrice` | `500`, `3000` | Cents, compared with the cheapest active variant |
 | `availability` | `IN_STOCK` | `IN_STOCK` (incl. low stock), `COMING_SOON`, `ALL` (default) |
-| `featured` | `true` | |
-| `sort` | `price,asc` | `relevance`, `newest`, `price,asc`, `price,desc`, `name,asc`, `grade,desc` |
-| `page`, `size` | `0`, `24` | |
+| `featured` | `true` | Featured products only |
+| `sort` | `PRICE_ASC` | `RELEVANCE` (default), `NEWEST`, `PRICE_ASC`, `PRICE_DESC`, `NAME_ASC`, `GRADE_DESC` |
+| `page`, `size` | `0`, `24` | Zero-based page; size 1–100, default 24 |
+
+Only `ACTIVE` products of species that are not trade-restricted are ever returned.
+`RELEVANCE` lists purchasable products first, then "coming soon", then sold out;
+within each group featured first, then newest. Invalid values → `400 VALIDATION_FAILED`.
 
 **Product summary (list item)**
 
 ```json
 {
   "id": "0193…",
-  "slug": "neocaridina-davidi-blue-dream-high",
+  "slug": "blue-dream-high",
   "name": "Blue Dream",
-  "species": { "slug": "neocaridina-davidi", "scientificName": "Neocaridina davidi", "commonName": "Zwerggarnele" },
+  "species": { "slug": "neocaridina-davidi", "scientificName": "Neocaridina davidi", "commonName": "Neocaridina shrimp" },
   "category": { "slug": "neocaridina", "name": "Neocaridina" },
-  "grade": { "slug": "high", "name": "High Grade" },
-  "colours": [ { "slug": "blue", "name": "Blau", "hexCode": "#1E4FA3" } ],
+  "grade": { "slug": "high", "name": "High" },
+  "colours": [ { "slug": "blue", "name": "Blue", "hexCode": "#1565C0" } ],
   "priceFrom": { "amount": 390, "currency": "EUR" },
   "compareAtPriceFrom": null,
   "hasMultipleVariants": true,
   "availability": "LOW_STOCK",
+  "liveAnimal": true,
   "primaryImage": {
     "url": "/media/products/7f3a…/800.webp",
-    "srcSet": "/media/products/7f3a…/400.webp 400w, /media/products/7f3a…/800.webp 800w, /media/products/7f3a…/1200.webp 1200w",
-    "alt": "Blue Dream Garnele auf Moos",
+    "srcSet": "/media/products/7f3a…/400.webp 400w, /media/products/7f3a…/800.webp 800w",
+    "alt": "Blue Dream shrimp on moss",
     "width": 1600, "height": 2000
   },
-  "secondaryImage": { "...": "..." }
+  "secondaryImage": null
 }
 ```
 
-**Product detail** adds `shortDescription`, `description` (sanitised HTML from
-Markdown), `careNotes`, `images[]`, `species.care` (temperature, pH, GH, KH,
-TDS, size, difficulty), `isLiveAnimal`, `availableFrom`, `seo` and:
+`availability` is derived on the server: `IN_STOCK`, `LOW_STOCK`, `COMING_SOON`,
+`OUT_OF_STOCK` (rules in DATABASE.md §3.2).
+
+**Product detail** (`GET /products/{slug}`) adds `shortDescription`,
+`descriptionHtml` and `careNotesHtml` (sanitised HTML rendered from Markdown),
+`species` (with `care`: temperature, pH, GH, KH, TDS, size, lifespan, difficulty
+— every value nullable), `categoryPath` (root first, for breadcrumbs),
+`availableFrom`, `images[]`, `seo` and:
 
 ```json
 "variants": [
-  { "id": "0193…a1", "sku": "BD-H-1",  "name": "1 Tier",  "packSize": 1,
-    "price": { "amount": 390,  "currency": "EUR" }, "available": true, "maxQuantity": 4 },
-  { "id": "0193…a2", "sku": "BD-H-10", "name": "10 Tiere", "packSize": 10,
-    "price": { "amount": 3500, "currency": "EUR" }, "available": false, "maxQuantity": 0 }
-],
-"stockHint": "ONLY_FEW_LEFT"
+  { "id": "0193…a1", "sku": "BLUE-DREAM-PREMIUM-1", "name": "1 animal", "packSize": 1,
+    "price": { "amount": 590, "currency": "EUR" }, "compareAtPrice": null,
+    "available": true, "maxQuantity": 6 },
+  { "id": "0193…a2", "sku": "BLUE-DREAM-PREMIUM-10", "name": "10 animals", "packSize": 10,
+    "price": { "amount": 5200, "currency": "EUR" }, "compareAtPrice": null,
+    "available": false, "maxQuantity": 0 }
+]
 ```
 
-Exact stock numbers are not exposed publicly unless the owner decides otherwise
-(`stockHint`: `null` | `ONLY_FEW_LEFT`).
+Exact stock numbers are never exposed: `maxQuantity` (packs that can be bought
+now) is capped at 20, and low stock is only signalled as `availability: LOW_STOCK`.
+
+**Facets** (`GET /products/facets`): options with counts for the current search.
+Each dimension is counted *without its own filter*, so other options in the same
+group stay selectable.
+
+```json
+{
+  "species": [ { "slug": "neocaridina-davidi", "name": "Neocaridina shrimp", "hexCode": null, "count": 9 } ],
+  "colours": [ { "slug": "blue", "name": "Blue", "hexCode": "#1565C0", "count": 2 } ],
+  "grades":  [ { "slug": "high", "name": "High", "hexCode": null, "count": 3 } ],
+  "availability": { "inStock": 14, "comingSoon": 1 },
+  "price": { "min": { "amount": 190, "currency": "EUR" }, "max": { "amount": 1390, "currency": "EUR" } }
+}
+```
+
+`GET /products/{slug}/related` returns up to 4 visible products: same species
+first, then same category; purchasable ones first.
+
+**Response conventions for generated types:** every property of a response
+object is always present (marked `required` in OpenAPI); properties that can be
+`null` are published as nullable. Request bodies are named `*Request`.
 
 ### 2.3 Content — public
 

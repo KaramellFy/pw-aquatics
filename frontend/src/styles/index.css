@@ -46,6 +46,8 @@
   --color-success-soft: #e9f5ef;
   --color-danger: #b42318;
   --color-danger-soft: #fdecea;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fdf3dc;
 
   /* Typography — self-hosted variable fonts (no Google Fonts CDN, GDPR).
      Outfit echoes the geometric logo wordmark; Inter keeps body text readable. */
@@ -158,4 +160,26 @@
 @utility scientific {
   font-family: var(--font-sans);
   font-style: italic;
+}
+
+/* Server-rendered (sanitised) Markdown, e.g. product descriptions. */
+@layer components {
+  .rich-text {
+    @apply leading-relaxed text-ink-soft;
+  }
+  .rich-text > * + * {
+    @apply mt-4;
+  }
+  .rich-text strong {
+    @apply font-semibold text-ink;
+  }
+  .rich-text a {
+    @apply text-brand-700 underline underline-offset-4 hover:text-brand-800;
+  }
+  .rich-text ul {
+    @apply list-disc pl-5;
+  }
+  .rich-text ol {
+    @apply list-decimal pl-5;
+  }
 }

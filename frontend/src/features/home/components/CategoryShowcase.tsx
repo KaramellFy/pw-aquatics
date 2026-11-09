@@ -14,7 +14,7 @@ export function CategoryShowcase() {
       <ul className="mt-16 grid gap-x-6 gap-y-14 sm:grid-cols-2 lg:mt-20 lg:grid-cols-4">
         {categoryLinks.map((category, index) => (
           <Reveal as="li" key={category.slug} delay={index * 90}>
-            <Link to={`/shop?category=${category.slug}`} className="group block rounded-card">
+            <Link to={`/shop/${category.slug}`} className="group block rounded-card">
               <div className="overflow-hidden rounded-card">
                 <Artwork
                   tone={category.tone}

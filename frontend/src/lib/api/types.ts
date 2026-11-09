@@ -1,16 +1,14 @@
+import type { components } from './schema';
+
 /**
- * Shared API types.
- *
- * TEMPORARY: once the backend exists, types are generated from its OpenAPI spec
- * (`npm run generate:api` → schema.d.ts). Only keep hand-written types here for
- * cross-cutting shapes that the spec does not describe (e.g. Problem Details).
+ * API types. Response and request shapes come from the generated OpenAPI types
+ * (`npm run generate:api` → schema.d.ts); only cross-cutting shapes the spec
+ * does not describe (Problem Details) are written by hand here.
  */
+export type Schemas = components['schemas'];
 
 /** Money in minor units (cents). Always calculated by the server — never do arithmetic on it in the UI. */
-export interface Money {
-  amount: number;
-  currency: string;
-}
+export type Money = Schemas['Money'];
 
 /** A single field error inside a Problem Details response. */
 export interface FieldError {
@@ -29,12 +27,4 @@ export interface ProblemDetails {
   instance?: string;
   traceId?: string;
   errors?: FieldError[];
-}
-
-export interface Page<T> {
-  items: T[];
-  page: number;
-  size: number;
-  totalItems: number;
-  totalPages: number;
 }

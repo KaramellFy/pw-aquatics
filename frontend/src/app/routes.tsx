@@ -35,11 +35,21 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/content/pages/LegalPage')).LegalPage }),
       },
 
-      // Placeholders until the catalog (Phase 2), cart (Phase 4) and accounts (Phase 3) exist.
-      ...['shop', 'shop/:categorySlug', 'products/:slug'].map((path) => ({
+      // Catalog (Phase 2)
+      ...['shop', 'shop/:categorySlug'].map((path) => ({
         path,
-        lazy: async () => ({ Component: (await import('./pages/ComingSoonPage')).ShopComingSoonPage }),
+        lazy: async () => ({ Component: (await import('@/features/catalog/pages/ShopPage')).ShopPage }),
       })),
+      {
+        path: 'products/:slug',
+        lazy: async () => ({ Component: (await import('@/features/catalog/pages/ProductPage')).ProductPage }),
+      },
+      {
+        path: 'species/:slug',
+        lazy: async () => ({ Component: (await import('@/features/catalog/pages/SpeciesPage')).SpeciesPage }),
+      },
+
+      // Placeholders until the cart (Phase 4) and accounts (Phase 3) exist.
       {
         path: 'cart',
         lazy: async () => ({ Component: (await import('./pages/ComingSoonPage')).CartComingSoonPage }),
