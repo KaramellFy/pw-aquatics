@@ -1,0 +1,161 @@
+@import 'tailwindcss';
+
+/*
+ * PW Aquatics design tokens.
+ * Clean and light: a white base, soft blue water tints, deep navy text and the
+ * logo's baby blue as the accent.
+ *
+ * Contrast rules (WCAG 2.2 AA):
+ * - brand-400 (#88C0DB, the logo colour) is only 2:1 on white. Never use it for
+ *   text or as the only boundary of a control. Use it for fills, illustrations
+ *   and accent buttons with ink text (8:1).
+ * - Text in brand colour uses brand-700 (5.9:1) or darker.
+ * - Input borders use line-strong (3.2:1); `line` is for decorative dividers only.
+ *
+ * Use these tokens via Tailwind utilities; never hard-code hex colours in components.
+ */
+@theme {
+  /* Surfaces */
+  --color-surface: #ffffff;
+  --color-mist: #f5fafd;
+  --color-ice: #e8f3f9;
+
+  /* Text */
+  --color-ink: #0f2533;
+  --color-ink-soft: #2b4454;
+  --color-muted: #5a6e7a;
+
+  /* Lines */
+  --color-line: #e1eaef;
+  --color-line-strong: #7d93a0;
+
+  /* Brand: baby blue (400 = logo colour) */
+  --color-brand-50: #f2f8fc;
+  --color-brand-100: #e2f0f8;
+  --color-brand-200: #c5e1f0;
+  --color-brand-300: #a7d0e5;
+  --color-brand-400: #88c0db;
+  --color-brand-500: #5fa6c9;
+  --color-brand-600: #3a86ad;
+  --color-brand-700: #2b6a8c;
+  --color-brand-800: #22556f;
+  --color-brand-900: #183e52;
+
+  /* Feedback */
+  --color-success: #2e7d5b;
+  --color-success-soft: #e9f5ef;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+
+  /* Typography — self-hosted variable fonts (no Google Fonts CDN, GDPR).
+     Outfit echoes the geometric logo wordmark; Inter keeps body text readable. */
+  --font-display: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --text-display: clamp(2.75rem, 1.5rem + 4.8vw, 5.75rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.035em;
+
+  --text-headline: clamp(2rem, 1.35rem + 2.5vw, 3.5rem);
+  --text-headline--line-height: 1.08;
+  --text-headline--letter-spacing: -0.03em;
+
+  --text-title: clamp(1.5rem, 1.25rem + 1vw, 2.125rem);
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.02em;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1.2;
+  --text-eyebrow--letter-spacing: 0.2em;
+
+  /* Shape & depth (shadows tinted with ink, never pure black) */
+  --radius-card: 1.25rem;
+  --shadow-soft: 0 1px 2px rgb(15 37 51 / 0.04), 0 10px 30px -14px rgb(15 37 51 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(15 37 51 / 0.05), 0 28px 56px -28px rgb(15 37 51 / 0.28);
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 700ms;
+
+  --animate-fade-up: fade-up var(--duration-slow) var(--ease-out-soft) both;
+  --animate-drift: drift 18s ease-in-out infinite alternate;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes drift {
+    from {
+      transform: translate3d(-2%, -1%, 0) scale(1);
+    }
+    to {
+      transform: translate3d(2%, 1%, 0) scale(1.06);
+    }
+  }
+}
+
+@layer base {
+  html {
+    @apply bg-surface text-ink antialiased;
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-dvh;
+    font-feature-settings: 'cv11';
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-ink;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-700;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 300;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility eyebrow {
+  font-size: var(--text-eyebrow);
+  line-height: var(--text-eyebrow--line-height);
+  letter-spacing: var(--text-eyebrow--letter-spacing);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* Scientific names are always set in italics. */
+@utility scientific {
+  font-family: var(--font-sans);
+  font-style: italic;
+}

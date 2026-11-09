@@ -1,4 +1,4 @@
-# Wakup Wirbellose — Application Architecture
+# PW Aquatics — Application Architecture
 
 > Status: **Proposal — awaiting owner approval.** Nothing in this document is
 > implemented yet. Related documents: [DATABASE.md](DATABASE.md),
@@ -47,7 +47,7 @@ a sale (animal losses), and species that may legally not be traded.
 ### 1.4 Assumptions (to be confirmed — see §12)
 
 1. Primary market is Germany, currency **EUR**, prices displayed **gross** (incl. VAT).
-2. UI language German first, English second; the code base is i18n-ready from day one.
+2. UI language English first (default), German second; the code base is i18n-ready from day one.
 3. One shop, one warehouse, one currency. No marketplace / multi-vendor.
 4. Expected scale is small to medium (hundreds of products, up to a few thousand
    orders/month). A single backend instance is enough; the design still allows
@@ -101,16 +101,16 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | Rate limiting | Bucket4j | Login, registration, contact, coupon checks |
 | Images | Thumbnailator / ImageIO + WebP | Resize, re-encode, strip EXIF on upload |
 | Build (BE) | Gradle (Kotlin DSL) | Maven is equally fine; one choice, consistently |
-| Language (FE) | TypeScript (strict) | |
-| UI | React 19 + Vite | SPA |
-| Routing | React Router 7 (data/declarative mode) | Not framework mode; lazy-loaded route chunks |
+| Language (FE) | TypeScript 6 (strict) | Stays on 6.x until typescript-eslint supports TypeScript 7 |
+| UI | React 19 + Vite 8 | SPA |
+| Routing | React Router 8 (data mode) | Not framework mode; lazy-loaded route chunks |
 | Server state | TanStack Query | Caching, invalidation, loading/error states |
 | Forms | React Hook Form + Zod | Client validation for UX only — server is authoritative |
 | Styling | Tailwind CSS 4 | Design tokens via `@theme` |
 | UI primitives | Radix UI (headless) | Accessible dialogs, menus, popovers |
 | Motion | CSS transitions + `motion` (sparingly) | Respect `prefers-reduced-motion` |
 | API types | `openapi-typescript` | Generated from the backend OpenAPI spec |
-| i18n | react-i18next | German default |
+| i18n | react-i18next | English default, German available |
 | Charts (admin) | Recharts | |
 | Testing | JUnit 5, Testcontainers, MockMvc; Vitest, Testing Library, Playwright | |
 | Infra | Docker, Docker Compose, Caddy, GitHub Actions | |
@@ -120,7 +120,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 ## 4. Repository layout
 
 ```
-wakupwirbellose/
+wakupwirbellose/                 # repository name (brand: PW Aquatics)
 ├── AGENTS.md / CLAUDE.md        # Instructions for coding agents
 ├── README.md
 ├── docker-compose.yml           # Full local stack
@@ -134,7 +134,7 @@ wakupwirbellose/
 │   ├── build.gradle.kts
 │   ├── Dockerfile
 │   └── src/
-│       ├── main/java/de/wakup/shop/...
+│       ├── main/java/com/pwaquatics/shop/...
 │       ├── main/resources/
 │       │   ├── application.yml
 │       │   ├── db/migration/          # Flyway migrations (all environments)
@@ -154,7 +154,7 @@ wakupwirbellose/
 
 ### 5.1 Modules (package-by-feature)
 
-Root package: `de.wakup.shop` (to be confirmed).
+Root package: `com.pwaquatics.shop` (to be confirmed).
 
 | Module | Responsibility |
 |---|---|
@@ -458,7 +458,7 @@ from each other only through those entry points.
 | `/products/:slug` | Product detail | public |
 | `/species/:slug` | Species profile with care data | public |
 | `/about`, `/gallery`, `/contact` | Content | public |
-| `/legal/:page` | Impressum, privacy, terms, withdrawal, shipping | public |
+| `/legal/:page` | imprint, privacy, terms, withdrawal, shipping | public |
 | `/cart` | Cart | public |
 | `/checkout` | Checkout | customer |
 | `/checkout/confirmation/:orderNumber` | Confirmation | customer |
@@ -485,22 +485,30 @@ Page → feature hook (useProducts) → TanStack Query → api client → /api/v
 
 ### 6.5 Design system
 
-Direction: *a calm, premium aquarium brand* — closer to a design-led
-gallery or botanical studio than a pet-supply store.
+Brand: **PW Aquatics**. Direction: *clean, light and premium* — white
+space, soft water-blue tints and the logo's baby blue as the accent; closer to a
+design-led studio than a pet-supply store. Tokens live in
+`frontend/src/styles/index.css`.
 
-- **Typography:** an editorial serif for display headings (e.g. *Fraunces* or
-  *Cormorant*) paired with a precise sans for UI and body text (e.g. *Inter* or
-  *Manrope*). Scientific names always in italics. Fonts are **self-hosted**
-  (WOFF2, `font-display: swap`) — loading Google Fonts from their CDN is a GDPR
-  problem in Germany.
-- **Colour tokens:** warm off-white paper (`#F7F6F2`), deep ink (`#101A1B`),
-  moss green (`#3F5A45`), river-stone greys, and **one** accent used sparingly
-  (e.g. a soft shrimp red `#C2410C`-family) for price highlights and calls to
-  action. Final palette decided with the owner in Phase 1.
+- **Logo:** official artwork in `frontend/public/brand/` (mark, wordmark,
+  stacked lockup), rendered via `components/layout/Brand.tsx` with unmodified
+  shapes. Brand colour `#88C0DB`.
+- **Typography:** *Outfit* (light weights) for headings, echoing the geometric
+  logo wordmark; *Inter* for UI and body text. Scientific names always in
+  italics. Fonts are **self-hosted** (WOFF2, `font-display: swap`) — loading
+  Google Fonts from their CDN is a GDPR problem in Germany.
+- **Colour tokens:** white `surface`, light tints `mist` (`#F5FAFD`) and `ice`
+  (`#E8F3F9`), navy `ink` (`#0F2533`) for text and the footer, and a
+  `brand-50…900` baby-blue scale around the logo colour (`brand-400`).
+- **Contrast rules:** `brand-400` is only 2:1 on white, so it is never used for
+  text or as the only boundary of a control. It is used for fills, illustrations,
+  the logo and accent buttons with navy text (8:1). Brand-coloured text uses
+  `brand-700` (5.9:1) or darker; input borders use `line-strong` (3.2:1).
+- **Light theme only** (brand decision); no dark mode planned for v1.
 - **Spacing:** 4 px base scale, generous section padding (96–160 px on desktop),
   max content width ~1280 px, 12-column grid.
 - **Product card:** 4:5 image on a neutral background, second image cross-fades
-  on hover, serif product name, italic scientific name, small grade badge,
+  on hover, display-font product name, italic scientific name, small grade badge,
   colour swatches, price ("from €x" when several pack sizes), subtle
   availability dot. No clutter, no star-burst badges.
 - **Photography rules:** consistent background and lighting, macro shots, one
@@ -647,7 +655,7 @@ printing and automatic tracking status, care-guide blog/CMS, loyalty programme.
 ## 12. Open questions for the owner
 
 1. Target countries for shipping (Germany only, DACH, EU)?
-2. Languages: German only, or German + English at launch?
+2. ~~Languages~~ — decided: English default, German as second language.
 3. Guest checkout at launch, or account required?
 4. Which carrier(s) do you use for live animals today, and on which weekdays do you ship?
 5. VAT status: standard VAT registration or small-business (Kleinunternehmer) rule?

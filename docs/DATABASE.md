@@ -1,4 +1,4 @@
-# Wakup Wirbellose — Database Design
+# PW Aquatics — Database Design
 
 > Status: **Proposal — awaiting owner approval.** Once implementation starts,
 > the Flyway migrations in `backend/src/main/resources/db/migration` are the
@@ -421,11 +421,11 @@ Note: the cart deliberately stores **no prices**.
 ### 3.7 Orders, fulfilment and payments
 
 ```sql
-CREATE SEQUENCE order_number_seq;   -- order_number = 'WW-' || year || '-' || lpad(nextval, 6, '0')
+CREATE SEQUENCE order_number_seq;   -- order_number = 'PW-' || year || '-' || lpad(nextval, 6, '0')
 
 CREATE TABLE orders (
     id                    uuid PRIMARY KEY,
-    order_number          varchar(20)  NOT NULL UNIQUE,     -- 'WW-2027-000123'
+    order_number          varchar(20)  NOT NULL UNIQUE,     -- 'PW-2027-000123'
     user_id               uuid         REFERENCES users(id) ON DELETE SET NULL,
     customer_email        citext       NOT NULL,
     status                varchar(20)  NOT NULL CHECK (status IN (

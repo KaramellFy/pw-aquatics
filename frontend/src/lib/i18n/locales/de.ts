@@ -1,0 +1,258 @@
+import type { Messages } from './en';
+
+/** German UI texts. Must provide exactly the keys defined in `en.ts`. */
+export const de: Messages = {
+  common: {
+    brand: 'PW Aquatics',
+    skipToContent: 'Zum Inhalt springen',
+    loading: 'Wird geladen …',
+    close: 'Schließen',
+    backToHome: 'Zur Startseite',
+    language: 'Sprache',
+    languages: { en: 'English', de: 'Deutsch' },
+    imagePlaceholder: 'Platzhalter – Foto folgt',
+    previousPrice: 'Statt',
+  },
+  nav: {
+    main: 'Hauptnavigation',
+    shop: 'Shop',
+    gallery: 'Galerie',
+    about: 'Über uns',
+    contact: 'Kontakt',
+    account: 'Mein Konto',
+    cart: 'Warenkorb',
+    openMenu: 'Menü öffnen',
+    menu: 'Menü',
+  },
+  footer: {
+    tagline: 'Zierwirbellose und Zwerggarnelen – mit Ruhe gepflegt, mit Sorgfalt versendet.',
+    shopTitle: 'Shop',
+    infoTitle: 'Informationen',
+    legalTitle: 'Rechtliches',
+    allAnimals: 'Alle Tiere',
+    shipping: 'Versand & Lebendankunft',
+    copyright: '© {{year}} PW Aquatics. Alle Rechte vorbehalten.',
+    vatNote: 'Alle Preise inkl. MwSt., zzgl. Versandkosten.',
+  },
+  categories: {
+    shrimp: {
+      name: 'Garnelen',
+      description: 'Neocaridina und Caridina in klaren Farben und starken Linien.',
+    },
+    snails: { name: 'Schnecken', description: 'Stille Helfer für ein ausgewogenes Becken.' },
+    crayfish: { name: 'Krebse', description: 'Zwergkrebse mit echtem Charakter.' },
+    crabs: { name: 'Krabben', description: 'Faszinierende Bewohner für spezielle Aquarien.' },
+  },
+  home: {
+    meta: {
+      title: 'PW Aquatics – Zwerggarnelen & Zierwirbellose',
+      description:
+        'Premium-Zwerggarnelen, Schnecken und Krebse für dein Aquarium. Gesunde Tiere, ehrliche Grades, sorgfältiger Lebendversand.',
+    },
+    hero: {
+      eyebrow: 'Zwerggarnelen & Zierwirbellose',
+      title: 'Klares Wasser.\nLebendige Farben.',
+      lead: 'Handverlesene Zwerggarnelen, Schnecken und Krebse – in stabilem Wasser gehalten, ehrlich eingestuft und sorgfältig versendet.',
+      primaryCta: 'Tiere entdecken',
+      secondaryCta: 'Unser Anspruch',
+    },
+    categories: {
+      eyebrow: 'Sortiment',
+      title: 'Aus unserem Wasser in deins',
+      cta: 'Entdecken',
+    },
+    values: {
+      eyebrow: 'Unser Anspruch',
+      title: 'Qualität, die man im Becken sieht',
+      items: {
+        health: {
+          title: 'Gesunde Tiere',
+          text: 'Unsere Tiere leben in stabilen, eingefahrenen Becken und werden vor dem Verkauf genau beobachtet.',
+        },
+        grading: {
+          title: 'Ehrliche Grades',
+          text: 'Klare, einheitliche Einstufung von Farbe und Zeichnung – du weißt genau, was du bekommst.',
+        },
+        shipping: {
+          title: 'Durchdachter Versand',
+          text: 'Isolierte Boxen, Wärme- oder Kühlpacks je nach Wetter und Versand nur an sicheren Wochentagen.',
+        },
+      },
+    },
+    process: {
+      eyebrow: 'Der Weg zu dir',
+      title: 'Von unserem Becken in deins',
+      steps: {
+        select: { title: 'Auswahl', text: 'Jedes Tier wird nach Farbe, Vitalität und Größe ausgewählt.' },
+        acclimate: {
+          title: 'Beobachtung',
+          text: 'Neue Tiere verbringen Zeit in separaten Becken, bevor sie in den Verkauf gehen.',
+        },
+        pack: {
+          title: 'Verpackung',
+          text: 'Sauerstoffreiche Beutel, isolierte Boxen und Temperaturschutz je nach Saison.',
+        },
+        ship: {
+          title: 'Versand',
+          text: 'Express-Versand an ausgewählten Wochentagen, damit niemand übers Wochenende unterwegs ist.',
+        },
+      },
+    },
+    gallery: {
+      eyebrow: 'Galerie',
+      title: 'Ein Blick in unsere Becken',
+      cta: 'Zur Galerie',
+    },
+    closing: {
+      title: 'Fragen zu Haltung oder Bestellung?',
+      text: 'Wir helfen gerne – vor dem Kauf und danach.',
+      cta: 'Kontakt aufnehmen',
+    },
+  },
+  about: {
+    meta: {
+      title: 'Über uns – PW Aquatics',
+      description: 'Wer hinter PW Aquatics steht und wie wir unsere Tiere pflegen.',
+    },
+    eyebrow: 'Über uns',
+    title: 'Kleine Tiere, ernst genommen',
+    lead: 'PW Aquatics ist aus einer Leidenschaft für Zwerggarnelen entstanden – und aus dem Wunsch, sie so zu verkaufen, wie wir sie selbst kaufen möchten.',
+    story: {
+      title: 'Unsere Geschichte',
+      paragraphs: [
+        'Was mit einem einzelnen Becken begann, ist heute eine kleine, sorgfältig geführte Anlage. Unsere Tiere leben in stabilen, gut eingefahrenen Aquarien, und wir nehmen uns Zeit für jede Linie.',
+        'Uns geht es nicht um Masse, sondern um gesunde Tiere, klare Farben und zufriedene Halterinnen und Halter. Deshalb stufen wir ehrlich ein und versenden nur, wenn das Wetter es zulässt.',
+      ],
+    },
+    principles: {
+      title: 'Wofür wir stehen',
+      items: {
+        care: {
+          title: 'Artgerechte Pflege',
+          text: 'Stabile Wasserwerte, ruhige Umgebung und hochwertiges Futter.',
+        },
+        transparency: {
+          title: 'Transparenz',
+          text: 'Einheitliche Grades, echte Fotos und ehrliche Beratung.',
+        },
+        responsibility: {
+          title: 'Verantwortung',
+          text: 'Kein Handel mit invasiven oder geschützten Arten. Versand nur unter sicheren Bedingungen.',
+        },
+      },
+    },
+    note: 'Texte und Fotos auf dieser Seite sind Platzhalter und werden vor dem Start ersetzt.',
+  },
+  gallery: {
+    meta: {
+      title: 'Galerie – PW Aquatics',
+      description: 'Eindrücke aus unseren Becken: Garnelen, Schnecken und Krebse.',
+    },
+    eyebrow: 'Galerie',
+    title: 'Eindrücke aus unseren Becken',
+    lead: 'Farben, Strukturen und kleine Momente unter Wasser.',
+    previous: 'Vorheriges Bild',
+    next: 'Nächstes Bild',
+    openImage: 'Bild vergrößern: {{title}}',
+    counter: '{{current}} von {{total}}',
+    items: {
+      blueDream: 'Neocaridina davidi „Blue Dream“',
+      redFire: 'Neocaridina davidi „Red Fire“',
+      crystalRed: 'Caridina cantonensis „Crystal Red“',
+      tigerShrimp: 'Caridina mariae „Tiger“',
+      racingSnail: 'Rennschnecke auf Treibholz',
+      dwarfCrayfish: 'Zwergkrebs im Moos',
+      moss: 'Moos und Stein – unser Becken-Setup',
+      yellowFire: 'Neocaridina davidi „Yellow Fire“',
+      ramshornSnail: 'Posthornschnecke',
+    },
+  },
+  contact: {
+    meta: {
+      title: 'Kontakt – PW Aquatics',
+      description: 'Schreib uns bei Fragen zu Tieren, Haltung, Versand oder deiner Bestellung.',
+    },
+    eyebrow: 'Kontakt',
+    title: 'Wir freuen uns auf deine Nachricht',
+    lead: 'Fragen zur Haltung, zum Versand oder zu einer Bestellung? Wir antworten in der Regel innerhalb von ein bis zwei Werktagen.',
+    info: {
+      emailTitle: 'E-Mail',
+      responseTitle: 'Antwortzeit',
+      response: '1–2 Werktage',
+      shippingTitle: 'Versandtage',
+      shipping: 'Montag bis Mittwoch',
+    },
+    form: {
+      name: 'Name',
+      email: 'E-Mail-Adresse',
+      subject: 'Betreff',
+      orderNumber: 'Bestellnummer (optional)',
+      orderNumberHint: 'Falls sich deine Nachricht auf eine Bestellung bezieht.',
+      message: 'Nachricht',
+      privacyNotice:
+        'Mit dem Absenden werden deine Angaben zur Bearbeitung deiner Anfrage verarbeitet. Mehr dazu in unserer <privacyLink>Datenschutzerklärung</privacyLink>.',
+      submit: 'Nachricht senden',
+      submitting: 'Wird gesendet …',
+      honeypot: 'Bitte dieses Feld leer lassen',
+    },
+    validation: {
+      summary: 'Bitte korrigiere die markierten Felder.',
+      nameRequired: 'Bitte gib deinen Namen an.',
+      emailInvalid: 'Bitte gib eine gültige E-Mail-Adresse an.',
+      subjectRequired: 'Bitte gib einen Betreff an.',
+      messageTooShort: 'Deine Nachricht sollte mindestens 20 Zeichen lang sein.',
+      tooLong: 'Dieser Text ist zu lang.',
+    },
+    success: {
+      title: 'Danke für deine Nachricht!',
+      text: 'Wir haben sie erhalten und melden uns so bald wie möglich bei dir.',
+      again: 'Weitere Nachricht senden',
+    },
+    errors: {
+      RATE_LIMITED:
+        'Du hast in kurzer Zeit mehrere Nachrichten gesendet. Bitte versuche es später noch einmal.',
+      VALIDATION_FAILED: 'Bitte überprüfe deine Eingaben.',
+      NETWORK_ERROR: 'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.',
+      generic:
+        'Die Nachricht konnte gerade nicht gesendet werden. Bitte versuche es später erneut oder schreib uns direkt per E-Mail.',
+    },
+  },
+  legal: {
+    placeholder:
+      'Dieser Rechtstext wird vor dem Start gemeinsam mit einer rechtlichen Beratung erstellt. Bis dahin ist diese Seite ein Platzhalter.',
+    pages: {
+      imprint: { title: 'Impressum' },
+      privacy: { title: 'Datenschutzerklärung' },
+      terms: { title: 'Allgemeine Geschäftsbedingungen' },
+      withdrawal: { title: 'Widerrufsbelehrung' },
+      shipping: { title: 'Versand & Lebendankunft' },
+    },
+  },
+  comingSoon: {
+    eyebrow: 'Bald verfügbar',
+    shop: {
+      title: 'Der Shop ist unterwegs',
+      text: 'Wir bereiten unser Sortiment vor. Schon bald findest du hier alle Tiere mit Filtern nach Art, Farbe, Grade, Preis und Verfügbarkeit.',
+    },
+    cart: {
+      title: 'Dein Warenkorb',
+      text: 'Der Warenkorb öffnet zusammen mit dem Shop.',
+    },
+    account: {
+      title: 'Kundenkonto',
+      text: 'Registrierung, Bestellübersicht und Sendungsverfolgung folgen in Kürze.',
+    },
+    cta: 'Zur Galerie',
+  },
+  notFound: {
+    meta: { title: 'Seite nicht gefunden – PW Aquatics' },
+    eyebrow: 'Fehler 404',
+    title: 'Diese Seite ist davongetrieben',
+    text: 'Die gesuchte Seite gibt es nicht (mehr). Vielleicht findest du über die Startseite, was du suchst.',
+  },
+  error: {
+    title: 'Etwas ist schiefgelaufen',
+    text: 'Bitte lade die Seite neu. Wenn der Fehler bleibt, schreib uns gerne.',
+    reload: 'Seite neu laden',
+  },
+};
