@@ -1,5 +1,8 @@
-build/
-.gradle/
-media/
+# Leading "/" anchors a pattern to this directory. Unanchored directory names
+# (e.g. "media/") would also hide source packages with the same name.
+/build/
+/.gradle/
+# Local media uploads (not the com.pwaquatics.shop.media package)
+/media/
 *.iml
 .idea/
