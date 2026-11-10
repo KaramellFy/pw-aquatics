@@ -24,6 +24,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -95,7 +96,7 @@ public class CartService {
             throw new BusinessRuleException("CART_FULL", "Your cart cannot hold more different products.");
         }
         int newQuantity = (existing == null ? 0 : existing.getQuantity()) + quantity;
-        requireInStock(variant, newQuantity);
+        requireInStock(cart, variant, newQuantity);
         cart.put(variantId, newQuantity, clock.instant());
         carts.save(cart);
         return result(resolved);
@@ -112,7 +113,7 @@ public class CartService {
             throw new NotFoundException("Cart item not found.");
         }
         requirePurchasable(variant);
-        requireInStock(variant, quantity);
+        requireInStock(resolved.cart(), variant, quantity);
         resolved.cart().changeQuantity(item, quantity, clock.instant());
         return result(resolved);
     }
@@ -215,12 +216,34 @@ public class CartService {
         }
     }
 
-    private static void requireInStock(VariantSnapshot variant, int quantity) {
-        if (quantity > variant.maxQuantity()) {
+    /**
+     * Checks a line against the stock. All pack sizes of a product draw from the same
+     * animals, so what other lines of the cart already claim is taken into account.
+     */
+    private void requireInStock(Cart cart, VariantSnapshot variant, int quantity) {
+        int freeUnits = variant.stockUnits() - unitsOfOtherLines(cart, variant);
+        int possible = Math.max(0, Math.min(variant.maxQuantity(), freeUnits / variant.packSize()));
+        if (quantity > possible) {
             throw new ConflictException(
-                    "INSUFFICIENT_STOCK",
-                    "Only " + variant.maxQuantity() + " of this item can be ordered at the moment.");
+                    "INSUFFICIENT_STOCK", "Only " + possible + " of this item can be ordered at the moment.");
         }
+    }
+
+    /** Animals of the same product that the cart's other lines (other pack sizes) already claim. */
+    private int unitsOfOtherLines(Cart cart, VariantSnapshot variant) {
+        List<UUID> otherIds = cart.getItems().stream()
+                .map(CartItem::getVariantId)
+                .filter(id -> !id.equals(variant.variantId()))
+                .toList();
+        Map<UUID, VariantSnapshot> others = catalog.variants(otherIds);
+        int units = 0;
+        for (CartItem item : cart.getItems()) {
+            VariantSnapshot other = others.get(item.getVariantId());
+            if (other != null && other.productId().equals(variant.productId())) {
+                units += item.getQuantity() * other.packSize();
+            }
+        }
+        return units;
     }
 
     // ------------------------------------------------------------------ view
@@ -239,10 +262,10 @@ public class CartService {
         Map<UUID, VariantSnapshot> variants =
                 catalog.variants(cart.getItems().stream().map(CartItem::getVariantId).toList());
 
-        List<CartLineView> lines = new ArrayList<>();
         List<CartWarningView> warnings = new ArrayList<>();
-        List<PricedLine> priced = new ArrayList<>();
-        int itemCount = 0;
+        List<CheckedLine> checked = new ArrayList<>();
+        // Animals still unclaimed per product while walking through the lines in cart order.
+        Map<UUID, Integer> freeUnits = new HashMap<>();
 
         for (CartItem item : List.copyOf(cart.getItems())) {
             VariantSnapshot variant = variants.get(item.getVariantId());
@@ -251,18 +274,36 @@ public class CartService {
                 warnings.add(new CartWarningView("ITEM_REMOVED", null, null, null));
                 continue;
             }
-            boolean available = variant.purchasable();
+            int free = freeUnits.computeIfAbsent(variant.productId(), id -> variant.stockUnits());
+            int possible = variant.purchasable() ? Math.min(variant.maxQuantity(), free / variant.packSize()) : 0;
+            boolean available = possible > 0;
             if (!available) {
                 warnings.add(new CartWarningView("ITEM_UNAVAILABLE", item.getId(), variant.productName(), null));
-            } else if (item.getQuantity() > variant.maxQuantity()) {
-                cart.changeQuantity(item, variant.maxQuantity(), now);
-                warnings.add(new CartWarningView(
-                        "QUANTITY_REDUCED", item.getId(), variant.productName(), variant.maxQuantity()));
+            } else {
+                if (item.getQuantity() > possible) {
+                    cart.changeQuantity(item, possible, now);
+                    warnings.add(new CartWarningView("QUANTITY_REDUCED", item.getId(), variant.productName(), possible));
+                }
+                freeUnits.put(variant.productId(), free - item.getQuantity() * variant.packSize());
             }
-            PricedLine line = new PricedLine(variant.unitPrice().amount(), item.getQuantity(), variant.taxRateBps());
-            if (available) {
-                priced.add(line);
+            checked.add(new CheckedLine(item, variant, available));
+        }
+
+        List<CartLineView> lines = new ArrayList<>();
+        List<PricedLine> priced = new ArrayList<>();
+        int itemCount = 0;
+        for (CheckedLine line : checked) {
+            CartItem item = line.item();
+            VariantSnapshot variant = line.variant();
+            PricedLine pricedLine =
+                    new PricedLine(variant.unitPrice().amount(), item.getQuantity(), variant.taxRateBps());
+            int maxQuantity = 0;
+            if (line.available()) {
+                priced.add(pricedLine);
                 itemCount += item.getQuantity();
+                // What this line could grow to: its own packs plus whatever no other line claims.
+                int unclaimed = freeUnits.get(variant.productId());
+                maxQuantity = Math.min(variant.maxQuantity(), item.getQuantity() + unclaimed / variant.packSize());
             }
             lines.add(new CartLineView(
                     item.getId(),
@@ -276,13 +317,15 @@ public class CartService {
                     variant.colourHex(),
                     variant.image(),
                     item.getQuantity(),
-                    variant.maxQuantity(),
+                    maxQuantity,
                     variant.unitPrice(),
-                    Money.eur(line.totalCents()),
-                    available));
+                    Money.eur(pricedLine.totalCents()),
+                    line.available()));
         }
         return new CartView(lines, totalsView(PriceCalculator.totals(priced)), itemCount, warnings);
     }
+
+    private record CheckedLine(CartItem item, VariantSnapshot variant, boolean available) {}
 
     private static CartTotalsView totalsView(Totals totals) {
         return new CartTotalsView(totals.subtotal(), totals.total(), totals.includedTax());

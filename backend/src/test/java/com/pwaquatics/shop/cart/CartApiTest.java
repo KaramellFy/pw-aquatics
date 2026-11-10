@@ -41,6 +41,7 @@ class CartApiTest {
     private static final String SOLD_OUT = "11111111-0000-0000-0000-000000000204";
     private static final String DRAFT = "11111111-0000-0000-0000-000000000205";
     private static final String BETA_PRODUCT = "11111111-0000-0000-0000-000000000102";
+    private static final String ALPHA_PRODUCT = "11111111-0000-0000-0000-000000000101";
 
     @Autowired MockMvc mvc;
     @Autowired AuthFixture auth;
@@ -99,6 +100,36 @@ class CartApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[*].variantName").value(contains("1 animal", "10 animals")))
                 .andExpect(jsonPath("$.totals.subtotal.amount").value(3 * 200 + 2500));
+    }
+
+    @Test
+    void packSizesOfOneProductShareItsStock() throws Exception {
+        // Alpha has 12 animals: a pack of ten leaves room for two singles, not three.
+        Cookie cart = guestCartWith(ALPHA_TEN, 1);
+        add(cart, ALPHA_SINGLE, 3)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INSUFFICIENT_STOCK"));
+        add(cart, ALPHA_SINGLE, 2)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[*].maxQuantity").value(contains(1, 2)));
+        mvc.perform(json(patch("/api/v1/cart/items/" + itemId(cart, 1)), "{\"quantity\":3}").cookie(cart))
+                .andExpect(status().isConflict());
+
+        // With one single less in the cart, the stepper offers the freed animal again.
+        mvc.perform(json(patch("/api/v1/cart/items/" + itemId(cart, 1)), "{\"quantity\":1}").cookie(cart))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[*].maxQuantity").value(contains(1, 2)));
+
+        // An animal dies: the lines no longer fit together, the later one gives way.
+        try {
+            jdbc.update("UPDATE products SET stock_units = 10 WHERE id = ?::uuid", ALPHA_PRODUCT);
+            mvc.perform(get("/api/v1/cart").cookie(cart))
+                    .andExpect(jsonPath("$.items[*].available").value(contains(true, false)))
+                    .andExpect(jsonPath("$.totals.total.amount").value(2500))
+                    .andExpect(jsonPath("$.warnings[0].code").value("ITEM_UNAVAILABLE"));
+        } finally {
+            jdbc.update("UPDATE products SET stock_units = 12 WHERE id = ?::uuid", ALPHA_PRODUCT);
+        }
     }
 
     @Test

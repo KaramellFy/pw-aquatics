@@ -5,7 +5,7 @@ import { formatMoney } from '@/lib/format/money';
 import { useIntlLocale } from '@/lib/i18n';
 import type { Cart } from '../api/cart';
 
-/** Order summary. All amounts are the server's; shipping is added at checkout (Phase 5). */
+/** Cart summary. All amounts are the server's; shipping is added at checkout. */
 export function CartSummary({ cart }: { cart: Cart }) {
   const { t } = useTranslation();
   const locale = useIntlLocale();
@@ -39,13 +39,16 @@ export function CartSummary({ cart }: { cart: Cart }) {
         </div>
       </dl>
 
-      {/* Checkout arrives in Phase 5; until then the button is visibly disabled with an explanation. */}
-      <Button size="lg" className="mt-8 w-full" disabled aria-describedby="checkout-soon">
-        {t('cart.summary.checkout')}
-      </Button>
-      <p id="checkout-soon" className="mt-3 text-sm text-muted">
-        {t('cart.summary.checkoutSoon')}
-      </p>
+      {/* The checkout needs an account; signed-out visitors are sent to the login page first. */}
+      {cart.itemCount > 0 ? (
+        <ButtonLink to="/checkout" size="lg" className="mt-8 w-full">
+          {t('cart.summary.checkout')}
+        </ButtonLink>
+      ) : (
+        <Button size="lg" className="mt-8 w-full" disabled>
+          {t('cart.summary.checkout')}
+        </Button>
+      )}
       <ButtonLink to="/shop" variant="secondary" className="mt-4 w-full">
         {t('cart.summary.continue')}
       </ButtonLink>

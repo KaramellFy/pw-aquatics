@@ -57,6 +57,9 @@ class AdminBootstrapTest {
                 properties.outbox(),
                 properties.media(),
                 properties.security(),
+                properties.shipping(),
+                properties.orders(),
+                properties.bankTransfer(),
                 new AppProperties.AdminBootstrap(email, password),
                 properties.rateLimits());
         return new AdminBootstrap(users, passwordEncoder, configured, clock);

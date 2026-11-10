@@ -7,15 +7,14 @@ export const shopConfig = {
   /** Placeholder — replace with the real contact address before launch. */
   email: 'philwakup@gmail.com',
   /**
-   * Countries offered in the address form (ISO 3166-1 alpha-2): EU member states plus
-   * Switzerland, Liechtenstein and Norway. Placeholder until the shipping countries are
-   * decided (Phase 5); the server accepts any valid country code.
+   * Countries offered in the address form (ISO 3166-1 alpha-2): the EU member states and
+   * the United Kingdom, where the shop delivers. This only shapes the form; which shipping
+   * methods exist for a country is decided by the server at checkout.
    */
   addressCountries: [
     'AT',
     'BE',
     'BG',
-    'CH',
     'CY',
     'CZ',
     'DE',
@@ -24,18 +23,17 @@ export const shopConfig = {
     'ES',
     'FI',
     'FR',
+    'GB',
     'GR',
     'HR',
     'HU',
     'IE',
     'IT',
-    'LI',
     'LT',
     'LU',
     'LV',
     'MT',
     'NL',
-    'NO',
     'PL',
     'PT',
     'RO',
@@ -44,4 +42,6 @@ export const shopConfig = {
     'SK',
   ],
   defaultCountry: 'DE',
+  /** Calendar dates (payment deadline, order date) are shown in the shop's time zone. */
+  timeZone: 'Europe/Berlin',
 } as const;

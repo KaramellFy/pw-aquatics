@@ -1,6 +1,7 @@
 package com.pwaquatics.shop.common.config;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,6 +20,9 @@ public record AppProperties(
         @Valid @NotNull Outbox outbox,
         @Valid @NotNull Media media,
         @Valid @NotNull Security security,
+        @Valid @NotNull Shipping shipping,
+        @Valid @NotNull Orders orders,
+        @Valid @NotNull BankTransfer bankTransfer,
         AdminBootstrap adminBootstrap,
         Map<String, @Valid RateLimit> rateLimits) {
 
@@ -41,6 +45,23 @@ public record AppProperties(
             @NotNull Duration lockDuration,
             @NotNull Duration verificationTokenTtl,
             @NotNull Duration passwordResetTokenTtl) {}
+
+    /** Days needed before a parcel can leave (0 = orders can ship the same day). */
+    public record Shipping(@Min(0) @Max(30) int handlingDays) {}
+
+    /** How long a bank-transfer order waits for its payment before it is cancelled and its stock returned. */
+    public record Orders(@Min(1) @Max(60) int bankTransferPaymentDays) {}
+
+    /**
+     * The shop's bank account, shown to customers who pay by bank transfer. Without an
+     * IBAN the payment method is not offered.
+     */
+    public record BankTransfer(String accountHolder, String iban, String bic, String bankName) {
+
+        public boolean isConfigured() {
+            return iban != null && !iban.isBlank() && accountHolder != null && !accountHolder.isBlank();
+        }
+    }
 
     /** Optional first administrator, created at startup when no admin exists yet. */
     public record AdminBootstrap(String email, String password) {

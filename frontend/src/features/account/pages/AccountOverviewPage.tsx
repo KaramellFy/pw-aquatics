@@ -4,8 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useSession } from '@/features/auth';
 import { useIntlLocale } from '@/lib/i18n';
+import { formatInstantDate } from '@/lib/format/date';
 import { useAddresses, useProfile } from '../api/account';
+import { useOrders } from '../api/orders';
 import { AddressBlock } from '../components/AddressBlock';
+import { OrderStatusBadge } from '../components/OrderStatusBadge';
 
 function Card({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
@@ -35,6 +38,8 @@ export function AccountOverviewPage() {
   const session = useSession();
   const profile = useProfile();
   const addresses = useAddresses();
+  const orders = useOrders(0);
+  const latestOrder = orders.data?.items[0];
   const user = session.data?.user;
   const defaultAddress = addresses.data?.find((address) => address.defaultShipping);
 
@@ -85,8 +90,33 @@ export function AccountOverviewPage() {
         </Card>
 
         <div className="md:col-span-2">
-          <Card title={t('account.overview.ordersTitle')}>
-            <p className="text-ink-soft">{t('account.overview.ordersText')}</p>
+          <Card
+            title={t('account.overview.ordersTitle')}
+            action={
+              latestOrder && <CardLink to="/account/orders">{t('account.overview.viewOrders')}</CardLink>
+            }
+          >
+            {latestOrder ? (
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <p className="leading-relaxed text-ink-soft">
+                  <span className="block text-sm text-muted">{t('account.overview.latestOrder')}</span>
+                  <Link
+                    to={`/account/orders/${latestOrder.orderNumber}`}
+                    className="text-ink underline-offset-4 hover:underline"
+                  >
+                    {t('orders.number', { number: latestOrder.orderNumber })}
+                  </Link>
+                  <span className="block text-sm">
+                    {t('orders.placedOn', { date: formatInstantDate(latestOrder.placedAt, locale) })}
+                  </span>
+                </p>
+                <OrderStatusBadge status={latestOrder.status} />
+              </div>
+            ) : (
+              <p className="text-ink-soft">
+                {orders.isPending ? t('common.loading') : t('account.overview.noOrders')}
+              </p>
+            )}
           </Card>
         </div>
       </div>

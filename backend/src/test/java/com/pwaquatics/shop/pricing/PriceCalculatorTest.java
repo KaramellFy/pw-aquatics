@@ -48,7 +48,35 @@ class PriceCalculatorTest {
     }
 
     @Test
+    void addsShippingAndTaxesItLikeTheGoods() {
+        // 10.00 goods + 5.90 shipping, everything at 19 %: 15.90 gross contains 2.54 VAT.
+        Totals totals = PriceCalculator.totals(List.of(new PricedLine(1000, 1, 1900)), 590);
+        assertThat(totals.subtotal().amount()).isEqualTo(1000);
+        assertThat(totals.shipping().amount()).isEqualTo(590);
+        assertThat(totals.total().amount()).isEqualTo(1590);
+        assertThat(totals.includedTax().amount()).isEqualTo(254);
+
+        // Mixed rates: 30.00 at 19 % and 10.00 at 7 %; 10.00 shipping is split 7.50 / 2.50.
+        Totals mixed = PriceCalculator.totals(
+                List.of(new PricedLine(3000, 1, 1900), new PricedLine(1000, 1, 700)), 1000);
+        assertThat(mixed.total().amount()).isEqualTo(5000);
+        assertThat(mixed.includedTax().amount())
+                .isEqualTo(PriceCalculator.includedTaxCents(3750, 1900) + PriceCalculator.includedTaxCents(1250, 700));
+
+        // A cent that cannot be split goes to the highest rate; nothing is lost.
+        Totals uneven = PriceCalculator.totals(
+                List.of(new PricedLine(100, 1, 1900), new PricedLine(100, 1, 700), new PricedLine(100, 1, 0)), 100);
+        assertThat(uneven.includedTax().amount())
+                .isEqualTo(PriceCalculator.includedTaxCents(134, 1900) + PriceCalculator.includedTaxCents(133, 700));
+
+        assertThat(PriceCalculator.totals(List.of(new PricedLine(1000, 1, 1900))).shipping().amount()).isZero();
+    }
+
+    @Test
     void rejectsNonsenseAndOverflowInsteadOfWrappingAround() {
+        assertThatThrownBy(() -> PriceCalculator.totals(List.of(), 500)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PriceCalculator.totals(List.of(new PricedLine(100, 1, 1900)), -1))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PricedLine(-1, 1, 1900)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PricedLine(100, 0, 1900)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PricedLine(Long.MAX_VALUE, 2, 1900).totalCents())

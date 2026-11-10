@@ -38,8 +38,13 @@ and some species may not be traded legally.
 - **Phase 4 (cart)** is built end to end: guest cart (`CART_TOKEN` cookie) and
   customer cart under `/api/v1/cart`, merged after sign-in. The cart stores only
   variant ids and quantities; prices, totals and VAT are recalculated on every
-  call (`CatalogLookup` + `pricing`). Checkout (Phase 5) is not built yet; the
-  checkout button is disabled with an explanation.
+  call (`CatalogLookup` + `pricing`).
+- **Phase 5 (checkout & orders)** is built end to end: shipping methods with dispatch
+  weekdays and shipping pause, quote, order placement (`/api/v1/checkout/**`), bank
+  transfer, order emails, order history, customer cancel and expiry of unpaid orders
+  (`/api/v1/account/orders/**`). The shop delivers to the EU and the United Kingdom
+  with DHL, dispatching Monday to Wednesday. Marking orders as paid and shipping them
+  arrives with the admin tools (Phases 6–7).
 
 Work only on the phase the owner asked for; do not pull later-phase features forward.
 
@@ -96,7 +101,7 @@ Behind a Docker Hub rate limit, run tests with `TESTCONTAINERS_HUB_IMAGE_NAME_PR
 
 ```bash
 cp .env.example .env                  # set POSTGRES_PASSWORD
-docker compose up -d                  # postgres, mailpit (http://localhost:8025), backend (:8080)
+docker compose up -d                  # postgres (host port 5433), mailpit (http://localhost:8025), backend (:8080)
 docker compose up -d postgres mailpit # infrastructure only, when running the API with bootRun
 ```
 
@@ -162,6 +167,13 @@ working around them.
   (never the catalog repositories). Money arithmetic happens only in
   `pricing.domain.PriceCalculator`. Random tokens and their hashes come from
   `common.crypto.Tokens`; only the hash is stored.
+- **Order rules:** an order is placed in one transaction: lock the cart
+  (`CartCheckout`), check the idempotency key, lock the products (`CatalogStock`),
+  only then read prices and stock, and take stock through `InventoryService` (which
+  writes the ledger). Orders store snapshots; never update an order's items, prices or
+  addresses. Status changes go through `Order.transitionTo` / `markPaid` / `cancel`.
+  Cancelling an unshipped order returns its stock (`OrderCancellation`). Calendar rules
+  (dispatch days, payment deadline) use `ShippingService.SHOP_ZONE`.
 
 ## 8. Frontend conventions
 
@@ -184,6 +196,11 @@ working around them.
   into the `queryKeys.cart` cache. Components show `lineTotal`, `totals` and
   `maxQuantity` from the API and never compute them. Invalidate `queryKeys.cart`
   whenever the signed-in user changes.
+- **Checkout:** the pages only collect choices (address, shipping method, confirmations).
+  Shipping options, dispatch dates, totals, available payment methods and whether an
+  order can be cancelled all come from the API. An order request carries ids, the
+  method code and the total the customer saw (`expectedTotal`) — never items or prices.
+  Format API dates with `lib/format/date.ts`.
 - Forms: React Hook Form + Zod for UX validation; always display server
   validation errors too.
 - Styling: Tailwind utilities and design tokens only; build variants in

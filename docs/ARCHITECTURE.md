@@ -168,6 +168,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `pricing` | Price, VAT, coupon and shipping calculation (pure domain logic) |
 | `coupon` | Coupon definitions, validation, redemptions |
 | `shipping` | Shipping methods, countries, dispatch-day rules, shipping pause |
+| `settings` | Shop-wide key/value settings (e.g. the shipping pause), read by other modules |
 | `order` | Checkout, order placement, order lifecycle, status history |
 | `fulfilment` | Shipments and tracking numbers |
 | `payment` | Payment abstraction; bank transfer now, Stripe/PayPal later; webhooks |
@@ -258,9 +259,10 @@ sequenceDiagram
     participant DB as PostgreSQL
     FE->>API: POST /checkout/orders (Idempotency-Key)
     API->>S: placeOrder(cmd, user)
+    S->>DB: lock the customer's cart (queues this customer's requests)
     S->>DB: existing order for (user, idempotency key)? → return it
-    S->>DB: load cart, lock products FOR UPDATE (ordered by id)
-    S->>S: validate availability, dispatch rules, coupon
+    S->>DB: lock products FOR UPDATE (ordered by id), then read prices and stock
+    S->>S: validate availability, address, shipping method, consents
     S->>S: calculate Quote (server prices)
     S->>DB: decrement stock + write stock_movements
     S->>DB: insert order, items, address snapshots, status history
@@ -269,10 +271,20 @@ sequenceDiagram
     API-->>FE: 201 Created + order summary + payment instructions
 ```
 
-All of this is a single database transaction. Products are locked in a
-deterministic order to avoid deadlocks; a conditional update
+All of this is a single database transaction. The cart row is locked first, so a
+double click or a retry of the same customer waits and then finds the order by its
+idempotency key. Products are locked in a deterministic order to avoid deadlocks,
+and prices and stock are read only after that lock. A conditional update
 (`... SET stock_units = stock_units - :n WHERE id = :id AND stock_units >= :n`)
-is the final guard against overselling.
+is the final guard against overselling. The total the customer saw is compared with
+the server's (`PRICE_CHANGED`); the checkout never adjusts a cart on its own
+(`CART_CHANGED` sends the customer back to the cart).
+
+Module roles: `order` orchestrates; `cart` hands out the locked cart lines
+(`CartCheckout`); `catalog` owns prices and the stock balance (`CatalogLookup`,
+`CatalogStock`); `inventory` writes the stock ledger; `shipping` decides methods,
+prices and dispatch dates; `payment` supplies the bank-transfer instructions;
+`pricing` adds everything up.
 
 **Stock strategy:** stock is **decremented when the order is placed**, not when
 it is paid. Unpaid orders expire (bank transfer: configurable, e.g. 7 days;
@@ -565,7 +577,10 @@ Documented in `.env.example`; real values never committed.
 POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
 # App
-APP_BASE_URL, APP_COOKIE_SECURE, APP_TIMEZONE=Europe/Berlin
+APP_BASE_URL, APP_COOKIE_SECURE
+# Orders and bank transfer (no orders can be placed without the bank account)
+BANK_ACCOUNT_HOLDER, BANK_IBAN, BANK_BIC, BANK_NAME
+ORDER_BANK_TRANSFER_PAYMENT_DAYS=7, SHIPPING_HANDLING_DAYS=1
 APP_ADMIN_BOOTSTRAP_EMAIL, APP_ADMIN_BOOTSTRAP_PASSWORD   # first admin, used once
 # Mail
 SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM
@@ -663,13 +678,21 @@ printing and automatic tracking status, care-guide blog/CMS, loyalty programme.
 
 ## 12. Open questions for the owner
 
-1. Target countries for shipping (Germany only, DACH, EU)?
+1. ~~Target countries for shipping~~ — decided: EU member states and the United Kingdom, shipped from Germany.
 2. ~~Languages~~ — decided: English default, German as second language.
-3. Guest checkout at launch, or account required?
-4. Which carrier(s) do you use for live animals today, and on which weekdays do you ship?
+3. Guest checkout at launch, or account required? (Built so far: an account is required.)
+4. ~~Carrier and dispatch weekdays~~ — decided: DHL, dispatch Monday to Wednesday. Still open: shipping prices per destination (Germany, EU, United Kingdom) and any free-shipping threshold.
 5. VAT status: standard VAT registration or small-business (Kleinunternehmer) rule?
 6. Should exact stock numbers be public ("only 3 left") or only availability?
 7. Do you sell non-animal items (food, plants, equipment) now or later?
 8. Grade naming: one shared grade scale, or species-specific scales (e.g. Caridina S/SS/SSS vs Neocaridina low/high)?
 9. Hosting preference and budget (single VPS vs managed services)?
 10. Do you already have a domain, logo, brand colours and product photography?
+11. VAT for deliveries abroad: orders to the United Kingdom are exports, and sales to
+    consumers in other EU countries can fall under the destination country's VAT rate
+    (EU one-stop shop). The shop currently treats every price as gross with the
+    product's German VAT rate. To be clarified with a tax adviser before selling abroad.
+12. Live animals to the United Kingdom need customs and animal-health paperwork — is
+    that handled outside the shop, or should the shop collect anything for it?
+13. Final wording of the checkout confirmations (terms, right of withdrawal,
+    live-animal conditions) and the legal texts they link to.

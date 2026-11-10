@@ -39,6 +39,16 @@ public class AddressService {
         return addresses.findAllOf(userId).stream().map(AddressService::toView).toList();
     }
 
+    /**
+     * One of the customer's own addresses, e.g. to ship an order to.
+     *
+     * @throws NotFoundException if the address does not exist or belongs to someone else
+     */
+    @Transactional(readOnly = true)
+    public AddressView get(UUID userId, UUID addressId) {
+        return toView(owned(userId, addressId));
+    }
+
     /** Adds an address. The first address becomes the default for shipping and billing. */
     @Transactional
     public AddressView create(UUID userId, AddressData data) {

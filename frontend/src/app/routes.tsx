@@ -94,6 +94,18 @@ export const routes: RouteObject[] = [
                 }),
               },
               {
+                path: 'orders',
+                lazy: async () => ({
+                  Component: (await import('@/features/account/pages/OrdersPage')).OrdersPage,
+                }),
+              },
+              {
+                path: 'orders/:orderNumber',
+                lazy: async () => ({
+                  Component: (await import('@/features/account/pages/OrderDetailPage')).OrderDetailPage,
+                }),
+              },
+              {
                 path: 'addresses',
                 lazy: async () => ({
                   Component: (await import('@/features/account/pages/AddressesPage')).AddressesPage,
@@ -114,6 +126,27 @@ export const routes: RouteObject[] = [
       {
         path: 'cart',
         lazy: async () => ({ Component: (await import('@/features/cart/pages/CartPage')).CartPage }),
+      },
+
+      // Checkout (Phase 5): signed-in customers only
+      {
+        path: 'checkout',
+        element: <RequireAuth />,
+        children: [
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('@/features/checkout/pages/CheckoutPage')).CheckoutPage,
+            }),
+          },
+          {
+            path: 'complete/:orderNumber',
+            lazy: async () => ({
+              Component: (await import('@/features/checkout/pages/OrderConfirmationPage'))
+                .OrderConfirmationPage,
+            }),
+          },
+        ],
       },
 
       { path: '*', Component: NotFoundPage },
