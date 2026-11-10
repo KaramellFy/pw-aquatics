@@ -306,11 +306,18 @@ not shipped returns stock.
 - A guest gets an opaque random cart token in an `HttpOnly` cookie; only its
   SHA-256 hash is stored.
 - A logged-in customer has exactly one cart linked to the user.
-- On login, the guest cart is merged into the customer cart (quantities summed,
-  capped at available stock) and the guest cart is deleted.
+- After login, the first cart request that carries both the session and the
+  guest cookie merges the guest cart into the customer cart (quantities summed,
+  capped at available stock), deletes the guest cart and clears the cookie.
+  Doing this in the cart module keeps `identity` free of any cart knowledge.
 - The cart stores only `variant_id` and `quantity`. Prices, totals and
-  availability are recalculated on every read, and the response contains
-  warnings (price changed, item no longer available, quantity reduced).
+  availability are recalculated on every read from the catalog
+  (`CatalogLookup`) and the `pricing` module. A quantity above the available
+  stock is lowered and reported as a warning; a product that cannot be bought
+  right now stays visible but is excluded from the totals.
+- The cart does not reserve stock. Stock is taken when the order is placed (Phase 5).
+- Every cart is loaded with a row lock, so parallel requests for the same cart
+  run one after the other. Expired guest carts are removed by a daily job.
 
 #### Products, variants and stock
 

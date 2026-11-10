@@ -73,6 +73,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
                         .requestMatchers(API_DOCS).permitAll()
+                        // Cart: guests and customers alike (the service scopes it to the caller).
+                        .requestMatchers("/api/v1/cart", "/api/v1/cart/**").permitAll()
                         .requestMatchers("/api/v1/account/**").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().denyAll())

@@ -53,6 +53,7 @@ export function useDeleteAccount() {
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.session, ANONYMOUS);
       queryClient.removeQueries({ queryKey: queryKeys.account });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
     },
   });
 }

@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cart/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a variant to the cart */
+        post: operations["add"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/verify-email": {
         parameters: {
             query?: never;
@@ -225,6 +242,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cart/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a cart line */
+        delete: operations["remove"];
+        options?: never;
+        head?: never;
+        /** Change the quantity of a cart line */
+        patch: operations["changeQuantity"];
         trace?: never;
     };
     "/api/v1/account/profile": {
@@ -398,6 +433,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current cart (empty if there is none) */
+        get: operations["cart"];
+        put?: never;
+        post?: never;
+        /** Empty the cart */
+        delete: operations["clear"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -505,6 +558,67 @@ export interface components {
             orderNumber?: string;
             website?: string;
         };
+        AddCartItemRequest: {
+            /** Format: uuid */
+            variantId: string;
+            /** Format: int32 */
+            quantity: number;
+        };
+        CartLineView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            variantId: string;
+            productSlug: string;
+            productName: string;
+            variantName: string;
+            speciesName: string | null;
+            gradeName: string | null;
+            categorySlug: string;
+            colourHex: string | null;
+            image: components["schemas"]["ImageView"] | null;
+            /** Format: int32 */
+            quantity: number;
+            /** Format: int32 */
+            maxQuantity: number;
+            unitPrice: components["schemas"]["Money"];
+            lineTotal: components["schemas"]["Money"];
+            available: boolean;
+        };
+        CartTotalsView: {
+            subtotal: components["schemas"]["Money"];
+            total: components["schemas"]["Money"];
+            includedTax: components["schemas"]["Money"];
+        };
+        CartView: {
+            items: components["schemas"]["CartLineView"][];
+            totals: components["schemas"]["CartTotalsView"];
+            /** Format: int32 */
+            itemCount: number;
+            warnings: components["schemas"]["CartWarningView"][];
+        };
+        CartWarningView: {
+            code: string;
+            /** Format: uuid */
+            itemId: string | null;
+            productName: string | null;
+            /** Format: int32 */
+            quantity: number | null;
+        };
+        ImageView: {
+            url: string;
+            srcSet: string;
+            alt: string;
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            height: number;
+        };
+        Money: {
+            /** Format: int64 */
+            amount: number;
+            currency: string;
+        };
         TokenRequest: {
             token: string;
         };
@@ -540,6 +654,10 @@ export interface components {
         SessionView: {
             authenticated: boolean;
             user: components["schemas"]["CurrentUserView"] | null;
+        };
+        UpdateCartItemRequest: {
+            /** Format: int32 */
+            quantity: number;
         };
         UpdateProfileRequest: {
             firstName: string;
@@ -609,20 +727,6 @@ export interface components {
         GradeRef: {
             slug: string;
             name: string;
-        };
-        ImageView: {
-            url: string;
-            srcSet: string;
-            alt: string;
-            /** Format: int32 */
-            width: number;
-            /** Format: int32 */
-            height: number;
-        };
-        Money: {
-            /** Format: int64 */
-            amount: number;
-            currency: string;
         };
         PageResponseProductSummaryView: {
             items: components["schemas"]["ProductSummaryView"][];
@@ -890,6 +994,32 @@ export interface operations {
             };
         };
     };
+    add: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                CART_TOKEN?: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddCartItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CartView"];
+                };
+            };
+        };
+    };
     verifyEmail: {
         parameters: {
             query?: never;
@@ -1082,6 +1212,58 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AddressView"];
+                };
+            };
+        };
+    };
+    remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: {
+                CART_TOKEN?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CartView"];
+                };
+            };
+        };
+    };
+    changeQuantity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: {
+                CART_TOKEN?: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCartItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CartView"];
                 };
             };
         };
@@ -1338,6 +1520,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CategoryNodeView"][];
+                };
+            };
+        };
+    };
+    cart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                CART_TOKEN?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CartView"];
+                };
+            };
+        };
+    };
+    clear: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                CART_TOKEN?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CartView"];
                 };
             };
         };

@@ -30,12 +30,16 @@ and some species may not be traded legally.
   Phase 1 contact endpoint are built. Everything not explicitly opened in
   `SecurityConfig` is denied until authentication arrives (Phase 3).
 - **Phase 2 (catalog)** is built end to end: public catalog API with filters and
-  facets, shop/product/species pages. Cart (Phase 4) is not built yet; the
-  "Add to cart" button is disabled with an explanation.
+  facets, shop/product/species pages.
 - **Phase 3 (accounts)** is built end to end: registration with email verification,
   session login, password reset, profile, address book, account deletion. Customer
   endpoints live under `/api/v1/account/**` and take the user from the session
   (`@AuthenticationPrincipal ShopUserPrincipal`) — never from request data.
+- **Phase 4 (cart)** is built end to end: guest cart (`CART_TOKEN` cookie) and
+  customer cart under `/api/v1/cart`, merged after sign-in. The cart stores only
+  variant ids and quantities; prices, totals and VAT are recalculated on every
+  call (`CatalogLookup` + `pricing`). Checkout (Phase 5) is not built yet; the
+  checkout button is disabled with an explanation.
 
 Work only on the phase the owner asked for; do not pull later-phase features forward.
 
@@ -154,6 +158,10 @@ working around them.
   querying. Responses must not reveal whether an account exists (see docs/API.md §2.1).
   After a password change, reset or account deletion, end the user's sessions via
   `SessionManager`. Record security-relevant actions with `AuditService`.
+- **Cart rules:** a module reads catalog data only through `CatalogLookup`
+  (never the catalog repositories). Money arithmetic happens only in
+  `pricing.domain.PriceCalculator`. Random tokens and their hashes come from
+  `common.crypto.Tokens`; only the hash is stored.
 
 ## 8. Frontend conventions
 
@@ -172,6 +180,10 @@ working around them.
   Details → `ApiError`). Use the generated types in `src/lib/api/schema.d.ts`;
   never hand-write API types that the spec already defines. Never edit generated files.
 - `Price` and formatting helpers only **format** values from the API — no arithmetic on money.
+- **Cart:** every cart call returns the full recalculated cart; mutations write it
+  into the `queryKeys.cart` cache. Components show `lineTotal`, `totals` and
+  `maxQuantity` from the API and never compute them. Invalidate `queryKeys.cart`
+  whenever the signed-in user changes.
 - Forms: React Hook Form + Zod for UX validation; always display server
   validation errors too.
 - Styling: Tailwind utilities and design tokens only; build variants in

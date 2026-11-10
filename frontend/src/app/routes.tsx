@@ -110,10 +110,10 @@ export const routes: RouteObject[] = [
         ],
       },
 
-      // Placeholder until the cart exists (Phase 4).
+      // Cart (Phase 4)
       {
         path: 'cart',
-        lazy: async () => ({ Component: (await import('./pages/ComingSoonPage')).CartComingSoonPage }),
+        lazy: async () => ({ Component: (await import('@/features/cart/pages/CartPage')).CartPage }),
       },
 
       { path: '*', Component: NotFoundPage },

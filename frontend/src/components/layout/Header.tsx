@@ -5,6 +5,7 @@ import { Link, NavLink } from 'react-router';
 import { cn } from '@/lib/cn';
 import { Container } from '@/components/ui/Container';
 import { useSession } from '@/features/auth';
+import { useCart } from '@/features/cart';
 import { Logo } from './Logo';
 import { MobileMenu } from './MobileMenu';
 import { mainNavigation } from './navigation';
@@ -16,6 +17,7 @@ export function Header() {
   const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
   const signedIn = useSession().data?.authenticated === true;
+  const cartCount = useCart().data?.itemCount ?? 0;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -70,8 +72,20 @@ export function Header() {
               <span aria-hidden className="absolute top-2 right-2 size-2 rounded-full bg-brand-500" />
             )}
           </Link>
-          <Link to="/cart" className={iconLink} aria-label={t('nav.cart')}>
+          <Link
+            to="/cart"
+            className={cn(iconLink, 'relative')}
+            aria-label={cartCount > 0 ? t('nav.cartWithCount', { count: cartCount }) : t('nav.cart')}
+          >
             <ShoppingBag className="size-5" strokeWidth={1.5} />
+            {cartCount > 0 && (
+              <span
+                aria-hidden
+                className="absolute top-0.5 right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-400 px-1 text-[0.6875rem] font-semibold text-ink tabular-nums"
+              >
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            )}
           </Link>
           <MobileMenu />
         </div>

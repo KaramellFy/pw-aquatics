@@ -1,19 +1,14 @@
 package com.pwaquatics.shop.identity.application;
 
+import com.pwaquatics.shop.common.crypto.Tokens;
 import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.identity.domain.User;
 import com.pwaquatics.shop.identity.domain.UserToken;
 import com.pwaquatics.shop.identity.domain.UserTokenType;
 import com.pwaquatics.shop.identity.infrastructure.UserTokenRepository;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -22,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 /** Issues and redeems single-use tokens for emailed links. Raw tokens are never stored. */
 @Service
 class TokenService {
-
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UserTokenRepository tokens;
     private final Clock clock;
@@ -41,9 +34,7 @@ class TokenService {
     @Transactional(propagation = Propagation.MANDATORY)
     String issue(User user, UserTokenType type, Duration ttl, String newEmail) {
         tokens.deleteByUserAndType(user.getId(), type);
-        byte[] bytes = new byte[32];
-        RANDOM.nextBytes(bytes);
-        String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String raw = Tokens.newToken();
         Instant now = clock.instant();
         tokens.save(new UserToken(user, type, hash(raw), newEmail, now, now.plus(ttl)));
         return raw;
@@ -71,11 +62,6 @@ class TokenService {
     }
 
     static String hash(String rawToken) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return Tokens.sha256Hex(rawToken);
     }
 }

@@ -27,6 +27,8 @@ export function useLogin() {
     onSuccess: (session) => {
       queryClient.removeQueries({ queryKey: queryKeys.account });
       queryClient.setQueryData(queryKeys.session, session);
+      // The server merges the guest cart into the account's cart on the next cart request.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
     },
   });
 }
@@ -49,6 +51,8 @@ export function useLogout() {
     onSettled: () => {
       queryClient.setQueryData(queryKeys.session, ANONYMOUS);
       queryClient.removeQueries({ queryKey: queryKeys.account });
+      // Signed out: the account's cart is no longer shown.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
     },
   });
 }
@@ -91,6 +95,7 @@ export function useResetPassword() {
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.session, ANONYMOUS);
       queryClient.removeQueries({ queryKey: queryKeys.account });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
     },
   });
 }

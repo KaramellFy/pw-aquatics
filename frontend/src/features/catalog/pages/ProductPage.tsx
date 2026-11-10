@@ -13,6 +13,7 @@ import { useIntlLocale } from '@/lib/i18n';
 import { JsonLd } from '@/lib/seo/jsonLd';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { useProduct, useRelatedProducts, type ProductDetail } from '../api/catalog';
+import { AddToCart } from '../components/AddToCart';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
 import { CareTable } from '../components/CareTable';
 import { ColourDots } from '../components/ColourDots';
@@ -185,18 +186,12 @@ function ProductView({ product }: { product: ProductDetail }) {
               </div>
             )}
 
-            <div className="mt-8 space-y-3">
-              {/* The cart arrives in Phase 4; until then the button is visibly disabled with an explanation. */}
-              <Button size="lg" className="w-full" disabled aria-describedby="cart-soon">
-                {t('product.addToCart')}
-              </Button>
-              <p id="cart-soon" className="text-sm text-muted">
-                {t('product.cartSoon')}{' '}
-                <Link to="/contact" className="font-medium text-brand-700 underline-offset-4 hover:underline">
-                  {t('product.reserve')}
-                </Link>
-              </p>
-            </div>
+            {variant && (
+              <div className="mt-8">
+                {/* Re-keyed per pack size so the quantity starts at 1 again. */}
+                <AddToCart key={variant.id} variant={variant} productName={product.name} />
+              </div>
+            )}
 
             {product.colours.length > 0 && (
               <div className="mt-8 flex items-center gap-3 text-sm text-muted">

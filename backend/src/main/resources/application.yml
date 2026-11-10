@@ -110,6 +110,10 @@ app:
     auth-email:
       capacity: 5
       period: PT1H
+    # Cart changes per client IP.
+    cart-write:
+      capacity: 120
+      period: PT1M
     # Password confirmations inside a session (change password/email, delete account).
     password-check:
       capacity: 10

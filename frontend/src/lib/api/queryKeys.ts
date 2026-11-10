@@ -1,6 +1,7 @@
 /** Central TanStack Query keys, so invalidation stays consistent. */
 export const queryKeys = {
   session: ['auth', 'session'] as const,
+  cart: ['cart'] as const,
   /** Prefix of everything that belongs to the logged-in user (cleared on logout). */
   account: ['account'] as const,
   profile: ['account', 'profile'] as const,

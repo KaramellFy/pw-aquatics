@@ -415,11 +415,11 @@ CREATE TABLE carts (
     id                    uuid PRIMARY KEY,
     user_id               uuid        UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     anonymous_token_hash  char(64)    UNIQUE,         -- SHA-256 of the guest cart cookie
-    coupon_id             uuid        REFERENCES coupons(id) ON DELETE SET NULL,
+    coupon_id             uuid        REFERENCES coupons(id) ON DELETE SET NULL,   -- added in Phase 8
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now(),
-    expires_at            timestamptz,                 -- guest carts only, e.g. 30 days
-    CHECK (user_id IS NOT NULL OR anonymous_token_hash IS NOT NULL)
+    expires_at            timestamptz,                 -- guest carts only: 30 days after the last change
+    CHECK ((user_id IS NULL) <> (anonymous_token_hash IS NULL))   -- exactly one kind of owner
 );
 CREATE INDEX idx_carts_expires ON carts (expires_at) WHERE expires_at IS NOT NULL;
 
@@ -432,9 +432,15 @@ CREATE TABLE cart_items (
     updated_at  timestamptz NOT NULL DEFAULT now(),
     UNIQUE (cart_id, variant_id)
 );
+CREATE INDEX idx_cart_items_variant ON cart_items (variant_id);
 ```
 
-Note: the cart deliberately stores **no prices**.
+Notes: the cart deliberately stores **no prices**. `carts.user_id` and
+`cart_items.variant_id` are plain ids for the `cart` module (no entity links to
+other modules). Expired guest carts are deleted daily; a customer's cart is
+removed when the account is deleted. Carts are always loaded `FOR UPDATE`, so
+simultaneous requests for one cart run one after the other.
+
 
 ### 3.7 Orders, fulfilment and payments
 

@@ -26,8 +26,8 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 | 0 Foundation | ✅ Vite/React/TS app, Tailwind, router, API client, i18n, tests, lint, Dockerfile, CI | ✅ Spring Boot 4.1/Java 25, Flyway baseline, CSRF, Problem Details, outbox + email worker, rate limiting, Testcontainers + ArchUnit tests, Docker Compose, CI |
 | 1 Brand & content pages | ✅ design tokens, UI primitives, Home, About, Gallery, Contact, legal shells, 404 | ✅ `POST /contact` (validation, honeypot, rate limit) + `contact_messages` + email to shop inbox |
 | 2 Public catalog | ✅ shop with URL-synced filters (category, species, colour, grade, price, availability, search, sort, paging), product page, species page, featured products on home, JSON-LD | ✅ catalog schema, search with facet counts, product/related/taxonomy endpoints, Markdown sanitising, dev demo data, OpenAPI → generated TS types |
-
 | 3 Authentication & accounts | ✅ sign in, register, email confirmation, forgot/reset password, route guard, account overview, address book, profile & security (email, password, delete account) | ✅ users, sessions in PostgreSQL, Argon2id passwords, email verification, password reset, lockout + rate limits, no account enumeration, profile, addresses, account anonymisation, audit log, first-admin bootstrap |
+| 4 Shopping cart | ✅ add to cart on the product page, cart drawer, cart page with quantity steppers, stock warnings, header badge; checkout button disabled until Phase 5 | ✅ carts for guests (HttpOnly cookie, hash stored) and customers, merge after sign-in, server-side prices/totals/VAT (`pricing`), stock limits, automatic quantity correction with warnings, daily cleanup of expired guest carts |
 
 Phase 1 brand applied: PW Aquatics logo, white + baby-blue scheme, English default.
 Open in Phase 2: real product photos (uploads arrive with the admin in Phase 6), owner review of species data and product copy, CI check that generated API types are up to date.
