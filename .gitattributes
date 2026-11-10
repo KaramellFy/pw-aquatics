@@ -1,0 +1,17 @@
+# Gradle wrapper must use Linux line endings
+backend/gradlew text eol=lf
+
+# Windows scripts
+*.bat text eol=crlf
+
+# General text files
+*.java text eol=lf
+*.kt text eol=lf
+*.kts text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.properties text eol=lf
