@@ -3,6 +3,7 @@ FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
+RUN chmod +x gradlew
 # Download dependencies in a separate layer so code changes don't refetch them.
 RUN ./gradlew dependencies --no-daemon -q > /dev/null
 COPY src src
