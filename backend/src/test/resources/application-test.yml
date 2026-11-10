@@ -9,3 +9,16 @@ app:
 springdoc:
   api-docs:
     enabled: true
+
+---
+# Lower thresholds so lockout and rate limits can be tested with few requests.
+app:
+  security:
+    max-failed-logins: 3
+  rate-limits:
+    login-email:
+      capacity: 8
+      period: PT15M
+    password-check:
+      capacity: 4
+      period: PT15M

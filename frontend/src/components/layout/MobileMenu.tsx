@@ -3,6 +3,7 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
+import { useSession } from '@/features/auth';
 import { cn } from '@/lib/cn';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { Logo } from './Logo';
@@ -11,6 +12,10 @@ import { mainNavigation } from './navigation';
 export function MobileMenu() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const signedIn = useSession().data?.authenticated === true;
+  const accountItem = signedIn
+    ? ({ to: '/account', labelKey: 'nav.account' } as const)
+    : ({ to: '/login', labelKey: 'auth.signIn' } as const);
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -36,7 +41,7 @@ export function MobileMenu() {
           <Dialog.Description className="sr-only">{t('nav.main')}</Dialog.Description>
           <nav aria-label={t('nav.main')} className="mt-14 flex-1">
             <ul className="space-y-1">
-              {[...mainNavigation, { to: '/account', labelKey: 'nav.account' } as const].map((item) => (
+              {[...mainNavigation, accountItem].map((item) => (
                 <li key={item.to}>
                   <NavLink
                     to={item.to}

@@ -2,3 +2,4 @@
 // Pages are imported by the router directly (see src/app/routes.tsx).
 export { useProducts, type ProductSummary } from './api/catalog';
 export { ProductGrid } from './components/ProductGrid';
+export { ProductImage } from './components/ProductImage';

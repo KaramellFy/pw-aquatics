@@ -49,6 +49,8 @@ services:
       SHOP_INBOX_EMAIL: ${SHOP_INBOX_EMAIL:-shop@localhost}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
       APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
+      APP_ADMIN_BOOTSTRAP_EMAIL: ${APP_ADMIN_BOOTSTRAP_EMAIL:-}
+      APP_ADMIN_BOOTSTRAP_PASSWORD: ${APP_ADMIN_BOOTSTRAP_PASSWORD:-}
     volumes:
       - media:/app/media
     ports:

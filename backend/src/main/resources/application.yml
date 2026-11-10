@@ -30,6 +30,12 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  session:
+    # Idle time after which a login expires.
+    timeout: 14d
+    jdbc:
+      # Tables are created by Flyway (V2026_11_10_1400).
+      initialize-schema: never
 
 server:
   # Applies X-Forwarded-* from the reverse proxy. The backend must only be
@@ -79,7 +85,36 @@ app:
   media:
     local-path: ${MEDIA_LOCAL_PATH:./media}
     public-path: /media
+  security:
+    # After this many wrong passwords in a row the account is locked for lock-duration.
+    max-failed-logins: 10
+    lock-duration: PT15M
+    verification-token-ttl: PT48H
+    password-reset-token-ttl: PT1H
+  # Optional first administrator, created at startup if no admin exists yet.
+  admin-bootstrap:
+    email: ${APP_ADMIN_BOOTSTRAP_EMAIL:}
+    password: ${APP_ADMIN_BOOTSTRAP_PASSWORD:}
   rate-limits:
     contact:
       capacity: 3
       period: PT1H
+    # Login attempts per client IP and per email address (whether or not the account exists).
+    login-ip:
+      capacity: 30
+      period: PT1M
+    login-email:
+      capacity: 10
+      period: PT15M
+    # Registration, verification re-send and password-reset requests per client IP.
+    auth-email:
+      capacity: 5
+      period: PT1H
+    # Cart changes per client IP.
+    cart-write:
+      capacity: 120
+      period: PT1M
+    # Password confirmations inside a session (change password/email, delete account).
+    password-check:
+      capacity: 10
+      period: PT15M
