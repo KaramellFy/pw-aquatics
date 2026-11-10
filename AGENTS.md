@@ -32,6 +32,10 @@ and some species may not be traded legally.
 - **Phase 2 (catalog)** is built end to end: public catalog API with filters and
   facets, shop/product/species pages. Cart (Phase 4) is not built yet; the
   "Add to cart" button is disabled with an explanation.
+- **Phase 3 (accounts)** is built end to end: registration with email verification,
+  session login, password reset, profile, address book, account deletion. Customer
+  endpoints live under `/api/v1/account/**` and take the user from the session
+  (`@AuthenticationPrincipal ShopUserPrincipal`) — never from request data.
 
 Work only on the phase the owner asked for; do not pull later-phase features forward.
 
@@ -146,6 +150,10 @@ working around them.
 - Side effects (emails) go through the **outbox**, never inside the HTTP request.
 - Configuration via `@ConfigurationProperties` records, validated at startup.
 - No `System.out`, no swallowed exceptions, no personal data in logs.
+- **Auth rules:** emails are normalised with `EmailAddress.normalise` before storing or
+  querying. Responses must not reveal whether an account exists (see docs/API.md §2.1).
+  After a password change, reset or account deletion, end the user's sessions via
+  `SessionManager`. Record security-relevant actions with `AuditService`.
 
 ## 8. Frontend conventions
 
@@ -156,6 +164,10 @@ working around them.
   feature's `index.ts` must not re-export pages (that would defeat code splitting).
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
+- **Login state** comes from `useSession()` (`GET /auth/me`); nothing auth-related is kept
+  in browser storage. Wrap signed-in pages in `RequireAuth`. When an action signs the
+  user out, navigate away first and clear the session afterwards (see `useLogout`),
+  otherwise the guard redirects to the login page.
 - **All HTTP via `src/lib/api/client.ts`** (credentials, CSRF header, Problem
   Details → `ApiError`). Use the generated types in `src/lib/api/schema.d.ts`;
   never hand-write API types that the spec already defines. Never edit generated files.

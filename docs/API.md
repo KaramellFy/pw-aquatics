@@ -80,7 +80,7 @@ stable `code` the frontend can switch on:
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
 | 409 | `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `PRICE_CHANGED`, `INVALID_STATUS_TRANSITION`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `SHIPPING_NOT_AVAILABLE`, `SHIPPING_PAUSED`, `CART_EMPTY`, `TERMS_NOT_ACCEPTED` |
+| 422 | `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `SHIPPING_NOT_AVAILABLE`, `SHIPPING_PAUSED`, `CART_EMPTY`, `TERMS_NOT_ACCEPTED` |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
 | 500 | `INTERNAL_ERROR` (no stack traces or internals in the body) |
@@ -107,14 +107,32 @@ response is calculated by the server.
 | Method | Path | Access | Description |
 |---|---|---|---|
 | GET | `/auth/csrf` | public | Ensures the `XSRF-TOKEN` cookie is set (called on app start) |
-| POST | `/auth/register` | public | Create account; sends verification email. Always `202` (no enumeration) |
-| POST | `/auth/login` | public | Email + password → session cookie; merges guest cart |
-| POST | `/auth/logout` | customer | Invalidate session |
-| GET | `/auth/me` | public | Current user or `{ "authenticated": false }` |
-| POST | `/auth/verify-email` | public | `{ token }` |
+| POST | `/auth/register` | public | `{ email, password, firstName, lastName, marketingOptIn? }`. Sends a verification email. Always `202` |
+| POST | `/auth/login` | public | `{ email, password }` → `200` session view + `SESSION` cookie (new session id on every login). Merges the guest cart from Phase 4 |
+| POST | `/auth/logout` | public | Ends the session; `204` even without one |
+| GET | `/auth/me` | public | `{ "authenticated": true, "user": { id, email, firstName, lastName, role } }` or `{ "authenticated": false, "user": null }` |
+| POST | `/auth/verify-email` | public | `{ token }` from a registration **or** email-change email → `204` |
 | POST | `/auth/resend-verification` | public | `{ email }` → always `202` |
 | POST | `/auth/forgot-password` | public | `{ email }` → always `202` |
-| POST | `/auth/reset-password` | public | `{ token, newPassword }`; invalidates all sessions |
+| POST | `/auth/reset-password` | public | `{ token, newPassword }` → `204`; ends all sessions of the user |
+
+**Rules**
+
+- **Login requires a verified email address.** Passwords: 10–128 characters, no
+  composition rules, obvious choices rejected (`422 PASSWORD_TOO_WEAK`).
+- **No account enumeration.** Register, resend and forgot-password always answer
+  `202`; only the email that is sent differs (an existing address gets a "you
+  already have an account" email, and its password is never replaced). Unknown
+  address and wrong password both give `401 INVALID_CREDENTIALS`.
+- **What is revealed only after the correct password:** `403 EMAIL_NOT_VERIFIED`
+  and `423 ACCOUNT_LOCKED` (locked by an administrator).
+- **Brute force:** after 10 wrong passwords in a row the account is locked for
+  15 minutes; attempts are also limited per address (whether or not an account
+  exists) and per IP. All three answer `429 RATE_LIMITED` with `Retry-After`,
+  so a temporary lock does not reveal that the account exists.
+- Emailed links are single-use (`422 TOKEN_INVALID` otherwise): verification
+  and email change 48 h, password reset 1 h. Only a SHA-256 hash is stored.
+- Emails are sent in the language of the request (`Accept-Language`: `en`/`de`).
 
 ### 2.2 Catalog — public
 
@@ -337,16 +355,27 @@ if it differs from the server-calculated total the request fails with
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/account/profile` | Profile |
-| PATCH | `/account/profile` | `{ firstName, lastName, phone, marketingOptIn }` |
-| PUT | `/account/email` | `{ newEmail, currentPassword }` → verification of new address |
-| PUT | `/account/password` | `{ currentPassword, newPassword }`; other sessions are invalidated |
-| DELETE | `/account` | `{ currentPassword }` → anonymise account (GDPR) |
-| GET | `/account/addresses` | Saved addresses |
-| POST | `/account/addresses` | Create |
+| GET | `/account/profile` | `{ email, firstName, lastName, phone, marketingOptIn, locale, memberSince }` |
+| PATCH | `/account/profile` | `{ firstName, lastName, phone?, marketingOptIn, locale? }` → updated profile |
+| PUT | `/account/email` | `{ newEmail, currentPassword }` → `202`. A link goes to the **new** address; the change happens when it is opened (via `/auth/verify-email`), and the old address is notified. If the address is taken nothing is sent and the answer is the same |
+| PUT | `/account/password` | `{ currentPassword, newPassword }` → `204`; all other sessions are ended and a notice is emailed |
+| DELETE | `/account` | `{ currentPassword }` → `204`. Personal data and addresses are removed, the row is anonymised, all sessions end |
+| GET | `/account/addresses` | Saved addresses, defaults first |
+| POST | `/account/addresses` | Create → `201`. The first address becomes default for shipping and billing. Max. 10 |
 | PUT | `/account/addresses/{id}` | Update |
-| DELETE | `/account/addresses/{id}` | Delete |
-| PUT | `/account/addresses/{id}/default` | `{ shipping: true, billing: false }` |
+| DELETE | `/account/addresses/{id}` | Delete → `204`; a deleted default passes to the oldest remaining address |
+| PUT | `/account/addresses/{id}/default` | `{ shipping: true, billing: false }` (at least one `true`) → updated list |
+
+Wrong current password → `422 CURRENT_PASSWORD_INVALID` (not `401`, which means
+"no session"). Address fields: `label?`, `firstName`, `lastName`, `company?`,
+`street`, `houseNumber`, `addressLine2?`, `postalCode`, `city`, `countryCode`
+(ISO 3166-1 alpha-2), `phone?`; responses add `id`, `defaultShipping`,
+`defaultBilling`. Another customer's address → `404`.
+
+Orders (Phase 5):
+
+| Method | Path | Description |
+|---|---|---|
 | GET | `/account/orders` | Order history (paged, newest first) |
 | GET | `/account/orders/{orderNumber}` | Order detail: items, totals, addresses, status timeline, shipments |
 | POST | `/account/orders/{orderNumber}/cancel` | Allowed only while `PENDING_PAYMENT` |
@@ -486,9 +515,10 @@ Deleting something still referenced by a product returns `409 CONFLICT`.
 
 | Endpoint | Limit |
 |---|---|
-| `POST /auth/login` | 5/min per IP+email, 20/min per IP |
+| `POST /auth/login` | 30/min per IP, 10 per 15 min per email address; account locked 15 min after 10 wrong passwords in a row |
 | `POST /auth/register`, `/auth/forgot-password`, `/auth/resend-verification` | 5/hour per IP |
 | `POST /contact` | 3/hour per IP |
+| Password confirmations (`/account/password`, `/account/email`, `DELETE /account`) | 10 per 15 min per user |
 | `PUT /cart/coupon` | 10/min per session |
 | `POST /checkout/orders` | 10/min per user |
 | Everything else | 300/min per IP |

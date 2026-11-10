@@ -89,6 +89,35 @@ export function TextAreaField({
   );
 }
 
+type SelectFieldProps = ComponentProps<'select'> & { label: ReactNode; hint?: ReactNode; error?: string };
+
+/** Labelled native select (best keyboard and mobile behaviour). */
+export function SelectField({
+  label,
+  hint,
+  error,
+  className,
+  id: idProp,
+  children,
+  ...props
+}: SelectFieldProps) {
+  const generatedId = useId();
+  const id = idProp ?? generatedId;
+  return (
+    <FieldShell id={id} label={label} hint={hint} error={error} className={className}>
+      <select
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(id, hint, error)}
+        className={cn(controlBase, 'h-12')}
+        {...props}
+      >
+        {children}
+      </select>
+    </FieldShell>
+  );
+}
+
 type CheckboxFieldProps = Omit<ComponentProps<'input'>, 'type'> & { label: ReactNode; error?: string };
 
 export function CheckboxField({ label, error, className, id: idProp, ...props }: CheckboxFieldProps) {

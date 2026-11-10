@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, NavLink } from 'react-router';
 import { cn } from '@/lib/cn';
 import { Container } from '@/components/ui/Container';
+import { useSession } from '@/features/auth';
 import { Logo } from './Logo';
 import { MobileMenu } from './MobileMenu';
 import { mainNavigation } from './navigation';
@@ -14,6 +15,7 @@ const iconLink =
 export function Header() {
   const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
+  const signedIn = useSession().data?.authenticated === true;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -58,8 +60,15 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-1">
-          <Link to="/account" className={cn(iconLink, 'hidden sm:inline-flex')} aria-label={t('nav.account')}>
+          <Link
+            to={signedIn ? '/account' : '/login'}
+            className={cn(iconLink, 'relative hidden sm:inline-flex')}
+            aria-label={signedIn ? t('nav.account') : t('auth.signIn')}
+          >
             <User className="size-5" strokeWidth={1.5} />
+            {signedIn && (
+              <span aria-hidden className="absolute top-2 right-2 size-2 rounded-full bg-brand-500" />
+            )}
           </Link>
           <Link to="/cart" className={iconLink} aria-label={t('nav.cart')}>
             <ShoppingBag className="size-5" strokeWidth={1.5} />

@@ -3,27 +3,21 @@ import { ButtonLink } from '@/components/ui/Button';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { StatusPage } from './StatusPage';
 
-type Section = 'cart' | 'account';
-
-const visuals = {
-  cart: { tone: 'ice', motif: 'shell' },
-  account: { tone: 'lagoon', motif: 'brand' },
-} as const;
-
-/** Temporary page for sections that are built in later roadmap phases. */
-function ComingSoon({ section }: { section: Section }) {
+/** Temporary cart page until the cart is built (Phase 4). */
+export function CartComingSoonPage() {
   const { t } = useTranslation();
   return (
     <>
-      <PageMeta title={`${t(`comingSoon.${section}.title`)} – ${t('common.brand')}`} noIndex />
+      <PageMeta title={`${t('comingSoon.cart.title')} – ${t('common.brand')}`} noIndex />
       <StatusPage
         eyebrow={t('comingSoon.eyebrow')}
-        title={t(`comingSoon.${section}.title`)}
-        text={t(`comingSoon.${section}.text`)}
-        {...visuals[section]}
+        title={t('comingSoon.cart.title')}
+        text={t('comingSoon.cart.text')}
+        tone="ice"
+        motif="shell"
         actions={
           <>
-            <ButtonLink to="/gallery">{t('comingSoon.cta')}</ButtonLink>
+            <ButtonLink to="/shop">{t('nav.shop')}</ButtonLink>
             <ButtonLink to="/contact" variant="secondary">
               {t('nav.contact')}
             </ButtonLink>
@@ -33,6 +27,3 @@ function ComingSoon({ section }: { section: Section }) {
     </>
   );
 }
-
-export const CartComingSoonPage = () => <ComingSoon section="cart" />;
-export const AccountComingSoonPage = () => <ComingSoon section="account" />;

@@ -18,6 +18,8 @@ public record AppProperties(
         @Valid @NotNull Mail mail,
         @Valid @NotNull Outbox outbox,
         @Valid @NotNull Media media,
+        @Valid @NotNull Security security,
+        AdminBootstrap adminBootstrap,
         Map<String, @Valid RateLimit> rateLimits) {
 
     /** Cookie flags; {@code secure} must be true in production (HTTPS). */
@@ -32,6 +34,21 @@ public record AppProperties(
 
     /** Media storage: local directory served under {@code publicPath}. */
     public record Media(@NotBlank String localPath, @NotBlank String publicPath) {}
+
+    /** Login protection and lifetimes of emailed one-time links. */
+    public record Security(
+            @Min(1) int maxFailedLogins,
+            @NotNull Duration lockDuration,
+            @NotNull Duration verificationTokenTtl,
+            @NotNull Duration passwordResetTokenTtl) {}
+
+    /** Optional first administrator, created at startup when no admin exists yet. */
+    public record AdminBootstrap(String email, String password) {
+
+        public boolean isConfigured() {
+            return email != null && !email.isBlank() && password != null && !password.isBlank();
+        }
+    }
 
     /** A token bucket: {@code capacity} requests per {@code period}. */
     public record RateLimit(@Min(1) int capacity, @NotNull Duration period) {}

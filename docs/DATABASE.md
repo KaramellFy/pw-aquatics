@@ -78,11 +78,12 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE users (
     id                    uuid PRIMARY KEY,
-    email                 citext       NOT NULL UNIQUE,
-    password_hash         varchar(255) NOT NULL,
+    email                 citext       NOT NULL UNIQUE,   -- stored lower-case by the application
+    password_hash         varchar(255),                   -- NULL only for anonymised accounts
     first_name            varchar(100) NOT NULL,
     last_name             varchar(100) NOT NULL,
     phone                 varchar(40),
+    locale                varchar(5)   NOT NULL DEFAULT 'en',   -- language of emails: 'en' | 'de'
     role                  varchar(20)  NOT NULL DEFAULT 'CUSTOMER'
                           CHECK (role IN ('CUSTOMER', 'ADMIN')),
     status                varchar(20)  NOT NULL DEFAULT 'ACTIVE'
@@ -94,19 +95,22 @@ CREATE TABLE users (
     marketing_opt_in      boolean      NOT NULL DEFAULT false,
     created_at            timestamptz  NOT NULL DEFAULT now(),
     updated_at            timestamptz  NOT NULL DEFAULT now(),
-    version               bigint       NOT NULL DEFAULT 0
+    version               bigint       NOT NULL DEFAULT 0,
+    CHECK (password_hash IS NOT NULL OR status = 'ANONYMISED')
 );
 
--- One-time tokens for email verification and password reset.
+-- One-time tokens for email verification, password reset and email change.
 -- Only a SHA-256 hash of the token is stored; the raw token is only in the email.
 CREATE TABLE user_tokens (
     id          uuid PRIMARY KEY,
     user_id     uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type        varchar(30) NOT NULL CHECK (type IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET')),
+    type        varchar(30) NOT NULL CHECK (type IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET', 'EMAIL_CHANGE')),
     token_hash  char(64)    NOT NULL UNIQUE,
+    new_email   citext,                    -- target address, only for EMAIL_CHANGE
     expires_at  timestamptz NOT NULL,
     used_at     timestamptz,
-    created_at  timestamptz NOT NULL DEFAULT now()
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    CHECK ((type = 'EMAIL_CHANGE') = (new_email IS NOT NULL))
 );
 CREATE INDEX idx_user_tokens_user ON user_tokens (user_id);
 
@@ -136,6 +140,20 @@ CREATE UNIQUE INDEX uq_addresses_default_billing  ON addresses (user_id) WHERE i
 
 **Sessions:** `spring_session` and `spring_session_attributes` are created by a
 Flyway migration that copies Spring Session's official PostgreSQL schema.
+
+**Notes**
+
+- `users.status = 'LOCKED'` is a lock set by an administrator. The temporary lock
+  after repeated wrong passwords is `locked_until` (with `failed_login_attempts`).
+- Emails are compared case-insensitively: the application lower-cases them before
+  storing or querying (a `varchar` parameter compared with a `citext` column would
+  otherwise be case-sensitive), and `citext` guards uniqueness in any case.
+- `addresses.user_id` is a plain id for the `customer` module (no entity link to
+  `users`); `country_code` is upper-case ISO 3166-1 alpha-2 (`CHECK`).
+- `audit_log` also has an index on `actor_user_id`. Actions written so far:
+  `USER_REGISTERED`, `USER_LOCKED_AFTER_FAILED_LOGINS`, `USER_PASSWORD_CHANGED`,
+  `USER_PASSWORD_RESET`, `USER_EMAIL_CHANGED`, `USER_ACCOUNT_DELETED`.
+- Expired `user_tokens` are purged daily, one week after expiry.
 
 ### 3.2 Catalog
 

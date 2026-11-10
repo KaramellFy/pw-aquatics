@@ -349,13 +349,13 @@ PaymentProvider (interface)
 
 | Concern | Approach |
 |---|---|
-| Authentication | Email + password. Server-side session (Spring Session JDBC), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID rotated on login. |
+| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. |
 | Why sessions, not JWT | Same-origin SPA; sessions are revocable instantly (logout, password change, admin lock), nothing sensitive is in browser storage, and Spring Security supports them natively. |
 | CSRF | Spring Security CSRF with cookie-to-header pattern (`XSRF-TOKEN` cookie → `X-XSRF-TOKEN` header) for all state-changing requests. |
-| Passwords | `DelegatingPasswordEncoder` with Argon2id (BCrypt acceptable). Minimum 10 characters, checked against a breached-password list where feasible. |
+| Passwords | `DelegatingPasswordEncoder` with Argon2id; hashes carry an algorithm prefix and are upgraded on login if the algorithm changes. 10–128 characters, no composition rules, a small deny-list of obvious passwords. A check against a breached-password service is a possible later addition. |
 | Authorisation | Roles `CUSTOMER`, `ADMIN`. URL rules (`/api/v1/admin/**` → `ADMIN`) **and** method security (`@PreAuthorize`) on admin services. Ownership checks on every customer resource (no IDOR). |
-| Brute force | Rate limiting per IP and per account on login, registration, password reset, contact form, coupon validation. Temporary account lock after repeated failures. |
-| Account enumeration | Registration, login and password-reset responses do not reveal whether an email exists. |
+| Brute force | Rate limiting per IP and per email address on login; per IP on registration, password reset and the contact form; per user on password confirmations. 15-minute account lock after 10 wrong passwords in a row, reported as a rate limit so it does not reveal that the account exists. |
+| Account enumeration | Registration, login, password-reset and email-change responses do not reveal whether an email exists; "not verified" and "locked by an admin" are only shown after the correct password. A dummy hash comparison keeps login timing similar for unknown addresses. |
 | Input | Bean Validation on all DTOs; size limits on everything; Markdown in descriptions rendered with a sanitiser. |
 | Uploads | Admin only; size limit; MIME type detected from content, not the filename; images re-encoded (strips EXIF and payloads); random storage keys. |
 | Headers | HSTS, CSP (no inline scripts), `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`. Set by Caddy and Spring Security. |

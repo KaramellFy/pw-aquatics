@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router';
+import { RequireAuth } from './guards/RequireAuth';
 import { PublicLayout } from './layouts/PublicLayout';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { RouteErrorPage } from './pages/RouteErrorPage';
@@ -49,15 +50,71 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/catalog/pages/SpeciesPage')).SpeciesPage }),
       },
 
-      // Placeholders until the cart (Phase 4) and accounts (Phase 3) exist.
+      // Sign-in (Phase 3)
+      {
+        path: 'login',
+        lazy: async () => ({ Component: (await import('@/features/auth/pages/LoginPage')).LoginPage }),
+      },
+      {
+        path: 'register',
+        lazy: async () => ({ Component: (await import('@/features/auth/pages/RegisterPage')).RegisterPage }),
+      },
+      {
+        path: 'verify-email',
+        lazy: async () => ({
+          Component: (await import('@/features/auth/pages/VerifyEmailPage')).VerifyEmailPage,
+        }),
+      },
+      {
+        path: 'forgot-password',
+        lazy: async () => ({
+          Component: (await import('@/features/auth/pages/ForgotPasswordPage')).ForgotPasswordPage,
+        }),
+      },
+      {
+        path: 'reset-password',
+        lazy: async () => ({
+          Component: (await import('@/features/auth/pages/ResetPasswordPage')).ResetPasswordPage,
+        }),
+      },
+
+      // Customer account (Phase 3): signed-in users only
+      {
+        path: 'account',
+        element: <RequireAuth />,
+        children: [
+          {
+            lazy: async () => ({ Component: (await import('./layouts/AccountLayout')).AccountLayout }),
+            children: [
+              {
+                index: true,
+                lazy: async () => ({
+                  Component: (await import('@/features/account/pages/AccountOverviewPage'))
+                    .AccountOverviewPage,
+                }),
+              },
+              {
+                path: 'addresses',
+                lazy: async () => ({
+                  Component: (await import('@/features/account/pages/AddressesPage')).AddressesPage,
+                }),
+              },
+              {
+                path: 'profile',
+                lazy: async () => ({
+                  Component: (await import('@/features/account/pages/ProfilePage')).ProfilePage,
+                }),
+              },
+            ],
+          },
+        ],
+      },
+
+      // Placeholder until the cart exists (Phase 4).
       {
         path: 'cart',
         lazy: async () => ({ Component: (await import('./pages/ComingSoonPage')).CartComingSoonPage }),
       },
-      ...['account/*', 'login', 'register'].map((path) => ({
-        path,
-        lazy: async () => ({ Component: (await import('./pages/ComingSoonPage')).AccountComingSoonPage }),
-      })),
 
       { path: '*', Component: NotFoundPage },
     ],
