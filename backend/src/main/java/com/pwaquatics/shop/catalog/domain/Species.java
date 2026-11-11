@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.catalog.domain;
 
+import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.persistence.AbstractEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -85,6 +86,41 @@ public class Species extends AbstractEntity {
     private String restrictionNote;
 
     protected Species() {}
+
+    /** Changes all editable fields. Ranges must not be inverted (minimum above maximum). */
+    public void update(SpeciesData data) {
+        requireRange(data.tempMinC(), data.tempMaxC(), "temperature");
+        requireRange(data.phMin(), data.phMax(), "pH");
+        requireRange(data.ghMin(), data.ghMax(), "GH");
+        requireRange(data.khMin(), data.khMax(), "KH");
+        requireRange(data.tdsMin(), data.tdsMax(), "TDS");
+        scientificName = data.scientificName();
+        commonName = data.commonName();
+        slug = data.slug();
+        description = data.description();
+        origin = data.origin();
+        tempMinC = data.tempMinC();
+        tempMaxC = data.tempMaxC();
+        phMin = data.phMin();
+        phMax = data.phMax();
+        ghMin = data.ghMin();
+        ghMax = data.ghMax();
+        khMin = data.khMin();
+        khMax = data.khMax();
+        tdsMin = data.tdsMin();
+        tdsMax = data.tdsMax();
+        adultSizeMm = data.adultSizeMm();
+        lifespanMonths = data.lifespanMonths();
+        difficulty = data.difficulty();
+        tradeRestricted = data.tradeRestricted();
+        restrictionNote = data.tradeRestricted() ? data.restrictionNote() : null;
+    }
+
+    private static <T extends Comparable<T>> void requireRange(T min, T max, String what) {
+        if (min != null && max != null && min.compareTo(max) > 0) {
+            throw new BusinessRuleException("RANGE_INVALID", "The minimum " + what + " is above the maximum.");
+        }
+    }
 
     public Species(String scientificName, String commonName, String slug) {
         this.scientificName = scientificName;

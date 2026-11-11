@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.catalog.domain;
 
+import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.common.persistence.AbstractEntity;
 import jakarta.persistence.Column;
@@ -44,6 +45,34 @@ public class ProductVariant extends AbstractEntity {
     private long version;
 
     protected ProductVariant() {}
+
+    /**
+     * Changes the pack size. Prices are set by the shop owner in the admin area; they are
+     * never taken from a customer's request.
+     */
+    void update(String sku, String name, int packSize, long priceCents, Long compareAtPriceCents, boolean active) {
+        requireValid(packSize, priceCents, compareAtPriceCents);
+        this.sku = sku;
+        this.name = name;
+        this.packSize = packSize;
+        this.priceCents = priceCents;
+        this.compareAtPriceCents = compareAtPriceCents;
+        this.active = active;
+    }
+
+    void moveTo(int sortOrder) {
+        this.sortOrder = sortOrder;
+    }
+
+    static void requireValid(int packSize, long priceCents, Long compareAtPriceCents) {
+        if (packSize < 1 || priceCents < 0) {
+            throw new BusinessRuleException("VARIANT_INVALID", "Pack size and price must be positive.");
+        }
+        if (compareAtPriceCents != null && compareAtPriceCents <= priceCents) {
+            throw new BusinessRuleException(
+                    "COMPARE_AT_PRICE_INVALID", "The previous price must be higher than the price.");
+        }
+    }
 
     ProductVariant(
             Product product, String sku, String name, int packSize, long priceCents, Long compareAtPriceCents,

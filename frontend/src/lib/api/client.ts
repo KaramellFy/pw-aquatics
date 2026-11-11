@@ -87,7 +87,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     ...options.headers,
   };
 
-  if (options.body !== undefined) {
+  // FormData (file uploads) sets its own multipart content type with the boundary.
+  const isForm = options.body instanceof FormData;
+  if (options.body !== undefined && !isForm) {
     headers['Content-Type'] = 'application/json';
   }
   if (!SAFE_METHODS.has(method)) {
@@ -100,7 +102,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     response = await fetch(`${API_BASE}${path}`, {
       method,
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: isForm
+        ? (options.body as FormData)
+        : options.body !== undefined
+          ? JSON.stringify(options.body)
+          : undefined,
       credentials: 'include',
       signal: options.signal,
     });

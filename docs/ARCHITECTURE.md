@@ -99,7 +99,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | API docs | springdoc-openapi | OpenAPI spec is the contract for the frontend |
 | Mapping | MapStruct | DTO ↔ entity mapping, no entities in API responses |
 | Rate limiting | Bucket4j | Login, registration, contact, coupon checks |
-| Images | Thumbnailator / ImageIO + WebP | Resize, re-encode, strip EXIF on upload |
+| Images | Thumbnailator (resize, EXIF orientation) + webp-imageio (libwebp, bundled for Linux/macOS/Windows) | Re-encode uploads to WebP renditions; drops all metadata. The JVM runs with `--enable-native-access=ALL-UNNAMED` for libwebp |
 | Build (BE) | Gradle (Kotlin DSL) | Maven is equally fine; one choice, consistently |
 | Language (FE) | TypeScript 6 (strict) | Stays on 6.x until typescript-eslint supports TypeScript 7 |
 | UI | React 19 + Vite 8 | SPA |
@@ -330,6 +330,22 @@ not shipped returns stock.
 - The cart does not reserve stock. Stock is taken when the order is placed (Phase 5).
 - Every cart is loaded with a row lock, so parallel requests for the same cart
   run one after the other. Expired guest carts are removed by a daily job.
+
+#### Admin area (Phase 6)
+
+- Admin controllers live in their feature modules (`catalog/api/admin`,
+  `inventory/api`); the services carry `@PreAuthorize("hasRole('ADMIN')")` on top of the
+  URL rule for `/api/v1/admin/**`. Every write is recorded in the audit log with the
+  administrator and IP address.
+- Product edits use optimistic locking (`version`). Stock is outside it: it changes only
+  through conditional SQL updates (`CatalogStock`), written to the stock ledger by
+  `inventory`, so sales and stock corrections never conflict with an open editor.
+- Photos go through `media`: the file type is detected from its content, the size is read
+  from the header before decoding (decompression bombs), the photo is turned upright and
+  re-encoded to WebP renditions (400/800/1200/1600 px), which drops all metadata. Files
+  follow the transaction: removed again on rollback, deleted only after commit.
+- The frontend admin is a separate route tree with its own layout (`/admin/**`,
+  `RequireAdmin`); every page is its own lazy chunk, so shop visitors never download it.
 
 #### Products, variants and stock
 

@@ -5,6 +5,8 @@ app:
     scheduler-enabled: false
   mail:
     shop-inbox: shop@test.local
+  media:
+    local-path: ${java.io.tmpdir}/pw-aquatics-test-media
   bank-transfer:
     account-holder: PW Aquatics Test
     iban: DE00 0000 0000 0000 0000 00

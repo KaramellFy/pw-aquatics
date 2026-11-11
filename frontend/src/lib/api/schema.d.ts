@@ -4,6 +4,131 @@
  */
 
 export interface paths {
+    "/api/v1/admin/species/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One species with all care data */
+        get: operations["speciesDetail"];
+        /** Change a species (incl. trade restriction) */
+        put: operations["updateSpecies"];
+        post?: never;
+        /** Delete a species without products */
+        delete: operations["deleteSpecies"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One product with pack sizes, photos and what blocks publishing */
+        get: operations["get"];
+        /** Save the product's details (send the version you loaded) */
+        put: operations["update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/variants/{variantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a pack size (set active=false to stop selling it) */
+        put: operations["updateVariant"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventory/{productId}/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Stocktake: the counted number becomes the stock */
+        put: operations["count"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/grades/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a grade */
+        put: operations["updateGrade"];
+        post?: never;
+        /** Delete an unused grade */
+        delete: operations["deleteGrade"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/colours/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a colour */
+        put: operations["updateColour"];
+        post?: never;
+        /** Delete an unused colour */
+        delete: operations["deleteColour"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a category */
+        put: operations["updateCategory"];
+        post?: never;
+        /** Delete an empty category */
+        delete: operations["deleteCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/password": {
         parameters: {
             query?: never;
@@ -47,7 +172,7 @@ export interface paths {
         };
         get?: never;
         /** Update an address */
-        put: operations["update"];
+        put: operations["update_1"];
         post?: never;
         /** Delete an address */
         delete: operations["delete"];
@@ -260,6 +385,215 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/species": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All species, including trade-restricted ones */
+        get: operations["species"];
+        put?: never;
+        /** Create a species */
+        post: operations["createSpecies"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All products incl. drafts and archived, with exact stock */
+        get: operations["list"];
+        put?: never;
+        /** Create a product (unpublished, no stock) */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a pack size */
+        post: operations["addVariant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish: needs an active pack size, a photo and a tradeable species */
+        post: operations["publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload a photo (JPEG, PNG or WebP, at least 400 px wide, max. 15 MB) */
+        post: operations["uploadImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Copy as a new unpublished product (without stock and photos) */
+        post: operations["duplicate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive: removed from the shop, kept for orders and history */
+        post: operations["archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/markdown/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Render Markdown as the shop will show it */
+        post: operations["previewMarkdown"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventory/{productId}/adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add or remove animals (restock, loss, correction, return) */
+        post: operations["adjust"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/grades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All grades */
+        get: operations["grades"];
+        put?: never;
+        /** Create a grade */
+        post: operations["createGrade"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/colours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All colours */
+        get: operations["colours"];
+        put?: never;
+        /** Create a colour */
+        post: operations["createColour"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All categories (flat; parentId builds the tree) */
+        get: operations["categories"];
+        put?: never;
+        /** Create a category */
+        post: operations["createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/orders/{orderNumber}/cancel": {
         parameters: {
             query?: never;
@@ -285,10 +619,10 @@ export interface paths {
             cookie?: never;
         };
         /** Saved addresses, defaults first */
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         /** Add an address */
-        post: operations["create"];
+        post: operations["create_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -311,6 +645,41 @@ export interface paths {
         head?: never;
         /** Change the quantity of a cart line */
         patch: operations["changeQuantity"];
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a photo */
+        delete: operations["deleteImage"];
+        options?: never;
+        head?: never;
+        /** Change a photo's alternative text */
+        patch: operations["changeAltText"];
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/images/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reorder photos (every photo once; the first is the main photo) */
+        patch: operations["reorderImages"];
         trace?: never;
     };
     "/api/v1/account/profile": {
@@ -339,7 +708,7 @@ export interface paths {
             cookie?: never;
         };
         /** Species list */
-        get: operations["species"];
+        get: operations["species_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -356,7 +725,7 @@ export interface paths {
             cookie?: never;
         };
         /** Species profile with care parameters */
-        get: operations["species_1"];
+        get: operations["species_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -441,7 +810,7 @@ export interface paths {
             cookie?: never;
         };
         /** Grades */
-        get: operations["grades"];
+        get: operations["grades_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -458,7 +827,7 @@ export interface paths {
             cookie?: never;
         };
         /** Colours */
-        get: operations["colours"];
+        get: operations["colours_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -492,7 +861,7 @@ export interface paths {
             cookie?: never;
         };
         /** Category tree */
-        get: operations["categories"];
+        get: operations["categories_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -553,6 +922,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/inventory/{productId}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stock history of a product, newest first */
+        get: operations["movements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/orders": {
         parameters: {
             query?: never;
@@ -561,7 +947,7 @@ export interface paths {
             cookie?: never;
         };
         /** Order history, newest first */
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -608,6 +994,260 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SpeciesRequest: {
+            scientificName: string;
+            commonName?: string;
+            slug?: string;
+            description?: string;
+            origin?: string;
+            tempMinC?: number;
+            tempMaxC?: number;
+            phMin?: number;
+            phMax?: number;
+            /** Format: int32 */
+            ghMin?: number;
+            /** Format: int32 */
+            ghMax?: number;
+            /** Format: int32 */
+            khMin?: number;
+            /** Format: int32 */
+            khMax?: number;
+            /** Format: int32 */
+            tdsMin?: number;
+            /** Format: int32 */
+            tdsMax?: number;
+            /** Format: int32 */
+            adultSizeMm?: number;
+            /** Format: int32 */
+            lifespanMonths?: number;
+            /** @enum {string} */
+            difficulty?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+            tradeRestricted?: boolean;
+            restrictionNote?: string;
+        };
+        AdminSpeciesView: {
+            /** Format: uuid */
+            id: string;
+            scientificName: string;
+            commonName: string | null;
+            slug: string;
+            description: string | null;
+            origin: string | null;
+            tempMinC: number | null;
+            tempMaxC: number | null;
+            phMin: number | null;
+            phMax: number | null;
+            /** Format: int32 */
+            ghMin: number | null;
+            /** Format: int32 */
+            ghMax: number | null;
+            /** Format: int32 */
+            khMin: number | null;
+            /** Format: int32 */
+            khMax: number | null;
+            /** Format: int32 */
+            tdsMin: number | null;
+            /** Format: int32 */
+            tdsMax: number | null;
+            /** Format: int32 */
+            adultSizeMm: number | null;
+            /** Format: int32 */
+            lifespanMonths: number | null;
+            /** @enum {string|null} */
+            difficulty: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
+            tradeRestricted: boolean;
+            restrictionNote: string | null;
+            /** Format: int64 */
+            productCount: number;
+        };
+        ProductRequest: {
+            name: string;
+            slug?: string;
+            /** Format: uuid */
+            categoryId: string;
+            /** Format: uuid */
+            speciesId?: string;
+            /** Format: uuid */
+            gradeId?: string;
+            colourIds?: string[];
+            shortDescription?: string;
+            description?: string;
+            careNotes?: string;
+            liveAnimal?: boolean;
+            featured?: boolean;
+            /** Format: int32 */
+            lowStockThreshold?: number;
+            /** Format: date */
+            availableFrom?: string;
+            /** Format: int32 */
+            taxRateBps?: number;
+            seoTitle?: string;
+            seoDescription?: string;
+            /** Format: int64 */
+            version?: number;
+        };
+        AdminImageView: {
+            /** Format: uuid */
+            id: string;
+            url: string;
+            srcSet: string;
+            altText: string;
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            height: number;
+            /** Format: int32 */
+            sortOrder: number;
+        };
+        AdminProductView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            version: number;
+            slug: string;
+            name: string;
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+            /** Format: uuid */
+            categoryId: string;
+            /** Format: uuid */
+            speciesId: string | null;
+            /** Format: uuid */
+            gradeId: string | null;
+            colourIds: string[];
+            shortDescription: string | null;
+            description: string | null;
+            careNotes: string | null;
+            liveAnimal: boolean;
+            featured: boolean;
+            /** Format: int32 */
+            stockUnits: number;
+            /** Format: int32 */
+            lowStockThreshold: number;
+            /** Format: date */
+            availableFrom: string | null;
+            /** Format: int32 */
+            taxRateBps: number;
+            seoTitle: string | null;
+            seoDescription: string | null;
+            /** @enum {string} */
+            availability: "IN_STOCK" | "LOW_STOCK" | "COMING_SOON" | "OUT_OF_STOCK";
+            /** Format: date-time */
+            publishedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            variants: components["schemas"]["AdminVariantView"][];
+            images: components["schemas"]["AdminImageView"][];
+            publishProblems: ("NO_ACTIVE_VARIANT" | "NO_IMAGE" | "SPECIES_RESTRICTED")[];
+        };
+        AdminVariantView: {
+            /** Format: uuid */
+            id: string;
+            sku: string;
+            name: string;
+            /** Format: int32 */
+            packSize: number;
+            price: components["schemas"]["Money"];
+            compareAtPrice: components["schemas"]["Money"] | null;
+            active: boolean;
+            /** Format: int32 */
+            sortOrder: number;
+        };
+        Money: {
+            /** Format: int64 */
+            amount: number;
+            currency: string;
+        };
+        VariantRequest: {
+            sku: string;
+            name: string;
+            /** Format: int32 */
+            packSize?: number;
+            /** Format: int64 */
+            priceCents?: number;
+            /** Format: int64 */
+            compareAtPriceCents?: number;
+            active?: boolean;
+        };
+        CountRequest: {
+            /** Format: int32 */
+            countedUnits?: number;
+            note?: string;
+        };
+        StockLevelView: {
+            /** Format: uuid */
+            productId: string;
+            /** Format: int32 */
+            stockUnits: number;
+        };
+        GradeRequest: {
+            name: string;
+            slug?: string;
+            scale?: string;
+            description?: string;
+            /** Format: int32 */
+            rank?: number;
+            /** Format: int32 */
+            sortOrder?: number;
+        };
+        AdminGradeView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            scale: string | null;
+            description: string | null;
+            /** Format: int32 */
+            rank: number;
+            /** Format: int32 */
+            sortOrder: number;
+            /** Format: int64 */
+            productCount: number;
+        };
+        ColourRequest: {
+            name: string;
+            slug?: string;
+            hexCode?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+        };
+        AdminColourView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            hexCode: string | null;
+            /** Format: int32 */
+            sortOrder: number;
+            /** Format: int64 */
+            productCount: number;
+        };
+        CategoryRequest: {
+            name: string;
+            slug?: string;
+            /** Format: uuid */
+            parentId?: string;
+            description?: string;
+            /** Format: int32 */
+            sortOrder?: number;
+            active?: boolean;
+        };
+        AdminCategoryView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            /** Format: uuid */
+            parentId: string | null;
+            description: string | null;
+            /** Format: int32 */
+            sortOrder: number;
+            active: boolean;
+            /** Format: int64 */
+            productCount: number;
+        };
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
@@ -673,11 +1313,6 @@ export interface components {
             width: number;
             /** Format: int32 */
             height: number;
-        };
-        Money: {
-            /** Format: int64 */
-            amount: number;
-            currency: string;
         };
         OrderTotalsView: {
             subtotal: components["schemas"]["Money"];
@@ -844,6 +1479,19 @@ export interface components {
             authenticated: boolean;
             user: components["schemas"]["CurrentUserView"] | null;
         };
+        MarkdownPreviewRequest: {
+            markdown?: string;
+        };
+        MarkdownPreviewView: {
+            html: string | null;
+        };
+        AdjustmentRequest: {
+            /** Format: int32 */
+            delta?: number;
+            /** @enum {string} */
+            reason: "INITIAL" | "RESTOCK" | "ORDER_PLACED" | "ORDER_CANCELLED" | "MANUAL_ADJUSTMENT" | "LOSS" | "RETURN";
+            note?: string;
+        };
         OrderAddressView: {
             firstName: string;
             lastName: string;
@@ -903,6 +1551,12 @@ export interface components {
         UpdateCartItemRequest: {
             /** Format: int32 */
             quantity: number;
+        };
+        AltTextRequest: {
+            altText: string;
+        };
+        ImageOrderRequest: {
+            imageIds: string[];
         };
         UpdateProfileRequest: {
             firstName: string;
@@ -1096,6 +1750,67 @@ export interface components {
             parameterName: string;
             token: string;
         };
+        AdminProductSummaryView: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            name: string;
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+            categoryName: string;
+            speciesName: string | null;
+            gradeName: string | null;
+            /** Format: int32 */
+            stockUnits: number;
+            /** Format: int32 */
+            lowStockThreshold: number;
+            /** @enum {string} */
+            availability: "IN_STOCK" | "LOW_STOCK" | "COMING_SOON" | "OUT_OF_STOCK";
+            priceFrom: components["schemas"]["Money"] | null;
+            /** Format: int32 */
+            variantCount: number;
+            image: components["schemas"]["ImageView"] | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PageResponseAdminProductSummaryView: {
+            items: components["schemas"]["AdminProductSummaryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PageResponseStockMovementView: {
+            items: components["schemas"]["StockMovementView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        StockMovementView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            delta: number;
+            /** Format: int32 */
+            stockAfter: number;
+            /** @enum {string} */
+            reason: "INITIAL" | "RESTOCK" | "ORDER_PLACED" | "ORDER_CANCELLED" | "MANUAL_ADJUSTMENT" | "LOSS" | "RETURN";
+            note: string | null;
+            /** Format: uuid */
+            orderId: string | null;
+            manual: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
         OrderSummaryView: {
             orderNumber: string;
             /** @enum {string} */
@@ -1132,6 +1847,313 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    speciesDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminSpeciesView"];
+                };
+            };
+        };
+    };
+    updateSpecies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeciesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminSpeciesView"];
+                };
+            };
+        };
+    };
+    deleteSpecies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    updateVariant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                variantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VariantRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    count: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StockLevelView"];
+                };
+            };
+        };
+    };
+    updateGrade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GradeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminGradeView"];
+                };
+            };
+        };
+    };
+    deleteGrade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateColour: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColourRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminColourView"];
+                };
+            };
+        };
+    };
+    deleteColour: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCategoryView"];
+                };
+            };
+        };
+    };
+    deleteCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     changePassword: {
         parameters: {
             query?: never;
@@ -1176,7 +2198,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1498,6 +2520,407 @@ export interface operations {
             };
         };
     };
+    species: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminSpeciesView"][];
+                };
+            };
+        };
+    };
+    createSpecies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeciesRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminSpeciesView"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                categoryId?: string;
+                stock?: "ALL" | "LOW_STOCK" | "OUT_OF_STOCK";
+                sort?: "UPDATED_DESC" | "NAME_ASC" | "STOCK_ASC";
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseAdminProductSummaryView"];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    addVariant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VariantRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    uploadImage: {
+        parameters: {
+            query: {
+                altText: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    duplicate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    previewMarkdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkdownPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MarkdownPreviewView"];
+                };
+            };
+        };
+    };
+    adjust: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdjustmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StockLevelView"];
+                };
+            };
+        };
+    };
+    grades: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminGradeView"][];
+                };
+            };
+        };
+    };
+    createGrade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GradeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminGradeView"];
+                };
+            };
+        };
+    };
+    colours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminColourView"][];
+                };
+            };
+        };
+    };
+    createColour: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColourRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminColourView"];
+                };
+            };
+        };
+    };
+    categories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCategoryView"][];
+                };
+            };
+        };
+    };
+    createCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCategoryView"];
+                };
+            };
+        };
+    };
     cancel: {
         parameters: {
             query?: never;
@@ -1520,7 +2943,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1540,7 +2963,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    create_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1616,6 +3039,82 @@ export interface operations {
             };
         };
     };
+    deleteImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    changeAltText: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AltTextRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    reorderImages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
     profile: {
         parameters: {
             query?: never;
@@ -1660,7 +3159,7 @@ export interface operations {
             };
         };
     };
-    species: {
+    species_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1680,7 +3179,7 @@ export interface operations {
             };
         };
     };
-    species_1: {
+    species_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -1812,7 +3311,7 @@ export interface operations {
             };
         };
     };
-    grades: {
+    grades_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1832,7 +3331,7 @@ export interface operations {
             };
         };
     };
-    colours: {
+    colours_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1874,7 +3373,7 @@ export interface operations {
             };
         };
     };
-    categories: {
+    categories_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1978,7 +3477,32 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    movements: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseStockMovementView"];
+                };
+            };
+        };
+    };
+    list_2: {
         parameters: {
             query?: {
                 page?: number;

@@ -1,7 +1,9 @@
 package com.pwaquatics.shop.catalog.application;
 
 import com.pwaquatics.shop.catalog.infrastructure.ProductRepository;
+import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.error.ConflictException;
+import com.pwaquatics.shop.common.error.NotFoundException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -76,6 +78,47 @@ public class CatalogStock {
             }
         });
         return stockAfter;
+    }
+
+    /**
+     * Locks one product until the transaction ends and returns its stock (for a stocktake).
+     *
+     * @throws NotFoundException if the product does not exist
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int lockStock(UUID productId) {
+        Integer stock = products.lockStockOf(productId);
+        if (stock == null) {
+            throw new NotFoundException("Product not found.");
+        }
+        return stock;
+    }
+
+    /**
+     * Changes the stock of one product by {@code delta} animals (manual corrections).
+     *
+     * @return the stock afterwards
+     * @throws NotFoundException if the product does not exist
+     * @throws BusinessRuleException {@code STOCK_NEGATIVE} if fewer animals are in stock than removed
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int change(UUID productId, int delta) {
+        if (delta == 0) {
+            throw new IllegalArgumentException("A stock change must not be zero");
+        }
+        if (products.changeStock(productId, delta) == 0) {
+            if (products.stockOf(productId) == null) {
+                throw new NotFoundException("Product not found.");
+            }
+            throw new BusinessRuleException("STOCK_NEGATIVE", "There are fewer animals in stock than you want to remove.");
+        }
+        return products.stockOf(productId);
+    }
+
+    /** Whether the product exists. */
+    @Transactional(readOnly = true)
+    public boolean exists(UUID productId) {
+        return products.existsById(productId);
     }
 
     private static void requirePositive(int units) {

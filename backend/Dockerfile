@@ -20,4 +20,5 @@ COPY --from=build --chown=app:app /workspace/extracted/app.jar ./app.jar
 USER app
 EXPOSE 8080
 ENV MEDIA_LOCAL_PATH=/app/media
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
+# --enable-native-access: the WebP encoder for product photos uses a bundled native library.
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "--enable-native-access=ALL-UNNAMED", "-jar", "app.jar"]

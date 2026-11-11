@@ -31,6 +31,11 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      # Product photos (admin only); larger files are refused with 413 FILE_TOO_LARGE.
+      max-file-size: 15MB
+      max-request-size: 16MB
   session:
     # Idle time after which a login expires.
     timeout: 14d

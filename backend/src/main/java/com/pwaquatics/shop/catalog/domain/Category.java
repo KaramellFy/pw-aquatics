@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.catalog.domain;
 
+import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.persistence.AbstractEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,6 +33,29 @@ public class Category extends AbstractEntity {
     private boolean active = true;
 
     protected Category() {}
+
+    public Category(String name, String slug) {
+        this.name = name;
+        this.slug = slug;
+    }
+
+    /**
+     * Changes the category. A category cannot become its own parent or a child of one of
+     * its descendants.
+     */
+    public void update(String name, String slug, Category parent, String description, int sortOrder, boolean active) {
+        for (Category ancestor = parent; ancestor != null; ancestor = ancestor.getParent()) {
+            if (ancestor.equals(this)) {
+                throw new BusinessRuleException("CATEGORY_CYCLE", "A category cannot be placed inside itself.");
+            }
+        }
+        this.name = name;
+        this.slug = slug;
+        this.parent = parent;
+        this.description = description;
+        this.sortOrder = sortOrder;
+        this.active = active;
+    }
 
     public Category getParent() {
         return parent;

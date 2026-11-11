@@ -14,6 +14,8 @@ import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -74,6 +76,23 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     ResponseEntity<Object> handleAuthentication(AuthenticationException ex, WebRequest request) {
         return problem(ex, HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Authentication required.", request);
+    }
+
+    /** Two people (or tabs) saved the same record; the second save is refused. */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ResponseEntity<Object> handleOptimisticLock(OptimisticLockingFailureException ex, WebRequest request) {
+        return problem(ex, HttpStatus.CONFLICT, "CONFLICT",
+                "This record was changed in the meantime. Please reload it and try again.", request);
+    }
+
+    /**
+     * A database constraint caught what the services did not (usually a race on a unique
+     * value). Logged without the message, which can quote personal data.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<Object> handleDataIntegrity(DataIntegrityViolationException ex, WebRequest request) {
+        log.warn("Database constraint violated: {}", ex.getClass().getSimpleName());
+        return problem(ex, HttpStatus.CONFLICT, "CONFLICT", "The change conflicts with existing data.", request);
     }
 
     @ExceptionHandler(Exception.class)
@@ -166,6 +185,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             case 404 -> "NOT_FOUND";
             case 405 -> "METHOD_NOT_ALLOWED";
             case 409 -> "CONFLICT";
+            case 413 -> "FILE_TOO_LARGE";
             case 415 -> "UNSUPPORTED_MEDIA_TYPE";
             case 429 -> "RATE_LIMITED";
             default -> status.is5xxServerError() ? "INTERNAL_ERROR" : "REQUEST_FAILED";

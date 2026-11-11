@@ -15,6 +15,15 @@ export const queryKeys = {
   shippingMethods: (country: string) => ['account', 'checkout', 'shipping', country] as const,
   quote: (addressId: string, methodCode: string) =>
     ['account', 'checkout', 'quote', addressId, methodCode] as const,
+  /** Prefix of everything in the admin area. */
+  admin: ['admin'] as const,
+  adminProducts: (query: Record<string, string>) => ['admin', 'products', 'list', query] as const,
+  adminProduct: (id: string) => ['admin', 'products', 'detail', id] as const,
+  adminCategories: ['admin', 'categories'] as const,
+  adminSpecies: ['admin', 'species'] as const,
+  adminColours: ['admin', 'colours'] as const,
+  adminGrades: ['admin', 'grades'] as const,
+  adminMovements: (productId: string, page: number) => ['admin', 'movements', productId, page] as const,
   products: (query: Record<string, string>) => ['catalog', 'products', query] as const,
   facets: (query: Record<string, string>) => ['catalog', 'facets', query] as const,
   product: (slug: string) => ['catalog', 'product', slug] as const,

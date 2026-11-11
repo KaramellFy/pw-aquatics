@@ -1,4 +1,4 @@
-import { ShoppingBag, User } from 'lucide-react';
+import { ShoppingBag, SlidersHorizontal, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink } from 'react-router';
@@ -16,7 +16,9 @@ const iconLink =
 export function Header() {
   const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
-  const signedIn = useSession().data?.authenticated === true;
+  const session = useSession().data;
+  const signedIn = session?.authenticated === true;
+  const isAdmin = session?.user?.role === 'ADMIN';
   const cartCount = useCart().data?.itemCount ?? 0;
 
   useEffect(() => {
@@ -62,6 +64,11 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-1">
+          {isAdmin && (
+            <Link to="/admin" className={cn(iconLink, 'hidden sm:inline-flex')} aria-label={t('nav.admin')}>
+              <SlidersHorizontal className="size-5" strokeWidth={1.5} />
+            </Link>
+          )}
           <Link
             to={signedIn ? '/account' : '/login'}
             className={cn(iconLink, 'relative hidden sm:inline-flex')}

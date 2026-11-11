@@ -79,8 +79,9 @@ stable `code` the frontend can switch on:
 | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS` |
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
-| 409 | `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `INVALID_STATUS_TRANSITION`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `INVALID_STATUS_TRANSITION`, `CONFLICT` (optimistic lock), `DUPLICATE` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
 | 500 | `INTERNAL_ERROR` (no stack traces or internals in the body) |
@@ -526,37 +527,82 @@ Every write is recorded in the audit log.
 
 ### 3.2 Products
 
+Built in Phase 6. Every change answers with the full product (`AdminProductView`), so
+the editor always shows what was saved.
+
 | Method | Path | Description |
 |---|---|---|
-| GET | `/admin/products?status=&q=&category=&page=` | All products incl. drafts and archived |
-| POST | `/admin/products` | Create (status `DRAFT`) |
-| GET | `/admin/products/{id}` | Full detail incl. stock and variants |
-| PUT | `/admin/products/{id}` | Update (with `version`) |
-| POST | `/admin/products/{id}/publish` | → `ACTIVE` (validates: ≥1 active variant, ≥1 image, species not restricted) |
-| POST | `/admin/products/{id}/archive` | → `ARCHIVED` (removed from shop, kept for order history) |
-| POST | `/admin/products/{id}/duplicate` | Copy as new draft (handy for new grades/colours) |
-| POST | `/admin/products/{id}/variants` | Add variant |
-| PUT | `/admin/products/{id}/variants/{variantId}` | Update variant |
-| DELETE | `/admin/products/{id}/variants/{variantId}` | Deactivate (hard delete only if never ordered) |
-| POST | `/admin/products/{id}/images` | Multipart upload (`file`, `altText`) → processed WebP renditions |
-| PATCH | `/admin/products/{id}/images/order` | `{ imageIds: [...] }` |
-| PATCH | `/admin/products/{id}/images/{imageId}` | Update alt text |
-| DELETE | `/admin/products/{id}/images/{imageId}` | Delete |
+| GET | `/admin/products?q=&status=&categoryId=&stock=&sort=&page=&size=` | All products incl. drafts and archived, with exact stock. `q` matches name, web address and SKUs; `stock` = `ALL` (default), `LOW_STOCK` (1 … threshold), `OUT_OF_STOCK` (0); `sort` = `UPDATED_DESC` (default), `NAME_ASC`, `STOCK_ASC`. Also the stock overview |
+| POST | `/admin/products` | Create → `201`, status `DRAFT`, stock 0 |
+| GET | `/admin/products/{id}` | Full detail: fields, `version`, stock, availability, pack sizes, photos, `publishProblems` |
+| PUT | `/admin/products/{id}` | Save details; send the `version` you loaded. Stale → `409 CONFLICT`, missing → `422 VERSION_REQUIRED` |
+| POST | `/admin/products/{id}/publish` | → `ACTIVE`. Refused with `422 SPECIES_RESTRICTED`, `NO_ACTIVE_VARIANT` or `NO_IMAGE` |
+| POST | `/admin/products/{id}/archive` | → `ARCHIVED` (out of the shop, kept for orders and history) |
+| POST | `/admin/products/{id}/duplicate` | → `201` unpublished copy without stock and photos; web address and SKUs get a free `-copy` suffix |
+| POST | `/admin/products/{id}/variants` | Add a pack size → `201` |
+| PUT | `/admin/products/{id}/variants/{variantId}` | Change a pack size; `active: false` stops selling it (pack sizes are never deleted, orders refer to them) |
+| POST | `/admin/products/{id}/images` | Multipart `file` + `altText` → `201` |
+| PATCH | `/admin/products/{id}/images/order` | `{ imageIds: [...] }` – every photo once; the first is the main photo |
+| PATCH | `/admin/products/{id}/images/{imageId}` | `{ altText }` |
+| DELETE | `/admin/products/{id}/images/{imageId}` | Delete; files are removed after the change is saved. The last photo of a published product → `422 LAST_IMAGE` |
+| POST | `/admin/markdown/preview` | `{ markdown }` → `{ html }` rendered with the shop's sanitiser |
+
+**Product fields** (`POST`/`PUT`): `name` (≤150), `slug` (optional; derived from the
+name, lower-case letters, digits and hyphens, unique → `409 SLUG_TAKEN`,
+`422 SLUG_INVALID`), `categoryId`, `speciesId?`, `gradeId?`, `colourIds[]`,
+`shortDescription?` (≤300), `description?` and `careNotes?` (Markdown), `liveAnimal`,
+`featured`, `lowStockThreshold`, `availableFrom?`, `taxRateBps` (1900 = 19 %), `seoTitle?`,
+`seoDescription?`, `version` (update only). Stock is never part of this request; it
+changes only through §3.4, so a sale while the editor is open does not cause a conflict.
+
+**Pack size fields:** `sku` (letters, digits, `. _ -`, stored upper-case, unique →
+`409 SKU_TAKEN`), `name`, `packSize` (animals, 1–1000), `priceCents` (gross),
+`compareAtPriceCents?` (must be higher → `422 COMPARE_AT_PRICE_INVALID`), `active`. The
+owner sets prices here; customer requests never carry prices.
+
+**Photos:** JPEG, PNG or WebP (detected from the file content, not its name), at most
+15 MB (`413 FILE_TOO_LARGE`), 40 megapixels and 12 000 px per side
+(`422 IMAGE_TOO_LARGE`, checked before decoding), at least 400 px wide
+(`422 IMAGE_TOO_SMALL`). Unreadable → `422 IMAGE_INVALID`, other types →
+`422 IMAGE_TYPE_UNSUPPORTED`. The photo is turned upright (EXIF orientation) and
+re-encoded from its pixels into WebP renditions 400/800/1200/1600 px wide (up to its own
+width), which drops all metadata (camera, GPS) and anything hidden in the file. Up to 20
+photos per product (`422 IMAGE_LIMIT_REACHED`).
 
 ### 3.3 Taxonomy
 
-CRUD (`GET` list, `POST`, `PUT /{id}`, `DELETE /{id}`) for:
-`/admin/categories`, `/admin/species`, `/admin/colours`, `/admin/grades`.
-Deleting something still referenced by a product returns `409 CONFLICT`.
+`GET` list, `POST` (→ `201`), `PUT /{id}`, `DELETE /{id}` (→ `204`) for
+`/admin/categories`, `/admin/species` (plus `GET /admin/species/{id}`), `/admin/colours`,
+`/admin/grades`. Lists include `productCount`. Slugs follow the product rules.
+
+- **Categories:** `name`, `slug?`, `parentId?`, `description?`, `sortOrder`, `active`
+  (inactive ones are hidden from the shop navigation). Placing a category inside its own
+  branch → `422 CATEGORY_CYCLE`.
+- **Species:** `scientificName` (unique → `409 SCIENTIFIC_NAME_TAKEN`), `commonName?`,
+  `slug?`, `description?` (Markdown), `origin?`, care data (`tempMinC`/`tempMaxC`,
+  `phMin`/`phMax`, `ghMin`/`ghMax`, `khMin`/`khMax`, `tdsMin`/`tdsMax`, `adultSizeMm`,
+  `lifespanMonths`, `difficulty`), `tradeRestricted`, `restrictionNote?`. A minimum above
+  its maximum → `422 RANGE_INVALID`. Marking a species as restricted removes all its
+  products from the shop at once.
+- **Colours:** `name`, `slug?`, `hexCode?` (`#RRGGBB`), `sortOrder`.
+- **Grades:** `name`, `slug?`, `scale?`, `description?`, `rank` (0–1000, higher is better),
+  `sortOrder`.
+
+Deleting something still used by a product (or a category with sub-categories) →
+`409 IN_USE`.
 
 ### 3.4 Inventory
 
+The stock overview is the product list with its `stock` filter (§3.2).
+
 | Method | Path | Description |
 |---|---|---|
-| GET | `/admin/inventory?filter=LOW_STOCK\|OUT_OF_STOCK\|ALL&q=` | Stock overview per product |
-| POST | `/admin/inventory/{productId}/adjustments` | `{ delta, reason: RESTOCK\|LOSS\|MANUAL_ADJUSTMENT\|RETURN, note }` |
-| PUT | `/admin/inventory/{productId}/count` | `{ countedUnits, note }` — stocktake; server records the difference as a movement |
-| GET | `/admin/inventory/{productId}/movements` | Paged movement history |
+| POST | `/admin/inventory/{productId}/adjustments` | `{ delta, reason, note? }` → `{ productId, stockUnits }`. `RESTOCK` and `RETURN` add (positive), `LOSS` removes (negative), `MANUAL_ADJUSTMENT` either way; anything else → `422 ADJUSTMENT_INVALID`. Removing more than is in stock → `422 STOCK_NEGATIVE` |
+| PUT | `/admin/inventory/{productId}/count` | `{ countedUnits, note? }` – stocktake: the counted number becomes the stock, the difference is recorded as `MANUAL_ADJUSTMENT` with the note "Stocktake: …" |
+| GET | `/admin/inventory/{productId}/movements?page=&size=` | Stock history, newest first: `delta`, `stockAfter`, `reason`, `note`, `orderId`, `manual`, `createdAt` |
+
+Every change is a conditional SQL update (the stock can never become negative, also with
+simultaneous changes), a ledger entry and an audit record in one transaction.
 
 ### 3.5 Orders and fulfilment
 

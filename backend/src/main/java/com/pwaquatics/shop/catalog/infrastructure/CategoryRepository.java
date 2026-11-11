@@ -10,4 +10,13 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent WHERE c.active = true ORDER BY c.sortOrder, c.name")
     List<Category> findAllActive();
+
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent ORDER BY c.sortOrder, c.name")
+    List<Category> findAllForAdmin();
+
+    boolean existsBySlug(String slug);
+
+    boolean existsBySlugAndIdNot(String slug, UUID id);
+
+    boolean existsByParentId(UUID parentId);
 }

@@ -34,6 +34,23 @@ public class ProductImage extends AbstractEntity {
 
     protected ProductImage() {}
 
+    ProductImage(Product product, String storageKey, String altText, int width, int height, int sortOrder) {
+        this.product = product;
+        this.storageKey = storageKey;
+        this.altText = altText;
+        this.width = width;
+        this.height = height;
+        this.sortOrder = sortOrder;
+    }
+
+    public void changeAltText(String altText) {
+        this.altText = altText;
+    }
+
+    void moveTo(int sortOrder) {
+        this.sortOrder = sortOrder;
+    }
+
     public String getStorageKey() {
         return storageKey;
     }

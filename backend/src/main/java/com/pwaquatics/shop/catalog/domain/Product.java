@@ -21,10 +21,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.function.UnaryOperator;
 
 /**
  * One sellable animal line, e.g. Neocaridina davidi "Blue Dream", grade High.
@@ -74,7 +77,12 @@ public class Product extends AbstractEntity {
     @Column(nullable = false)
     private boolean featured;
 
-    @Column(name = "stock_units", nullable = false)
+    /**
+     * Animals in stock. Never written through the entity: every change goes through
+     * {@code CatalogStock}'s conditional SQL updates, so editing a product can never
+     * overwrite stock that changed in the meantime (an order, a stock adjustment).
+     */
+    @Column(name = "stock_units", nullable = false, updatable = false)
     private int stockUnits;
 
     @Column(name = "low_stock_threshold", nullable = false)
@@ -98,6 +106,12 @@ public class Product extends AbstractEntity {
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
     @Version
     private long version;
 
@@ -118,6 +132,9 @@ public class Product extends AbstractEntity {
 
     protected Product() {}
 
+    /** Most photos a product can have. */
+    public static final int MAX_IMAGES = 20;
+
     public Product(String slug, String name, Category category, Species species, Grade grade) {
         this.slug = slug;
         this.name = name;
@@ -126,12 +143,45 @@ public class Product extends AbstractEntity {
         this.grade = grade;
     }
 
+    /** A new, unpublished product without stock, variants or photos. */
+    public static Product draft(
+            ProductDetails details, Category category, Species species, Grade grade, Set<Colour> colours, Instant now) {
+        Product product = new Product(details.slug(), details.name(), category, species, grade);
+        product.createdAt = now;
+        product.updateDetails(details, category, species, grade, colours, now);
+        return product;
+    }
+
     // ---------------------------------------------------------------- behaviour
 
-    public ProductVariant addVariant(String sku, String variantName, int packSize, long priceCents, Long compareAtCents) {
-        if (packSize < 1) {
-            throw new IllegalArgumentException("packSize must be at least 1");
+    /** Changes text, settings and taxonomy links. Stock, status, variants and photos are separate. */
+    public void updateDetails(
+            ProductDetails details, Category category, Species species, Grade grade, Set<Colour> colours, Instant now) {
+        if (details.lowStockThreshold() < 0 || details.taxRateBps() < 0 || details.taxRateBps() > 10_000) {
+            throw new BusinessRuleException("VALIDATION_FAILED", "Low-stock threshold or tax rate out of range.");
         }
+        this.name = details.name();
+        this.slug = details.slug();
+        this.shortDescription = details.shortDescription();
+        this.description = details.description();
+        this.careNotes = details.careNotes();
+        this.liveAnimal = details.liveAnimal();
+        this.featured = details.featured();
+        this.lowStockThreshold = details.lowStockThreshold();
+        this.availableFrom = details.availableFrom();
+        this.taxRateBps = details.taxRateBps();
+        this.seoTitle = details.seoTitle();
+        this.seoDescription = details.seoDescription();
+        this.category = category;
+        this.species = species;
+        this.grade = grade;
+        this.colours.clear();
+        this.colours.addAll(colours);
+        touch(now);
+    }
+
+    public ProductVariant addVariant(String sku, String variantName, int packSize, long priceCents, Long compareAtCents) {
+        ProductVariant.requireValid(packSize, priceCents, compareAtCents);
         ProductVariant variant = new ProductVariant(this, sku, variantName, packSize, priceCents, compareAtCents,
                 variants.size());
         variants.add(variant);
@@ -139,7 +189,134 @@ public class Product extends AbstractEntity {
         return variant;
     }
 
-    /** Changes stock by {@code delta} animals; stock can never become negative. */
+    /** Changes a pack size of this product; deactivated pack sizes can no longer be bought. */
+    public void updateVariant(
+            ProductVariant variant, String sku, String variantName, int packSize, long priceCents,
+            Long compareAtCents, boolean active, Instant now) {
+        requireOwn(variants.contains(variant));
+        variant.update(sku, variantName, packSize, priceCents, compareAtCents, active);
+        recalculateMinPrice();
+        touch(now);
+    }
+
+    /** Adds a photo at the end; the first photo is the main one. */
+    public ProductImage addImage(String storageKey, String altText, int width, int height, Instant now) {
+        if (images.size() >= MAX_IMAGES) {
+            throw new BusinessRuleException("IMAGE_LIMIT_REACHED", "A product can have up to " + MAX_IMAGES + " photos.");
+        }
+        ProductImage image = new ProductImage(this, storageKey, altText, width, height, images.size());
+        images.add(image);
+        touch(now);
+        return image;
+    }
+
+    /** Removes a photo. A published product keeps at least one. */
+    public void removeImage(ProductImage image, Instant now) {
+        requireOwn(images.contains(image));
+        if (status == ProductStatus.ACTIVE && images.size() == 1) {
+            throw new BusinessRuleException(
+                    "LAST_IMAGE", "A published product needs a photo. Upload another one first.");
+        }
+        images.remove(image);
+        renumberImages(images);
+        touch(now);
+    }
+
+    /**
+     * Puts the photos in the given order. The list must contain every photo of the product
+     * exactly once.
+     */
+    public void reorderImages(List<UUID> imageIds, Instant now) {
+        if (imageIds.size() != images.size() || new HashSet<>(imageIds).size() != imageIds.size()) {
+            throw new BusinessRuleException("IMAGE_ORDER_INVALID", "The new order must list every photo once.");
+        }
+        List<ProductImage> ordered = new ArrayList<>();
+        for (UUID id : imageIds) {
+            ordered.add(images.stream()
+                    .filter(image -> image.getId().equals(id))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessRuleException(
+                            "IMAGE_ORDER_INVALID", "The new order must list every photo once.")));
+        }
+        renumberImages(ordered);
+        images.sort(Comparator.comparingInt(ProductImage::getSortOrder));
+        touch(now);
+    }
+
+    /**
+     * What stands between this product and the shop, most fundamental first. Empty when it
+     * can be published.
+     */
+    public List<PublishProblem> publishProblems() {
+        List<PublishProblem> problems = new ArrayList<>();
+        if (species != null && species.isTradeRestricted()) {
+            problems.add(PublishProblem.SPECIES_RESTRICTED);
+        }
+        if (activeVariants().isEmpty()) {
+            problems.add(PublishProblem.NO_ACTIVE_VARIANT);
+        }
+        if (images.isEmpty()) {
+            problems.add(PublishProblem.NO_IMAGE);
+        }
+        return problems;
+    }
+
+    /**
+     * Makes the product visible in the shop.
+     *
+     * @throws BusinessRuleException with the first {@link PublishProblem} as code
+     */
+    public void activate(Instant now) {
+        List<PublishProblem> problems = publishProblems();
+        if (!problems.isEmpty()) {
+            PublishProblem problem = problems.getFirst();
+            throw new BusinessRuleException(problem.name(), switch (problem) {
+                case SPECIES_RESTRICTED -> "This species may not be traded.";
+                case NO_ACTIVE_VARIANT -> "A product needs at least one active pack size.";
+                case NO_IMAGE -> "A product needs at least one photo.";
+            });
+        }
+        status = ProductStatus.ACTIVE;
+        if (publishedAt == null) {
+            publishedAt = now;
+        }
+        touch(now);
+    }
+
+    /** Takes the product out of the shop; orders and history keep it. */
+    public void archive(Instant now) {
+        status = ProductStatus.ARCHIVED;
+        touch(now);
+    }
+
+    /**
+     * An unpublished copy without stock and photos, e.g. for a new colour or grade of the same
+     * animal. Photos are not shared, so deleting one product's photo never affects the other.
+     *
+     * @param skuFor the SKU each copied pack size gets
+     */
+    public Product copyAsDraft(String newSlug, String newName, UnaryOperator<String> skuFor,
+            Instant now) {
+        Product copy = draft(
+                new ProductDetails(newName, newSlug, shortDescription, description, careNotes, liveAnimal, false,
+                        lowStockThreshold, availableFrom, taxRateBps, seoTitle, seoDescription),
+                category, species, grade, new LinkedHashSet<>(colours), now);
+        for (ProductVariant variant : variants) {
+            ProductVariant copied = copy.addVariant(skuFor.apply(variant.getSku()), variant.getName(),
+                    variant.getPackSize(), variant.getPriceCents(), variant.getCompareAtPriceCents());
+            if (!variant.isActive()) {
+                copied.update(copied.getSku(), copied.getName(), copied.getPackSize(), copied.getPriceCents(),
+                        copied.getCompareAtPriceCents(), false);
+            }
+        }
+        copy.recalculateMinPrice();
+        return copy;
+    }
+
+    /**
+     * Sets the stock of an object that is not saved yet (tests, building objects). Saved
+     * products change stock only through {@code CatalogStock}.
+     */
     public void adjustStock(int delta) {
         if (stockUnits + delta < 0) {
             throw new BusinessRuleException("INSUFFICIENT_STOCK", "Stock cannot become negative.");
@@ -147,17 +324,22 @@ public class Product extends AbstractEntity {
         stockUnits += delta;
     }
 
-    /** Makes the product visible in the shop. Refused for trade-restricted species. */
-    public void activate(Instant now) {
-        if (species != null && species.isTradeRestricted()) {
-            throw new BusinessRuleException("SPECIES_RESTRICTED", "This species may not be traded.");
+    private void touch(Instant now) {
+        if (createdAt == null) {
+            createdAt = now;
         }
-        if (activeVariants().isEmpty()) {
-            throw new BusinessRuleException("NO_ACTIVE_VARIANT", "A product needs at least one active variant.");
+        updatedAt = now;
+    }
+
+    private static void renumberImages(List<ProductImage> ordered) {
+        for (int i = 0; i < ordered.size(); i++) {
+            ordered.get(i).moveTo(i);
         }
-        status = ProductStatus.ACTIVE;
-        if (publishedAt == null) {
-            publishedAt = now;
+    }
+
+    private static void requireOwn(boolean own) {
+        if (!own) {
+            throw new IllegalArgumentException("Not a part of this product");
         }
     }
 
@@ -287,6 +469,18 @@ public class Product extends AbstractEntity {
 
     public Instant getPublishedAt() {
         return publishedAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public long getVersion() {
+        return version;
     }
 
     public Set<Colour> getColours() {
