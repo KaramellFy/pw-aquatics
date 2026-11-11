@@ -9,6 +9,7 @@ import { PageMeta } from '@/lib/seo/PageMeta';
 
 const navigation = [
   { to: '/account', labelKey: 'account.nav.overview', end: true },
+  { to: '/account/orders', labelKey: 'account.nav.orders', end: false },
   { to: '/account/addresses', labelKey: 'account.nav.addresses', end: false },
   { to: '/account/profile', labelKey: 'account.nav.profile', end: false },
 ] as const;

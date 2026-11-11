@@ -325,24 +325,32 @@ CREATE TABLE stock_movements (
     created_at   timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_stock_movements_product ON stock_movements (product_id, created_at DESC);
+CREATE INDEX idx_stock_movements_order   ON stock_movements (order_id);
 ```
+
+Placing an order writes one `ORDER_PLACED` movement per product (negative delta, all
+pack sizes of the product together); cancelling an unshipped order writes the matching
+`ORDER_CANCELLED` movement. Both happen in the same transaction as the order change.
 
 ### 3.4 Shipping and settings
 
 ```sql
 CREATE TABLE shipping_methods (
     id                            uuid PRIMARY KEY,
-    code                          varchar(50)  NOT NULL UNIQUE,   -- 'EXPRESS_LIVE'
+    code                          varchar(50)  NOT NULL UNIQUE,   -- 'DHL_LIVE_DE'
     name                          varchar(100) NOT NULL,
     description                   varchar(500),
     carrier                       varchar(50),
     price_cents                   bigint       NOT NULL CHECK (price_cents >= 0),
+    -- Orders with a goods value of at least this amount ship for free.
     free_shipping_threshold_cents bigint       CHECK (free_shipping_threshold_cents > 0),
     live_animals_allowed          boolean      NOT NULL DEFAULT true,
-    -- ISO weekdays the parcel may be dispatched (1 = Monday ... 7 = Sunday)
-    dispatch_weekdays             smallint[]   NOT NULL DEFAULT '{1,2,3}',
-    estimated_days_min            smallint,
-    estimated_days_max            smallint,
+    -- ISO weekdays on which parcels are handed to the carrier (1 = Monday ... 7 = Sunday)
+    dispatch_weekdays             smallint[]   NOT NULL DEFAULT '{1,2,3}'
+        CHECK (cardinality(dispatch_weekdays) > 0
+               AND dispatch_weekdays <@ ARRAY[1, 2, 3, 4, 5, 6, 7]::smallint[]),
+    estimated_days_min            smallint     CHECK (estimated_days_min >= 0),
+    estimated_days_max            smallint,                       -- >= estimated_days_min
     active                        boolean      NOT NULL DEFAULT true,
     sort_order                    int          NOT NULL DEFAULT 0,
     created_at                    timestamptz  NOT NULL DEFAULT now(),
@@ -351,20 +359,29 @@ CREATE TABLE shipping_methods (
 
 CREATE TABLE shipping_method_countries (
     shipping_method_id uuid    NOT NULL REFERENCES shipping_methods(id) ON DELETE CASCADE,
-    country_code       char(2) NOT NULL,
+    country_code       char(2) NOT NULL CHECK (country_code ~ '^[A-Z]{2}$'),
     PRIMARY KEY (shipping_method_id, country_code)
 );
+CREATE INDEX idx_shipping_method_countries_country ON shipping_method_countries (country_code);
 
--- Small typed key/value store for shop-wide switches, e.g.
--- 'shipping.pause' = {"active": true, "message": "Heat wave — shipping resumes 12 Aug"}
--- 'orders.bankTransferPaymentDays' = 7
+-- Small key/value store for shop-wide switches, e.g.
+-- 'shipping.pause' = {"active": true, "message": "Heat wave", "until": "2027-08-12"}
 CREATE TABLE shop_settings (
     key         varchar(100) PRIMARY KEY,
     value       jsonb        NOT NULL,
     updated_at  timestamptz  NOT NULL DEFAULT now(),
     updated_by  uuid         REFERENCES users(id) ON DELETE SET NULL
 );
+CREATE INDEX idx_shop_settings_updated_by ON shop_settings (updated_by);
 ```
+
+Notes: the shop delivers to the EU and the United Kingdom with DHL and dispatches
+Monday to Wednesday; the real methods and prices are data in `shipping_methods`
+(the dev seed contains placeholders). `shipping.pause` applies to parcels with live
+animals: with `until` the dispatch date moves behind that day, without it such orders
+cannot be placed. A missing or unreadable setting counts as "no pause". Payment
+deadline and handling time are configuration (`ORDER_BANK_TRANSFER_PAYMENT_DAYS`,
+`SHIPPING_HANDLING_DAYS`), not settings.
 
 ### 3.5 Coupons
 
@@ -452,6 +469,7 @@ CREATE TABLE orders (
     order_number          varchar(20)  NOT NULL UNIQUE,     -- 'PW-2027-000123'
     user_id               uuid         REFERENCES users(id) ON DELETE SET NULL,
     customer_email        citext       NOT NULL,
+    customer_locale       varchar(5)   NOT NULL DEFAULT 'en',            -- language of order emails
     status                varchar(20)  NOT NULL CHECK (status IN (
                               'PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED')),
     payment_status        varchar(20)  NOT NULL DEFAULT 'UNPAID' CHECK (payment_status IN (
@@ -468,8 +486,10 @@ CREATE TABLE orders (
     coupon_code           varchar(64),                                    -- snapshot
     shipping_method_code  varchar(50)  NOT NULL,                          -- snapshot
     shipping_method_name  varchar(100) NOT NULL,                          -- snapshot
-    planned_dispatch_date date,                                           -- next allowed dispatch day
+    shipping_carrier      varchar(50),                                    -- snapshot
+    planned_dispatch_date date,                                           -- earliest dispatch day
     customer_note         varchar(1000),
+    terms_accepted_at     timestamptz  NOT NULL,                          -- proof of the customer's consent
     idempotency_key       varchar(100),
     placed_at             timestamptz  NOT NULL,
     payment_due_at        timestamptz,                                    -- expiry for unpaid orders
@@ -492,12 +512,14 @@ CREATE TABLE order_items (
     order_id          uuid         NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id        uuid         REFERENCES products(id)         ON DELETE SET NULL,
     variant_id        uuid         REFERENCES product_variants(id) ON DELETE SET NULL,
+    position          int          NOT NULL,             -- order of the lines
     -- Snapshot at time of purchase
     sku               varchar(64)  NOT NULL,
     product_name      varchar(150) NOT NULL,
     variant_name      varchar(100) NOT NULL,
     species_name      varchar(150),
     grade_name        varchar(60),
+    is_live_animal    boolean      NOT NULL,
     pack_size         int          NOT NULL,
     unit_price_cents  bigint       NOT NULL,
     quantity          int          NOT NULL CHECK (quantity > 0),
@@ -506,8 +528,9 @@ CREATE TABLE order_items (
     tax_rate_bps      int          NOT NULL,
     tax_cents         bigint       NOT NULL
 );
-CREATE INDEX idx_order_items_order   ON order_items (order_id);
+CREATE INDEX idx_order_items_order   ON order_items (order_id, position);
 CREATE INDEX idx_order_items_product ON order_items (product_id);
+CREATE INDEX idx_order_items_variant ON order_items (variant_id);
 
 -- Address snapshots (never references the editable addresses table)
 CREATE TABLE order_addresses (
@@ -536,9 +559,10 @@ CREATE TABLE order_status_history (
     changed_by        uuid        REFERENCES users(id) ON DELETE SET NULL,   -- null = system
     created_at        timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_order_status_history_order ON order_status_history (order_id, created_at);
+CREATE INDEX idx_order_status_history_order      ON order_status_history (order_id, created_at);
+CREATE INDEX idx_order_status_history_changed_by ON order_status_history (changed_by);
 
--- Internal admin notes on an order (never shown to the customer)
+-- Phase 7: internal admin notes on an order (never shown to the customer)
 CREATE TABLE order_notes (
     id          uuid PRIMARY KEY,
     order_id    uuid          NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -548,6 +572,7 @@ CREATE TABLE order_notes (
 );
 CREATE INDEX idx_order_notes_order ON order_notes (order_id, created_at);
 
+-- Phase 7
 CREATE TABLE shipments (
     id               uuid PRIMARY KEY,
     order_id         uuid         NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -601,6 +626,14 @@ CREATE TABLE invoices (
     storage_key     varchar(255) NOT NULL         -- generated PDF
 );
 ```
+
+Notes on orders (built in Phase 5: `orders`, `order_items`, `order_addresses`,
+`order_status_history`): every amount is calculated by the server with
+`PriceCalculator`; items, prices, names and addresses are snapshots and are never
+updated. `order_items` additionally checks `line_total_cents = unit_price_cents ×
+quantity − discount_cents`. An order number is `PW-<year>-<6 digits>` from
+`order_number_seq` (gaps are fine). `UNIQUE (user_id, idempotency_key)` backs the
+idempotent placement. Orders are locked `FOR UPDATE` when they are cancelled or expire.
 
 ### 3.8 Content
 
@@ -767,11 +800,51 @@ that later phase's migration.
 
 ## 6. Data protection
 
-- Personal data lives in `users`, `addresses`, `orders`/`order_addresses`,
-  `contact_messages`, `audit_log.ip_address`.
-- **Account deletion:** user row is anonymised (`status = 'ANONYMISED'`, email
-  replaced with a random placeholder, names cleared, password hash removed),
-  saved addresses and cart deleted. Orders keep their address snapshots for the
-  statutory retention period, then a scheduled job anonymises them.
-- Contact messages and audit IPs are purged after a configurable period.
-- Backups are encrypted and follow the same retention.
+What the shop stores about people, why, and when it goes. Use this as the input for the
+privacy policy and the record of processing activities (GDPR Art. 30); the legal bases
+and periods are the technical proposal and must be confirmed by the owner's legal
+adviser.
+
+| Data | Where | Purpose / legal basis (GDPR) | Kept until |
+|---|---|---|---|
+| Account: email, name, phone (optional), language, password hash (Argon2id), login state | `users` | Customer account, Art. 6(1)(b) | Account deletion → row anonymised at once |
+| Newsletter consent | `users.marketing_opt_in` + audit entries `MARKETING_CONSENT_GIVEN/WITHDRAWN` (time, source) | Consent, Art. 6(1)(a); proof per Art. 7(1) | Until withdrawn; no newsletter is sent yet |
+| Saved addresses | `addresses` | Faster checkout, Art. 6(1)(b) | Deleted by the customer or with the account |
+| Cart | `carts`, `cart_items` (variant ids only); guest carts via a random cookie, only its hash stored | Art. 6(1)(b) | Guest: 30 days after the last change; customer: with the account |
+| Orders: email, language, items, prices, address snapshots, customer note, time of accepting the terms | `orders`, `order_items`, `order_addresses`, `order_status_history` | Contract Art. 6(1)(b); retention duty Art. 6(1)(c) with § 147 AO / § 257 HGB | Statutory retention (8 years for accounting vouchers, 6 years for business letters — period to be confirmed by the tax adviser); kept after account deletion; anonymisation job not built yet |
+| Stock ledger | `stock_movements` (order id, no personal data) | Inventory | Permanent |
+| Sessions | `spring_session` (user id and role only) | Login, Art. 6(1)(b) | 14 days without activity; deleted by Spring Session |
+| One-time tokens (verify email, reset password, change email) | `user_tokens` (SHA-256 hash only) | Art. 6(1)(b) | 7 days after expiry |
+| Emails to be sent | `outbox_messages` | Delivery of transactional emails | Text erased as soon as the email is sent; row deleted after 30 days (`app.retention.sent-emails`), undeliverable ones after 30 days |
+| Contact form messages: name, email, message | `contact_messages` (+ the email to the shop inbox) | Answering the enquiry, Art. 6(1)(b)/(f) | 365 days (`app.retention.contact-messages`); copies in the shop mailbox follow the mailbox's own rules |
+| Audit log: who did what, when; IP address | `audit_log` | Security, Art. 6(1)(f) | IP address erased after 90 days (`app.retention.audit-ip-addresses`); entries stay |
+| Language choice | Browser `localStorage` key `pwa.language` (no personal data) | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
+
+**Cookies:** `SESSION` (login), `XSRF-TOKEN` (CSRF protection) and `CART_TOKEN` (guest
+cart) are strictly necessary for services the visitor asks for, so no consent banner is
+needed (§ 25(2) no. 2 TDDDG). Adding analytics, tracking, external fonts, maps or videos
+would change that. Fonts are self-hosted; the site makes no third-party requests.
+
+**Payment data:** none is stored. Customers pay by bank transfer to the shop's account
+(configured in the environment, not in the database); the shop never asks for a
+customer's bank or card details. With card and PayPal payments (Phase 9) the browser
+talks to Stripe/PayPal directly and the shop keeps only provider references, status and
+amounts (PCI DSS SAQ A); webhook payloads must be stored without billing details.
+
+**Account deletion:** the user row is anonymised (`status = 'ANONYMISED'`, email
+replaced with a placeholder, names and phone cleared, password hash and newsletter
+consent removed), saved addresses, cart, one-time tokens and sessions are deleted.
+Orders keep their snapshots for the statutory retention period, then a scheduled job
+must anonymise them (not built yet; first due years after launch).
+
+**Logs:** application logs contain ids and counts, never email addresses, names, IP
+addresses, tokens or payment data. Unexpected errors are logged with their stack trace;
+database errors can quote a value, so production logs must be kept short (see
+`docs/ROADMAP.md`, Phase 10 "log retention").
+
+**Data subject requests** (access, rectification, erasure, portability, objection):
+customers see and edit their profile, addresses and orders in the account and can
+delete the account themselves; everything else is answered by the owner within one
+month, with the admin customer view (Phase 7) as the tool.
+
+Backups are encrypted and follow the same retention.

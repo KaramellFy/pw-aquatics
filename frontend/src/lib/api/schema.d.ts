@@ -90,6 +90,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checkout/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Price breakdown for the cart, an address and a shipping method */
+        post: operations["quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkout/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Place the order (repeating a request with the same Idempotency-Key returns the same order) */
+        post: operations["placeOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cart/items": {
         parameters: {
             query?: never;
@@ -220,6 +254,23 @@ export interface paths {
         put?: never;
         /** Request a password-reset email; always 202 */
         post: operations["forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/orders/{orderNumber}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel an order that has not been paid yet */
+        post: operations["cancel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -416,6 +467,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checkout/shipping-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shipping methods for the cart and a destination country */
+        get: operations["shippingMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -477,6 +545,40 @@ export interface paths {
         };
         /** Ensure the XSRF-TOKEN cookie is set */
         get: operations["csrf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Order history, newest first */
+        get: operations["list_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/orders/{orderNumber}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One order with items, totals, addresses and status timeline */
+        get: operations["detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -558,6 +660,107 @@ export interface components {
             orderNumber?: string;
             website?: string;
         };
+        QuoteRequest: {
+            /** Format: uuid */
+            shippingAddressId: string;
+            shippingMethodCode: string;
+        };
+        ImageView: {
+            url: string;
+            srcSet: string;
+            alt: string;
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            height: number;
+        };
+        Money: {
+            /** Format: int64 */
+            amount: number;
+            currency: string;
+        };
+        OrderTotalsView: {
+            subtotal: components["schemas"]["Money"];
+            shipping: components["schemas"]["Money"];
+            total: components["schemas"]["Money"];
+            includedTax: components["schemas"]["Money"];
+        };
+        QuoteLineView: {
+            /** Format: uuid */
+            variantId: string;
+            productSlug: string;
+            productName: string;
+            variantName: string;
+            speciesName: string | null;
+            gradeName: string | null;
+            categorySlug: string;
+            colourHex: string | null;
+            image: components["schemas"]["ImageView"] | null;
+            /** Format: int32 */
+            quantity: number;
+            unitPrice: components["schemas"]["Money"];
+            lineTotal: components["schemas"]["Money"];
+        };
+        QuoteView: {
+            items: components["schemas"]["QuoteLineView"][];
+            totals: components["schemas"]["OrderTotalsView"];
+            shippingMethod: components["schemas"]["ShippingOption"];
+            containsLiveAnimals: boolean;
+            paymentMethods: ("BANK_TRANSFER" | "STRIPE" | "PAYPAL")[];
+        };
+        ShippingOption: {
+            code: string;
+            name: string;
+            description: string | null;
+            carrier: string | null;
+            price: components["schemas"]["Money"];
+            freeFrom: components["schemas"]["Money"] | null;
+            /** Format: date */
+            plannedDispatchDate: string;
+            /** Format: date */
+            estimatedDeliveryFrom: string | null;
+            /** Format: date */
+            estimatedDeliveryTo: string | null;
+        };
+        ExpectedTotal: {
+            /** Format: int64 */
+            amount: number;
+            currency: string;
+        };
+        PlaceOrderRequest: {
+            /** Format: uuid */
+            shippingAddressId: string;
+            /** Format: uuid */
+            billingAddressId?: string;
+            shippingMethodCode: string;
+            /** @enum {string} */
+            paymentMethod: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
+            customerNote?: string;
+            acceptedTerms?: boolean;
+            acceptedLiveAnimalConditions?: boolean;
+            expectedTotal: components["schemas"]["ExpectedTotal"];
+        };
+        PaymentInstructionsView: {
+            /** @enum {string} */
+            type: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
+            accountHolder: string;
+            iban: string;
+            bic: string | null;
+            bankName: string | null;
+            reference: string;
+            amount: components["schemas"]["Money"];
+        };
+        PlacedOrderView: {
+            orderNumber: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+            total: components["schemas"]["Money"];
+            /** Format: date-time */
+            paymentDueAt: string | null;
+            paymentInstructions: components["schemas"]["PaymentInstructionsView"] | null;
+        };
         AddCartItemRequest: {
             /** Format: uuid */
             variantId: string;
@@ -605,20 +808,6 @@ export interface components {
             /** Format: int32 */
             quantity: number | null;
         };
-        ImageView: {
-            url: string;
-            srcSet: string;
-            alt: string;
-            /** Format: int32 */
-            width: number;
-            /** Format: int32 */
-            height: number;
-        };
-        Money: {
-            /** Format: int64 */
-            amount: number;
-            currency: string;
-        };
         TokenRequest: {
             token: string;
         };
@@ -654,6 +843,62 @@ export interface components {
         SessionView: {
             authenticated: boolean;
             user: components["schemas"]["CurrentUserView"] | null;
+        };
+        OrderAddressView: {
+            firstName: string;
+            lastName: string;
+            company: string | null;
+            street: string;
+            houseNumber: string;
+            addressLine2: string | null;
+            postalCode: string;
+            city: string;
+            countryCode: string;
+            phone: string | null;
+        };
+        OrderDetailView: {
+            orderNumber: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+            /** @enum {string} */
+            paymentMethod: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
+            /** Format: date-time */
+            placedAt: string;
+            /** Format: date-time */
+            paymentDueAt: string | null;
+            /** Format: date */
+            plannedDispatchDate: string | null;
+            items: components["schemas"]["OrderItemView"][];
+            totals: components["schemas"]["OrderTotalsView"];
+            shippingMethodName: string;
+            shippingCarrier: string | null;
+            shippingAddress: components["schemas"]["OrderAddressView"];
+            billingAddress: components["schemas"]["OrderAddressView"];
+            customerNote: string | null;
+            containsLiveAnimals: boolean;
+            statusTimeline: components["schemas"]["OrderStatusEntryView"][];
+            paymentInstructions: components["schemas"]["PaymentInstructionsView"] | null;
+            cancellable: boolean;
+        };
+        OrderItemView: {
+            sku: string;
+            productName: string;
+            variantName: string;
+            speciesName: string | null;
+            gradeName: string | null;
+            /** Format: int32 */
+            quantity: number;
+            unitPrice: components["schemas"]["Money"];
+            lineTotal: components["schemas"]["Money"];
+        };
+        OrderStatusEntryView: {
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** Format: date-time */
+            at: string;
+            message: string | null;
         };
         UpdateCartItemRequest: {
             /** Format: int32 */
@@ -833,6 +1078,13 @@ export interface components {
             rank: number;
             description: string | null;
         };
+        ShippingOptions: {
+            methods: components["schemas"]["ShippingOption"][];
+            paused: boolean;
+            pauseMessage: string | null;
+            /** Format: date */
+            pausedUntil: string | null;
+        };
         CategoryNodeView: {
             slug: string;
             name: string;
@@ -843,6 +1095,30 @@ export interface components {
             headerName: string;
             parameterName: string;
             token: string;
+        };
+        OrderSummaryView: {
+            orderNumber: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+            /** Format: date-time */
+            placedAt: string;
+            total: components["schemas"]["Money"];
+            /** Format: int32 */
+            itemCount: number;
+            productNames: string[];
+        };
+        PageResponseOrderSummaryView: {
+            items: components["schemas"]["OrderSummaryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
         };
         DeleteAccountRequest: {
             currentPassword: string;
@@ -991,6 +1267,56 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    quote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QuoteView"];
+                };
+            };
+        };
+    };
+    placeOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PlacedOrderView"];
+                };
             };
         };
     };
@@ -1169,6 +1495,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OrderDetailView"];
+                };
             };
         };
     };
@@ -1504,6 +1852,28 @@ export interface operations {
             };
         };
     };
+    shippingMethods: {
+        parameters: {
+            query: {
+                country: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShippingOptions"];
+                };
+            };
+        };
+    };
     categories: {
         parameters: {
             query?: never;
@@ -1605,6 +1975,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseOrderSummaryView"];
+                };
+            };
+        };
+    };
+    detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OrderDetailView"];
+                };
             };
         };
     };

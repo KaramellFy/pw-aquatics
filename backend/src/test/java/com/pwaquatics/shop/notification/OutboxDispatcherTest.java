@@ -45,8 +45,13 @@ class OutboxDispatcherTest {
         verify(mailSender).send(sent.capture());
         assertThat(sent.getValue().getTo()).containsExactly("customer@example.com");
         assertThat(sent.getValue().getSubject()).isEqualTo("Hello");
-        assertThat(repository.findAll()).singleElement()
-                .satisfies(message -> assertThat(message.getStatus()).isEqualTo(OutboxStatus.SENT));
+        // Once delivered, the text (names, addresses, one-time links) is no longer stored.
+        assertThat(repository.findAll()).singleElement().satisfies(message -> {
+            assertThat(message.getStatus()).isEqualTo(OutboxStatus.SENT);
+            assertThat(message.getPayload().to()).isEqualTo("customer@example.com");
+            assertThat(message.getPayload().subject()).isEqualTo("Hello");
+            assertThat(message.getPayload().body()).isEmpty();
+        });
         assertThat(dispatcher.dispatchDue()).isZero();
     }
 
@@ -60,6 +65,8 @@ class OutboxDispatcherTest {
         assertThat(repository.findAll()).singleElement().satisfies(message -> {
             assertThat(message.getStatus()).isEqualTo(OutboxStatus.PENDING);
             assertThat(message.getAttempts()).isEqualTo(1);
+            // The text is still needed for the next attempt.
+            assertThat(message.getPayload().body()).isEqualTo("Body");
             assertThat(message.getLastError()).contains("SMTP down");
         });
         // Not due again yet (backoff), so nothing is retried immediately.

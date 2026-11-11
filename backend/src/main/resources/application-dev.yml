@@ -7,6 +7,12 @@ spring:
 app:
   cookies:
     secure: false
+  # Obviously fake account for local development; never a real one.
+  bank-transfer:
+    account-holder: ${BANK_ACCOUNT_HOLDER:PW Aquatics (dev)}
+    iban: ${BANK_IBAN:DE00 0000 0000 0000 0000 00}
+    bic: ${BANK_BIC:DEVBDEFFXXX}
+    bank-name: ${BANK_NAME:Development Bank}
 
 springdoc:
   api-docs:

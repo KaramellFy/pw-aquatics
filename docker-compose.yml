@@ -51,6 +51,14 @@ services:
       APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
       APP_ADMIN_BOOTSTRAP_EMAIL: ${APP_ADMIN_BOOTSTRAP_EMAIL:-}
       APP_ADMIN_BOOTSTRAP_PASSWORD: ${APP_ADMIN_BOOTSTRAP_PASSWORD:-}
+      # Bank account for payment by bank transfer. Passed through only when set in .env;
+      # otherwise the dev profile's clearly fake account is used.
+      BANK_ACCOUNT_HOLDER:
+      BANK_IBAN:
+      BANK_BIC:
+      BANK_NAME:
+      ORDER_BANK_TRANSFER_PAYMENT_DAYS:
+      SHIPPING_HANDLING_DAYS:
     volumes:
       - media:/app/media
     ports:

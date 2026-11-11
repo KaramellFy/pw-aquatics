@@ -28,7 +28,13 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 | 2 Public catalog | ✅ shop with URL-synced filters (category, species, colour, grade, price, availability, search, sort, paging), product page, species page, featured products on home, JSON-LD | ✅ catalog schema, search with facet counts, product/related/taxonomy endpoints, Markdown sanitising, dev demo data, OpenAPI → generated TS types |
 | 3 Authentication & accounts | ✅ sign in, register, email confirmation, forgot/reset password, route guard, account overview, address book, profile & security (email, password, delete account) | ✅ users, sessions in PostgreSQL, Argon2id passwords, email verification, password reset, lockout + rate limits, no account enumeration, profile, addresses, account anonymisation, audit log, first-admin bootstrap |
 | 4 Shopping cart | ✅ add to cart on the product page, cart drawer, cart page with quantity steppers, stock warnings, header badge; checkout button disabled until Phase 5 | ✅ carts for guests (HttpOnly cookie, hash stored) and customers, merge after sign-in, server-side prices/totals/VAT (`pricing`), stock limits, automatic quantity correction with warnings, daily cleanup of expired guest carts |
+| 5 Checkout & orders | ✅ three-step checkout (address → shipping → review with mandatory confirmations), order button „Zahlungspflichtig bestellen“, confirmation page with bank details, order history, order detail with status timeline and cancel | ✅ shipping methods per country with dispatch weekdays and shipping pause, quote, order placement in one transaction (cart and product locks, idempotency key, price check), stock ledger, order lifecycle, bank-transfer instructions, confirmation and cancellation emails, customer cancel, expiry of unpaid orders |
 
+Open in Phase 5: real shipping prices (the dev seed has placeholders; production has no
+shipping methods until they are entered), the shop's bank account (`BANK_*`), final
+checkout wording and legal texts, VAT treatment of deliveries outside Germany, public
+holidays in the dispatch calendar. Orders can only be marked as paid once the admin
+order tools exist (Phase 7); until then unpaid orders simply expire.
 Phase 1 brand applied: PW Aquatics logo, white + baby-blue scheme, English default.
 Open in Phase 2: real product photos (uploads arrive with the admin in Phase 6), owner review of species data and product copy, CI check that generated API types are up to date.
 Open in Phase 1: owner approval of the visual direction, photography, final copy and the real contact email.
@@ -251,7 +257,14 @@ webhooks are harmless, no card data is stored or logged anywhere.
   checked with Google's Rich Results test.
 - **Legal (with lawyer/legal-text service):** Impressum, privacy policy,
   terms (AGB), withdrawal policy incl. live-animal specifics, shipping and
-  live-arrival conditions, cookie consent, checkout wording, price display.
+  live-arrival conditions, checkout wording, price display. No cookie banner is
+  needed while the shop only sets strictly necessary cookies (docs/DATABASE.md §6).
+- **Data protection (owner, with adviser):** record of processing activities
+  (GDPR Art. 30, based on docs/DATABASE.md §6), data processing agreements (Art. 28)
+  with the hosting, email and backup providers, a UK representative (UK GDPR Art. 27)
+  while selling to UK customers, a process for data subject requests and data
+  breaches (72-hour notification, Art. 33), and the order retention period with the
+  tax adviser (then build the order anonymisation job).
 - **Invoices:** sequential invoice numbers, PDF invoices attached to emails,
   downloadable in the account.
 - **Security:** OWASP Top 10 review, dependency audit, CSP finalised,
@@ -261,7 +274,8 @@ webhooks are harmless, no card data is stored or logged anywhere.
   headers, database index review with realistic data.
 - **Accessibility:** WCAG 2.2 AA audit, keyboard and screen-reader testing.
 - **Operations:** production Compose with Caddy (HTTPS), backups with tested
-  restore, monitoring and alerting, log retention, email SPF/DKIM/DMARC,
+  restore, monitoring and alerting, log retention (short, no personal data),
+  email SPF/DKIM/DMARC, Dependabot or equivalent dependency alerts,
   runbook in `docs/OPERATIONS.md`.
 - Final end-to-end test suite run on staging; owner acceptance test.
 

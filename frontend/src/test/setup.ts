@@ -1,7 +1,11 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 import '@/lib/i18n';
+
+// Journeys with several requests (sign out, checkout) need more than the default second
+// when all test files run in parallel on a busy machine.
+configure({ asyncUtilTimeout: 4000 });
 
 afterEach(() => {
   cleanup();

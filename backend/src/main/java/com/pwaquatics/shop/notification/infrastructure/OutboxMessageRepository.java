@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,4 +20,15 @@ public interface OutboxMessageRepository extends JpaRepository<OutboxMessage, UU
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
     List<OutboxMessage> lockDue(@Param("now") Instant now, @Param("limit") int limit);
+
+    /** Removes delivered emails sent before {@code sentBefore}. */
+    @Modifying
+    @Query(value = "DELETE FROM outbox_messages WHERE status = 'SENT' AND sent_at < :sentBefore", nativeQuery = true)
+    int deleteSentBefore(@Param("sentBefore") Instant sentBefore);
+
+    /** Removes emails that finally failed and were created before {@code createdBefore}. */
+    @Modifying
+    @Query(value = "DELETE FROM outbox_messages WHERE status = 'FAILED' AND created_at < :createdBefore",
+            nativeQuery = true)
+    int deleteFailedBefore(@Param("createdBefore") Instant createdBefore);
 }

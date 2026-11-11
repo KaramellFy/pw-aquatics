@@ -58,8 +58,13 @@ public class OutboxMessage extends AbstractEntity {
         return message;
     }
 
+    /**
+     * Records the delivery and erases the email's text: it may contain personal data and
+     * one-time links (password reset), which must not stay in the database once delivered.
+     */
     public void markSent(Instant now) {
         status = OutboxStatus.SENT;
+        payload = payload.withoutBody();
         sentAt = now;
         lastError = null;
     }

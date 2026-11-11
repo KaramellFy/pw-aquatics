@@ -86,9 +86,17 @@ interface AddressFormDialogProps {
   address?: Address;
   /** Prefills the name fields of a new address. */
   defaultNames: { firstName: string; lastName: string };
+  /** Called with the address as the server stored it. */
+  onSaved?: (address: Address) => void;
 }
 
-export function AddressFormDialog({ open, onOpenChange, address, defaultNames }: AddressFormDialogProps) {
+export function AddressFormDialog({
+  open,
+  onOpenChange,
+  address,
+  defaultNames,
+  onSaved,
+}: AddressFormDialogProps) {
   const { t } = useTranslation();
   return (
     <Dialog
@@ -98,7 +106,12 @@ export function AddressFormDialog({ open, onOpenChange, address, defaultNames }:
     >
       {/* Mounted only while open, so the form always starts from the current address. */}
       {open && (
-        <AddressForm address={address} defaultNames={defaultNames} onDone={() => onOpenChange(false)} />
+        <AddressForm
+          address={address}
+          defaultNames={defaultNames}
+          onSaved={onSaved}
+          onDone={() => onOpenChange(false)}
+        />
       )}
     </Dialog>
   );
@@ -107,10 +120,12 @@ export function AddressFormDialog({ open, onOpenChange, address, defaultNames }:
 function AddressForm({
   address,
   defaultNames,
+  onSaved,
   onDone,
 }: {
   address?: Address;
   defaultNames: { firstName: string; lastName: string };
+  onSaved?: (address: Address) => void;
   onDone: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -140,7 +155,13 @@ function AddressForm({
   const onSubmit = handleSubmit((values) =>
     save.mutate(
       { id: address?.id, address: toInput(values) },
-      { onSuccess: onDone, onError: (error) => applyServerFieldErrors(error, setError, FIELDS) },
+      {
+        onSuccess: (saved) => {
+          onSaved?.(saved);
+          onDone();
+        },
+        onError: (error) => applyServerFieldErrors(error, setError, FIELDS),
+      },
     ),
   );
 

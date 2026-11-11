@@ -79,7 +79,7 @@ describe('CartPage', () => {
     expect(within(summary).getAllByText('€11.70')).toHaveLength(2); // subtotal and total
     expect(within(summary).getByText('incl. €1.87 VAT')).toBeInTheDocument();
     expect(within(summary).getByText('Calculated at checkout')).toBeInTheDocument();
-    expect(within(summary).getByRole('button', { name: 'Checkout' })).toBeDisabled();
+    expect(within(summary).getByRole('link', { name: 'Checkout' })).toHaveAttribute('href', '/checkout');
   });
 
   it('changes quantities and removes lines through the API', async () => {
