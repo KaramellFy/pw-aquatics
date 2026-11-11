@@ -418,7 +418,7 @@ export const de: Messages = {
       lead: 'Speichere deine Adressen und verfolge deine Bestellungen.',
       marketing: 'Schickt mir gelegentlich Neuigkeiten zu neuen Tieren (optional).',
       privacyNotice:
-        'Mit dem Erstellen eines Kontos akzeptierst du, dass wir deine Angaben wie in unserer <privacyLink>Datenschutzerklärung</privacyLink> beschrieben verarbeiten.',
+        'Wir verwenden deine Angaben, um dein Kundenkonto einzurichten und zu führen. Wie wir mit deinen Daten umgehen, erklärt unsere <privacyLink>Datenschutzerklärung</privacyLink>.',
       submit: 'Konto erstellen',
       submitting: 'Konto wird erstellt …',
       haveAccount: 'Du hast schon ein Konto?',

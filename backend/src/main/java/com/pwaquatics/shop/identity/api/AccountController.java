@@ -43,7 +43,9 @@ class AccountController {
     @Operation(summary = "Update name, phone, newsletter preference and language")
     @PatchMapping("/profile")
     ProfileView updateProfile(
-            @AuthenticationPrincipal ShopUserPrincipal principal, @Valid @RequestBody UpdateProfileRequest request) {
+            @AuthenticationPrincipal ShopUserPrincipal principal,
+            @Valid @RequestBody UpdateProfileRequest request,
+            HttpServletRequest http) {
         return accounts.updateProfile(
                 principal.userId(),
                 new UpdateProfile(
@@ -51,7 +53,8 @@ class AccountController {
                         request.lastName().strip(),
                         request.phone() == null || request.phone().isBlank() ? null : request.phone().strip(),
                         request.marketingOptIn(),
-                        request.locale()));
+                        request.locale()),
+                http.getRemoteAddr());
     }
 
     @Operation(summary = "Change the password; signs out all other devices")

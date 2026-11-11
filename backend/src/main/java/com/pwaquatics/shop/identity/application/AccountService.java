@@ -14,6 +14,7 @@ import com.pwaquatics.shop.notification.application.OutboxService;
 import com.pwaquatics.shop.security.ratelimit.RateLimiter;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 /** What a logged-in user can do with their own account. Sensitive changes need the current password. */
 @Service
 public class AccountService {
+
+    static final String MARKETING_CONSENT_GIVEN = "MARKETING_CONSENT_GIVEN";
+    static final String MARKETING_CONSENT_WITHDRAWN = "MARKETING_CONSENT_WITHDRAWN";
 
     private final UserRepository users;
     private final TokenService tokens;
@@ -63,10 +67,19 @@ public class AccountService {
         return toView(load(userId));
     }
 
+    /**
+     * Updates the profile. Giving or withdrawing newsletter consent is recorded in the audit
+     * log, so the shop can show when consent was given (GDPR Art. 7(1)).
+     */
     @Transactional
-    public ProfileView updateProfile(UUID userId, UpdateProfile command) {
+    public ProfileView updateProfile(UUID userId, UpdateProfile command, String clientIp) {
         User user = load(userId);
         Instant now = clock.instant();
+        boolean consentBefore = user.isMarketingOptIn();
+        if (command.marketingOptIn() != consentBefore) {
+            audit.record(userId, command.marketingOptIn() ? MARKETING_CONSENT_GIVEN : MARKETING_CONSENT_WITHDRAWN,
+                    "USER", userId, Map.of("source", "profile"), clientIp);
+        }
         user.updateProfile(command.firstName(), command.lastName(), command.phone(), command.marketingOptIn(), now);
         if (command.locale() != null) {
             user.setLocale(command.locale(), now);

@@ -60,6 +60,7 @@ class AdminBootstrapTest {
                 properties.shipping(),
                 properties.orders(),
                 properties.bankTransfer(),
+                properties.retention(),
                 new AppProperties.AdminBootstrap(email, password),
                 properties.rateLimits());
         return new AdminBootstrap(users, passwordEncoder, configured, clock);

@@ -106,6 +106,15 @@ app:
     iban: ${BANK_IBAN:}
     bic: ${BANK_BIC:}
     bank-name: ${BANK_NAME:}
+  # How long personal data is kept where no law requires longer (docs/DATABASE.md §6).
+  # Orders are not listed here: they are business records with statutory retention.
+  retention:
+    # The text of an email is erased as soon as it is sent; recipient and subject go after this.
+    sent-emails: 30d
+    failed-emails: 30d
+    # IP addresses in the audit log (security records); the entries themselves stay.
+    audit-ip-addresses: 90d
+    contact-messages: 365d
   # Optional first administrator, created at startup if no admin exists yet.
   admin-bootstrap:
     email: ${APP_ADMIN_BOOTSTRAP_EMAIL:}

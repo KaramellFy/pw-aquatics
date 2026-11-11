@@ -800,12 +800,51 @@ that later phase's migration.
 
 ## 6. Data protection
 
-- Personal data lives in `users`, `addresses`, `orders`/`order_addresses`,
-  `contact_messages`, `audit_log.ip_address`.
-- **Account deletion:** user row is anonymised (`status = 'ANONYMISED'`, email
-  replaced with a random placeholder, names cleared, password hash removed),
-  saved addresses and cart deleted. Orders keep their email address and address
-  snapshots for the statutory retention period (they are business records), then a
-  scheduled job anonymises them (not built yet).
-- Contact messages and audit IPs are purged after a configurable period.
-- Backups are encrypted and follow the same retention.
+What the shop stores about people, why, and when it goes. Use this as the input for the
+privacy policy and the record of processing activities (GDPR Art. 30); the legal bases
+and periods are the technical proposal and must be confirmed by the owner's legal
+adviser.
+
+| Data | Where | Purpose / legal basis (GDPR) | Kept until |
+|---|---|---|---|
+| Account: email, name, phone (optional), language, password hash (Argon2id), login state | `users` | Customer account, Art. 6(1)(b) | Account deletion → row anonymised at once |
+| Newsletter consent | `users.marketing_opt_in` + audit entries `MARKETING_CONSENT_GIVEN/WITHDRAWN` (time, source) | Consent, Art. 6(1)(a); proof per Art. 7(1) | Until withdrawn; no newsletter is sent yet |
+| Saved addresses | `addresses` | Faster checkout, Art. 6(1)(b) | Deleted by the customer or with the account |
+| Cart | `carts`, `cart_items` (variant ids only); guest carts via a random cookie, only its hash stored | Art. 6(1)(b) | Guest: 30 days after the last change; customer: with the account |
+| Orders: email, language, items, prices, address snapshots, customer note, time of accepting the terms | `orders`, `order_items`, `order_addresses`, `order_status_history` | Contract Art. 6(1)(b); retention duty Art. 6(1)(c) with § 147 AO / § 257 HGB | Statutory retention (8 years for accounting vouchers, 6 years for business letters — period to be confirmed by the tax adviser); kept after account deletion; anonymisation job not built yet |
+| Stock ledger | `stock_movements` (order id, no personal data) | Inventory | Permanent |
+| Sessions | `spring_session` (user id and role only) | Login, Art. 6(1)(b) | 14 days without activity; deleted by Spring Session |
+| One-time tokens (verify email, reset password, change email) | `user_tokens` (SHA-256 hash only) | Art. 6(1)(b) | 7 days after expiry |
+| Emails to be sent | `outbox_messages` | Delivery of transactional emails | Text erased as soon as the email is sent; row deleted after 30 days (`app.retention.sent-emails`), undeliverable ones after 30 days |
+| Contact form messages: name, email, message | `contact_messages` (+ the email to the shop inbox) | Answering the enquiry, Art. 6(1)(b)/(f) | 365 days (`app.retention.contact-messages`); copies in the shop mailbox follow the mailbox's own rules |
+| Audit log: who did what, when; IP address | `audit_log` | Security, Art. 6(1)(f) | IP address erased after 90 days (`app.retention.audit-ip-addresses`); entries stay |
+| Language choice | Browser `localStorage` key `pwa.language` (no personal data) | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
+
+**Cookies:** `SESSION` (login), `XSRF-TOKEN` (CSRF protection) and `CART_TOKEN` (guest
+cart) are strictly necessary for services the visitor asks for, so no consent banner is
+needed (§ 25(2) no. 2 TDDDG). Adding analytics, tracking, external fonts, maps or videos
+would change that. Fonts are self-hosted; the site makes no third-party requests.
+
+**Payment data:** none is stored. Customers pay by bank transfer to the shop's account
+(configured in the environment, not in the database); the shop never asks for a
+customer's bank or card details. With card and PayPal payments (Phase 9) the browser
+talks to Stripe/PayPal directly and the shop keeps only provider references, status and
+amounts (PCI DSS SAQ A); webhook payloads must be stored without billing details.
+
+**Account deletion:** the user row is anonymised (`status = 'ANONYMISED'`, email
+replaced with a placeholder, names and phone cleared, password hash and newsletter
+consent removed), saved addresses, cart, one-time tokens and sessions are deleted.
+Orders keep their snapshots for the statutory retention period, then a scheduled job
+must anonymise them (not built yet; first due years after launch).
+
+**Logs:** application logs contain ids and counts, never email addresses, names, IP
+addresses, tokens or payment data. Unexpected errors are logged with their stack trace;
+database errors can quote a value, so production logs must be kept short (see
+`docs/ROADMAP.md`, Phase 10 "log retention").
+
+**Data subject requests** (access, rectification, erasure, portability, objection):
+customers see and edit their profile, addresses and orders in the account and can
+delete the account themselves; everything else is answered by the owner within one
+month, with the admin customer view (Phase 7) as the tool.
+
+Backups are encrypted and follow the same retention.

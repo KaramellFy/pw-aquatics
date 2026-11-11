@@ -23,6 +23,7 @@ public record AppProperties(
         @Valid @NotNull Shipping shipping,
         @Valid @NotNull Orders orders,
         @Valid @NotNull BankTransfer bankTransfer,
+        @Valid @NotNull Retention retention,
         AdminBootstrap adminBootstrap,
         Map<String, @Valid RateLimit> rateLimits) {
 
@@ -62,6 +63,22 @@ public record AppProperties(
             return iban != null && !iban.isBlank() && accountHolder != null && !accountHolder.isBlank();
         }
     }
+
+    /**
+     * How long personal data is kept where no law requires longer (docs/DATABASE.md §6).
+     *
+     * @param sentEmails delivered emails: the text is erased right after sending; recipient and
+     *     subject are deleted after this period
+     * @param failedEmails emails that could not be delivered (kept for investigation)
+     * @param auditIpAddresses IP addresses in the audit log are erased after this period; the
+     *     entries themselves stay
+     * @param contactMessages contact form messages are deleted after this period
+     */
+    public record Retention(
+            @NotNull Duration sentEmails,
+            @NotNull Duration failedEmails,
+            @NotNull Duration auditIpAddresses,
+            @NotNull Duration contactMessages) {}
 
     /** Optional first administrator, created at startup when no admin exists yet. */
     public record AdminBootstrap(String email, String password) {

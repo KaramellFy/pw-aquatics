@@ -88,6 +88,11 @@ public class RegistrationService {
         users.save(user);
         sendVerification(user);
         audit.recordUserAction(user.getId(), "USER_REGISTERED", clientIp);
+        if (command.marketingOptIn()) {
+            // Proof of when and how newsletter consent was given (GDPR Art. 7(1)).
+            audit.record(user.getId(), AccountService.MARKETING_CONSENT_GIVEN, "USER", user.getId(),
+                    Map.of("source", "registration"), clientIp);
+        }
     }
 
     @Transactional

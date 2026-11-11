@@ -159,6 +159,11 @@ working around them.
 - Side effects (emails) go through the **outbox**, never inside the HTTP request.
 - Configuration via `@ConfigurationProperties` records, validated at startup.
 - No `System.out`, no swallowed exceptions, no personal data in logs.
+- **Personal data:** every new place that stores personal data gets a row in
+  docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
+  keeping it, a deletion path (`app.retention.*` job or account deletion via
+  `UserAnonymised`). Consent is recorded with time and source in the audit log.
+  Payment card or bank data of customers is never stored.
 - **Auth rules:** emails are normalised with `EmailAddress.normalise` before storing or
   querying. Responses must not reveal whether an account exists (see docs/API.md §2.1).
   After a password change, reset or account deletion, end the user's sessions via

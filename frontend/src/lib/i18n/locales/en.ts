@@ -410,7 +410,7 @@ export const en = {
       lead: 'Save your addresses and follow your orders.',
       marketing: 'Send me occasional news about new animals (optional).',
       privacyNotice:
-        'By creating an account you accept that we process your details as described in our <privacyLink>privacy policy</privacyLink>.',
+        'We use your details to set up and run your customer account. How we handle your data is explained in our <privacyLink>privacy policy</privacyLink>.',
       submit: 'Create account',
       submitting: 'Creating account …',
       haveAccount: 'Already have an account?',

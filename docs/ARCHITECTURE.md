@@ -382,7 +382,7 @@ PaymentProvider (interface)
 | Payment data | Never stored. We keep only provider references and status. |
 | Admin hardening | Audit log of every admin write; TOTP two-factor auth for admins (Phase 10). |
 | Dependencies | Dependabot, OWASP dependency check / `npm audit` in CI. |
-| Privacy | Minimal personal data; self-hosted fonts (no Google Fonts CDN); no tracking without consent; account deletion anonymises the user while keeping legally required order records. |
+| Privacy | Minimal personal data; self-hosted fonts (no Google Fonts CDN); no tracking without consent; only strictly necessary cookies; account deletion anonymises the user while keeping legally required order records. Scheduled jobs remove data without a retention duty: email text right after sending, outbox rows after 30 days, audit IP addresses after 90 days, contact messages after a year (`app.retention.*`). Newsletter consent changes are recorded in the audit log. Inventory, legal bases and periods: docs/DATABASE.md §6. |
 
 ---
 

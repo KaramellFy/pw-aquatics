@@ -23,6 +23,7 @@ import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @IntegrationTest
@@ -32,6 +33,7 @@ class AccountApiTest {
     @Autowired AuthFixture auth;
     @Autowired UserRepository users;
     @Autowired AddressRepository addresses;
+    @Autowired JdbcTemplate jdbc;
 
     @Test
     void profileCanBeReadAndUpdated() throws Exception {
@@ -58,6 +60,46 @@ class AccountApiTest {
                         {"firstName":"","lastName":"X","phone":"call me","marketingOptIn":true}
                         """).cookie(session))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void givingAndWithdrawingNewsletterConsentIsRecorded() throws Exception {
+        String email = uniqueEmail();
+        Cookie session = auth.registeredSession(email);
+        UUID userId = users.findByEmail(email).orElseThrow().getId();
+        String profile = """
+                {"firstName":"Anna","lastName":"Schmidt","marketingOptIn":%s}
+                """;
+
+        mvc.perform(json(patch("/api/v1/account/profile"), profile.formatted(true)).cookie(session))
+                .andExpect(status().isOk());
+        // Saving again without a change records nothing new.
+        mvc.perform(json(patch("/api/v1/account/profile"), profile.formatted(true)).cookie(session))
+                .andExpect(status().isOk());
+        mvc.perform(json(patch("/api/v1/account/profile"), profile.formatted(false)).cookie(session))
+                .andExpect(status().isOk());
+
+        assertThat(jdbc.queryForList("""
+                        SELECT action FROM audit_log
+                        WHERE entity_id = ? AND action LIKE 'MARKETING_CONSENT_%' AND ip_address IS NOT NULL
+                        ORDER BY id
+                        """, String.class, userId))
+                .containsExactly("MARKETING_CONSENT_GIVEN", "MARKETING_CONSENT_WITHDRAWN");
+    }
+
+    @Test
+    void consentGivenAtRegistrationIsRecorded() throws Exception {
+        String email = uniqueEmail();
+        mvc.perform(json(post("/api/v1/auth/register"), """
+                        {"email":"%s","password":"%s","firstName":"Anna","lastName":"Schmidt","marketingOptIn":true}
+                        """.formatted(email, PASSWORD)))
+                .andExpect(status().isAccepted());
+        UUID userId = users.findByEmail(email).orElseThrow().getId();
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT details->>'source' FROM audit_log WHERE entity_id = ? AND action = 'MARKETING_CONSENT_GIVEN'",
+                        String.class, userId))
+                .isEqualTo("registration");
     }
 
     @Test

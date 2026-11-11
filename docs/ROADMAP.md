@@ -257,7 +257,14 @@ webhooks are harmless, no card data is stored or logged anywhere.
   checked with Google's Rich Results test.
 - **Legal (with lawyer/legal-text service):** Impressum, privacy policy,
   terms (AGB), withdrawal policy incl. live-animal specifics, shipping and
-  live-arrival conditions, cookie consent, checkout wording, price display.
+  live-arrival conditions, checkout wording, price display. No cookie banner is
+  needed while the shop only sets strictly necessary cookies (docs/DATABASE.md §6).
+- **Data protection (owner, with adviser):** record of processing activities
+  (GDPR Art. 30, based on docs/DATABASE.md §6), data processing agreements (Art. 28)
+  with the hosting, email and backup providers, a UK representative (UK GDPR Art. 27)
+  while selling to UK customers, a process for data subject requests and data
+  breaches (72-hour notification, Art. 33), and the order retention period with the
+  tax adviser (then build the order anonymisation job).
 - **Invoices:** sequential invoice numbers, PDF invoices attached to emails,
   downloadable in the account.
 - **Security:** OWASP Top 10 review, dependency audit, CSP finalised,
@@ -267,7 +274,8 @@ webhooks are harmless, no card data is stored or logged anywhere.
   headers, database index review with realistic data.
 - **Accessibility:** WCAG 2.2 AA audit, keyboard and screen-reader testing.
 - **Operations:** production Compose with Caddy (HTTPS), backups with tested
-  restore, monitoring and alerting, log retention, email SPF/DKIM/DMARC,
+  restore, monitoring and alerting, log retention (short, no personal data),
+  email SPF/DKIM/DMARC, Dependabot or equivalent dependency alerts,
   runbook in `docs/OPERATIONS.md`.
 - Final end-to-end test suite run on staging; owner acceptance test.
 
