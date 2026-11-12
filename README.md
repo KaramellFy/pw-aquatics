@@ -5,6 +5,9 @@ Premium online shop for ornamental freshwater shrimp and other aquatic invertebr
 
 **Status:** see [Roadmap progress](docs/ROADMAP.md#progress).
 
+**See it without running it:** the [website gallery](docs/gallery/README.md) has screenshots
+(desktop, phone, admin), animation clips and a video tour.
+
 ## Run locally
 
 Requirements: Docker, Node ≥ 22.22, Java 25 (only to run the API outside Docker).
@@ -33,6 +36,7 @@ See [AGENTS.md](AGENTS.md#5-commands) for test, lint and build commands.
 - [Database](docs/DATABASE.md) — schema, conventions, migrations
 - [API](docs/API.md) — REST conventions and endpoints
 - [Roadmap](docs/ROADMAP.md) — development phases
+- [Website gallery](docs/gallery/README.md) — screenshots, animation clips and a video tour
 - [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) — rules for coding agents and developers
 
 ## Stack
