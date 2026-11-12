@@ -1,7 +1,6 @@
 # PW Aquatics
 
 Premium online shop for ornamental freshwater shrimp and other aquatic invertebrates.
-(Repository name: `wakupwirbellose`.)
 
 **Status:** see [Roadmap progress](docs/ROADMAP.md#progress).
 
