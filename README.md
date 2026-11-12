@@ -11,8 +11,12 @@ Requirements: Docker, Node ≥ 22.22, Java 25 (only to run the API outside Docke
 
 ```bash
 cp .env.example .env          # set POSTGRES_PASSWORD
-docker compose up -d          # PostgreSQL, Mailpit and the API on :8080
+docker compose up -d --build  # PostgreSQL, Mailpit and the API on :8080
 ```
+
+After pulling new code, run `docker compose up -d --build` again so the API is rebuilt;
+without `--build` Docker keeps running the old API, and new features (for example the
+admin pages) fail with "could not be loaded".
 
 ```bash
 cd frontend

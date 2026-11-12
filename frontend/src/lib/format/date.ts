@@ -28,3 +28,12 @@ export function formatInstantDateTime(instant: string, locale: string): string {
     timeZone: shopConfig.timeZone,
   }).format(new Date(instant));
 }
+
+/** A calendar date with custom parts ("12 Nov", "November 2026"), formatted in UTC like above. */
+export function formatCalendarDateWith(
+  isoDate: string,
+  locale: string,
+  options: Omit<Intl.DateTimeFormatOptions, 'timeZone'>,
+): string {
+  return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(new Date(isoDate));
+}

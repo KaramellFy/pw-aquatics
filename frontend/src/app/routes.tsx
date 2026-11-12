@@ -154,7 +154,7 @@ export const routes: RouteObject[] = [
     ],
   },
 
-  // Admin panel (Phase 6): administrators only, own layout, own chunks
+  // Admin panel (Phase 6, dashboard from Phase 8): administrators only, own layout, own chunks
   {
     path: 'admin',
     element: <RequireAdmin />,
@@ -163,7 +163,12 @@ export const routes: RouteObject[] = [
       {
         lazy: async () => ({ Component: (await import('./layouts/AdminLayout')).AdminLayout }),
         children: [
-          { index: true, element: <Navigate to="products" replace /> },
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminDashboardPage')).AdminDashboardPage,
+            }),
+          },
           {
             path: 'products',
             lazy: async () => ({
@@ -224,7 +229,7 @@ export const routes: RouteObject[] = [
               Component: (await import('@/features/admin/pages/AdminTaxonomyPages')).AdminGradesPage,
             }),
           },
-          { path: '*', element: <Navigate to="products" replace /> },
+          { path: '*', element: <Navigate to="/admin" replace /> },
         ],
       },
     ],

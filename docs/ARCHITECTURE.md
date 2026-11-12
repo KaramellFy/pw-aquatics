@@ -347,6 +347,25 @@ not shipped returns stock.
 - The frontend admin is a separate route tree with its own layout (`/admin/**`,
   `RequireAdmin`); every page is its own lazy chunk, so shop visitors never download it.
 
+#### Dashboard and statistics (built ahead of Phase 8)
+
+- The `admin` module holds the read model for the dashboard: `StatisticsQueries` runs
+  aggregate SQL across the order, catalog, inventory and identity tables (read only, no
+  entities), `AdminStatisticsService` turns rows into views. Which orders count as sales is
+  defined once there; shares, changes and averages are calculated on the server with
+  half-up rounding. Periods are whole days in Europe/Berlin (`StatsPeriod`), with the bucket
+  size following the length and a comparison period of equal length before it.
+- The admin start page (`/admin`) shows what needs attention now, then the figures of a chosen
+  period: key figures with change against the period before, sales over time (paid vs.
+  awaiting payment), best sellers, revenue by category, species and country, orders by weekday
+  and status, stock changes and loss rate, plus a CSV export of daily sales.
+- Charts are small SVG/HTML components in `features/admin/components/charts` (no chart
+  library): stacked columns with hover and arrow-key read-out, ranked bars that print every
+  value, KPI tiles whose change is shown by arrow and words as well as colour, and a table view
+  for every chart. Colours are two steps of the brand blue (`brand-800` paid, `brand-500`
+  awaiting payment, checked for colour-blind separation and contrast) and `brand-600` for
+  single series.
+
 #### Products, variants and stock
 
 - A **product** is one sellable animal line, e.g. *Neocaridina davidi
@@ -468,7 +487,7 @@ frontend/src/
 │   ├── account/     api/, pages/{Overview, Orders, OrderDetail, Addresses, Profile}, components/{OrderStatusTimeline, TrackingCard, AddressForm}
 │   ├── content/     pages/{AboutPage, GalleryPage, ContactPage, LegalPage}, components/{GalleryMasonry, Lightbox, ContactForm}
 │   └── admin/
-│       ├── dashboard/   KPI cards, sales chart, low-stock list, recent orders
+│       ├── components/{charts, dashboard}/   KPI tiles, column chart, ranked bars; dashboard sections
 │       ├── products/    list, editor, variant table, image manager
 │       ├── taxonomy/    species, categories, colours, grades
 │       ├── inventory/   stock table, adjustment dialog, movement history

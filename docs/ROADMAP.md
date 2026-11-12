@@ -30,10 +30,13 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 | 4 Shopping cart | ✅ add to cart on the product page, cart drawer, cart page with quantity steppers, stock warnings, header badge; checkout button disabled until Phase 5 | ✅ carts for guests (HttpOnly cookie, hash stored) and customers, merge after sign-in, server-side prices/totals/VAT (`pricing`), stock limits, automatic quantity correction with warnings, daily cleanup of expired guest carts |
 | 5 Checkout & orders | ✅ three-step checkout (address → shipping → review with mandatory confirmations), order button „Zahlungspflichtig bestellen“, confirmation page with bank details, order history, order detail with status timeline and cancel | ✅ shipping methods per country with dispatch weekdays and shipping pause, quote, order placement in one transaction (cart and product locks, idempotency key, price check), stock ledger, order lifecycle, bank-transfer instructions, confirmation and cancellation emails, customer cancel, expiry of unpaid orders |
 | 6 Admin I: catalog & inventory | ✅ separate admin area (own layout, lazy chunks, admins only): product list with search/filters, product editor (details, Markdown with preview, colours, SEO), pack sizes with prices, photo manager (upload, drag/arrow reorder, alt texts), publish/archive/duplicate, stock overview with low/sold-out filters, stock changes and stocktake, stock history, categories, species with care data and trade restriction, colours, grades | ✅ admin APIs for products, pack sizes, photos, taxonomy and stock; photo processing to WebP renditions (content sniffing, size limits, EXIF orientation, metadata stripped); publish rules; optimistic locking for edits with stock outside it; stock corrections through the ledger; audit log of every admin write; ADMIN checked at URL and method level |
+| 8 (part) Dashboard & statistics | ✅ admin start page: right-now tiles (awaiting payment, to ship, low stock, sold out), period filter (presets and custom), key figures compared with the previous period, sales over time (paid vs. awaiting payment; revenue, orders, animals), best sellers, revenue by category/species/country, orders by weekday and status, stock changes with loss rate, latest orders, running-low list, table view for every chart, CSV download | ✅ read model in `admin` (`/admin/dashboard`, `/admin/stats/{sales,products,stock}`, CSV export), periods in shop time with automatic day/week/month buckets, tested against hand-counted data |
 
 Open in Phase 6: real product photos and texts (entered by the owner in the admin), the
 owner's own administrator account (`APP_ADMIN_BOOTSTRAP_*` on first start), image storage
-outside the server (S3) if wanted, a dashboard (planned with the order tools).
+outside the server (S3) if wanted.
+Open in the dashboard: coupon statistics (with coupons in Phase 8); "paid" figures only move once orders
+can be marked as paid (Phase 7).
 Open in Phase 5: real shipping prices (the dev seed has placeholders; production has no
 shipping methods until they are entered), the shop's bank account (`BANK_*`), final
 checkout wording and legal texts, VAT treatment of deliveries outside Germany, public
@@ -229,9 +232,10 @@ delivered via the admin, and the customer sees each step and the tracking link.
   proportional discount allocation for VAT.
 - Cart and checkout coupon support; redemption recorded atomically with the order.
 - Admin coupon management and redemption list.
-- Dashboard: KPI cards, revenue chart, orders by status, low stock, recent orders.
-- Statistics: sales over time, top products, revenue by category/species,
-  coupon performance, CSV export.
+- ✅ Dashboard: KPI cards, revenue chart, orders by status, low stock, recent orders
+  (built early at the owner's request, together with the statistics below).
+- ✅ Statistics: sales over time, top products, revenue by category/species/country,
+  orders by weekday, stock changes and loss rate, CSV export. Still open: coupon performance.
 
 **Done when:** coupon edge cases (expired, limit reached concurrently, minimum
 not met, rounding) are covered by tests; dashboard numbers match a manual check.

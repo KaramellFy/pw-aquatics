@@ -80,7 +80,7 @@ stable `code` the frontend can switch on:
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
 | 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `INVALID_STATUS_TRANSITION`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
@@ -516,14 +516,31 @@ Every write is recorded in the audit log.
 
 ### 3.1 Dashboard and statistics
 
+Built ahead of Phase 8 (coupon statistics follow with coupons). Read only; implemented as a
+read model in the `admin` module.
+
+**Periods.** `from` and `to` are ISO dates, both inclusive, on the shop's calendar
+(Europe/Berlin). Without them the last 30 days up to today are used. A period may be at most
+731 days; `to` before `from` or a longer period → `422 STATS_RANGE_INVALID`; a malformed date →
+`400`. The bucket size follows the length: up to 31 days per day, up to 182 days per week
+(Monday–Sunday), longer per month. Every figure is compared with the period of the same length
+directly before (`period.previousFrom`/`previousTo`).
+
+**Definitions.** A *sale* is an order that is neither cancelled (expired unpaid orders are
+cancelled too) nor refunded, counted on the day it was placed. Amounts are gross (incl. VAT);
+order totals include shipping, product and category figures use line totals (goods only).
+*Paid* means `paymentStatus` `PAID` or `PARTIALLY_REFUNDED`. *Animals* are packs × animals per
+pack of live-animal lines. Changes and shares are in basis points (`changeBps`: +12.5 % = 1250;
+`null` when the previous value was 0). All figures, shares and averages are calculated by the
+server (half-up rounding); the admin pages only format them.
+
 | Method | Path | Description |
 |---|---|---|
-| GET | `/admin/dashboard` | KPIs: revenue today/7d/30d, orders by status, open orders to ship, average order value, low-stock products, recent orders, unread contact messages |
-| GET | `/admin/stats/sales?from=&to=&granularity=DAY` | Time series: orders, revenue, discount, shipping (`DAY`, `WEEK`, `MONTH`) |
-| GET | `/admin/stats/top-products?from=&to=&limit=10` | Best sellers by revenue and units |
-| GET | `/admin/stats/by-category?from=&to=` | Revenue per category / species |
-| GET | `/admin/stats/coupons?from=&to=` | Coupon usage and discount totals |
-| GET | `/admin/stats/sales/export?from=&to=` | CSV export |
+| GET | `/admin/dashboard` | Right now (no period): orders awaiting payment and their total, paid orders to ship, published / low-stock / sold-out product counts, the 8 latest orders (number, time, status, total, customer name, country, animals), the 8 emptiest published products at or below their threshold |
+| GET | `/admin/stats/sales?from=&to=` | `kpis` (revenue, paidRevenue, orders, averageOrderValue, animalsSold, newAccounts — customer accounts registered —, returningCustomerShare — share of sales from emails that had ordered before —, cancelledOrders, cancellationRate — of all orders placed), each with `previous` and `changeBps`; `series` without gaps (per bucket: revenue, orders and animals, total and split into paid / awaiting payment); `byStatus` (all orders placed, by current status); `byWeekday` (sales, Monday = 1, all seven days); `byCountry` (sales by delivery country) |
+| GET | `/admin/stats/products?from=&to=&limit=10` | `topProducts` (best sellers by revenue: current name and grade, units, packs; `limit` 1–50), `byCategory` (current category of the product), `bySpecies` (species stored with the sale; `name: null` for lines without a species) |
+| GET | `/admin/stats/stock?from=&to=` | From the stock ledger: `restocked`, `sold` (order movements net of cancellations), `lost`, `lossRate` (lost ÷ (sold + lost)), each compared with the period before; `byReason` (net change per reason, largest first) |
+| GET | `/admin/stats/sales/export?from=&to=` | CSV download (`text/csv`, UTF-8, CRLF), one row per day of the period including empty days: `date, orders, paid_orders, revenue_gross_eur, vat_eur, shipping_eur, revenue_net_eur, animals`. Contains no personal data |
 
 ### 3.2 Products
 

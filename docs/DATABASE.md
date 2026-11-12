@@ -745,16 +745,26 @@ adjustments, stocktakes). That is why stock changes do not touch `version`: edit
 product's texts while an order comes in is no conflict, and a stale editor can never
 overwrite the stock.
 
-**Sales statistics** (paid orders only, grouped by day in shop time zone):
+**Statistics** (dashboard, docs/API.md §3.1) are a read model in the `admin` module
+(`StatisticsQueries`): plain aggregate SQL over `orders`, `order_items`, `order_addresses`,
+`products`, `categories`, `grades`, `users` and `stock_movements`, never writing. Sales are
+orders that are neither cancelled nor refunded, grouped by the day they were placed in the
+shop's time zone:
 
 ```sql
-SELECT date_trunc('day', placed_at AT TIME ZONE 'Europe/Berlin') AS day,
-       count(*) AS orders, sum(total_cents) AS revenue_cents
-FROM orders
-WHERE payment_status IN ('PAID', 'PARTIALLY_REFUNDED')
-  AND placed_at >= :from AND placed_at < :to
-GROUP BY 1 ORDER BY 1;
+SELECT date_trunc(:unit, o.placed_at AT TIME ZONE 'Europe/Berlin')::date AS bucket,
+       o.payment_status IN ('PAID', 'PARTIALLY_REFUNDED')                  AS paid,
+       count(*) AS orders, sum(o.total_cents) AS revenue_cents
+FROM orders o
+WHERE o.placed_at >= :start AND o.placed_at < :end          -- period start/end in Berlin
+  AND o.status <> 'CANCELLED' AND o.payment_status <> 'REFUNDED'
+GROUP BY 1, 2 ORDER BY 1;
 ```
+
+The existing indexes (`orders(placed_at)`, `order_items(order_id)`,
+`stock_movements(product_id, created_at)`) are enough at the expected volume; a daily summary
+table only if the dashboard gets slow (ARCHITECTURE.md risk R16). The statistics store
+nothing; the CSV export holds no personal data.
 
 **Invariants enforced in the database** (in addition to the service layer):
 non-negative stock, unique SKUs/slugs/emails/coupon codes, one default address

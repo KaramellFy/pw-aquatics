@@ -48,6 +48,10 @@ and some species may not be traded legally.
 - **Phase 6 (admin I)** is built end to end: `/admin` (administrators only) for products,
   pack sizes, photos, categories, species, colours, grades and stock. Admin endpoints live
   under `/api/v1/admin/**` in their feature modules.
+- **Dashboard & statistics** (from Phase 8, built early) are built end to end: the admin start
+  page with key figures, charts and CSV export, served by the read model in the `admin`
+  module (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Coupon statistics follow
+  with coupons.
 
 Work only on the phase the owner asked for; do not pull later-phase features forward.
 
@@ -104,7 +108,7 @@ Behind a Docker Hub rate limit, run tests with `TESTCONTAINERS_HUB_IMAGE_NAME_PR
 
 ```bash
 cp .env.example .env                  # set POSTGRES_PASSWORD
-docker compose up -d                  # postgres (host port 5433), mailpit (http://localhost:8025), backend (:8080)
+docker compose up -d --build          # postgres (host port 5433), mailpit (http://localhost:8025), backend (:8080); --build picks up code changes
 docker compose up -d postgres mailpit # infrastructure only, when running the API with bootRun
 ```
 
@@ -187,6 +191,11 @@ working around them.
   Stock is never written through the `Product` entity (`stock_units` is read-only there):
   use `CatalogStock` / `InventoryService` / `AdminInventoryService`, which write the
   ledger. Uploaded files go through `media.ImageService` only (never stored as uploaded).
+- **Statistics rules:** dashboard figures come from the read model in `admin`
+  (`StatisticsQueries`, read-only SQL; which orders count as sales is defined there once).
+  Periods are whole days in `ShippingService.SHOP_ZONE` (`StatsPeriod`). Shares, changes,
+  averages and bucket totals are calculated on the server; the CSV export contains no
+  personal data.
 
 ## 8. Frontend conventions
 
@@ -218,6 +227,12 @@ working around them.
   `AdminLayout`; each page is a lazy chunk and nothing from it is imported by the shop.
   Prices typed by the owner are parsed with `parseMoneyInput` ("3,90" → 390); what blocks
   publishing comes from the server (`publishProblems`). Edits send the product's `version`.
+- **Charts** (admin dashboard): use the components in `features/admin/components/charts`
+  (no chart library). Values, totals, shares and changes come from the API; the frontend only
+  scales them to pixels and formats them (`lib/format/number.ts`). Every chart has a table view
+  or prints its values, a legend for two or more series, and colours from the brand tokens
+  (`brand-800`/`brand-500` for paid/awaiting payment, `brand-600` for one series) — never
+  status colours as series colours.
 - Forms: React Hook Form + Zod for UX validation; always display server
   validation errors too.
 - Styling: Tailwind utilities and design tokens only; build variants in
