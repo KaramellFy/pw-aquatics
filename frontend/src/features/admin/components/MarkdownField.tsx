@@ -1,5 +1,6 @@
 import { useId, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SlidingIndicator } from '@/components/motion/SlidingIndicator';
 import { cn } from '@/lib/cn';
 import { useMarkdownPreview } from '../api/products';
 
@@ -38,11 +39,18 @@ export function MarkdownField({ label, value, error, className, rows = 8, ...pro
             aria-selected={tab === 'write'}
             onClick={() => setTab('write')}
             className={cn(
-              'min-h-9 rounded-full px-3',
-              tab === 'write' ? 'bg-ink text-white' : 'text-ink-soft',
+              'relative min-h-9 press rounded-full px-3',
+              tab === 'write' ? 'text-white' : 'text-ink-soft',
             )}
           >
-            {t('admin.product.markdown.write')}
+            {tab === 'write' && (
+              <SlidingIndicator
+                layoutId={`markdown-tab-${id}`}
+                className="inset-0 rounded-full"
+                markClassName="bg-ink"
+              />
+            )}
+            <span className="relative z-10">{t('admin.product.markdown.write')}</span>
           </button>
           <button
             type="button"
@@ -50,11 +58,18 @@ export function MarkdownField({ label, value, error, className, rows = 8, ...pro
             aria-selected={tab === 'preview'}
             onClick={showPreview}
             className={cn(
-              'min-h-9 rounded-full px-3',
-              tab === 'preview' ? 'bg-ink text-white' : 'text-ink-soft',
+              'relative min-h-9 press rounded-full px-3',
+              tab === 'preview' ? 'text-white' : 'text-ink-soft',
             )}
           >
-            {t('admin.product.markdown.preview')}
+            {tab === 'preview' && (
+              <SlidingIndicator
+                layoutId={`markdown-tab-${id}`}
+                className="inset-0 rounded-full"
+                markClassName="bg-ink"
+              />
+            )}
+            <span className="relative z-10">{t('admin.product.markdown.preview')}</span>
           </button>
         </div>
       </div>

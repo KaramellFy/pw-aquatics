@@ -6,8 +6,9 @@ import { cn } from '@/lib/cn';
 export const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap select-none',
-    'transition-[background-color,color,border-color,box-shadow,transform] duration-(--duration-base) ease-(--ease-out-soft)',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]',
+    // Colours fade in 200 ms; the press (scale to 97 %) reacts faster, in 120 ms.
+    '[transition:background-color_200ms_var(--ease-out),color_200ms_var(--ease-out),border-color_200ms_var(--ease-out),box-shadow_200ms_var(--ease-out),scale_120ms_var(--ease-out)]',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.97]',
     'disabled:pointer-events-none disabled:opacity-50',
   ],
   {

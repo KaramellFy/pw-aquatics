@@ -108,10 +108,10 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | Forms | React Hook Form + Zod | Client validation for UX only — server is authoritative |
 | Styling | Tailwind CSS 4 | Design tokens via `@theme` |
 | UI primitives | Radix UI (headless) | Accessible dialogs, menus, popovers |
-| Motion | CSS transitions + `motion` (sparingly) | Respect `prefers-reduced-motion` |
+| Motion | CSS transitions + `motion` (Motion for React, via `LazyMotion`) | CSS for hover, press and scroll reveals; Motion for exits, shared layout and drag. Respects `prefers-reduced-motion` (ADR-011) |
 | API types | `openapi-typescript` | Generated from the backend OpenAPI spec |
 | i18n | react-i18next | English default, German available |
-| Charts (admin) | Recharts | |
+| Charts (admin) | Own SVG/HTML components | No chart library (see "Dashboard and statistics") |
 | Testing | JUnit 5, Testcontainers, MockMvc; Vitest, Testing Library, Playwright | |
 | Infra | Docker, Docker Compose, Caddy, GitHub Actions | |
 
@@ -457,15 +457,17 @@ frontend/src/
 │   │   └── queryKeys.ts
 │   ├── format/                  # Intl formatters: money, dates, units
 │   ├── i18n/
+│   ├── motion/                  # Motion tokens (curves, durations), LazyMotion provider
 │   └── seo/                     # <title>/meta helpers, JSON-LD builders
 ├── components/
 │   ├── ui/                      # Design system primitives
 │   │   ├── Button.tsx, Input.tsx, Select.tsx, Checkbox.tsx, Badge.tsx
-│   │   ├── Dialog.tsx, Drawer.tsx, Toast.tsx, Tooltip.tsx
+│   │   ├── Dialog.tsx, Sheet.tsx, Toast.tsx, Tooltip.tsx
 │   │   ├── Skeleton.tsx, Spinner.tsx, EmptyState.tsx
 │   │   ├── Price.tsx            # Formats a Money object — no arithmetic
 │   │   ├── ResponsiveImage.tsx  # srcset/sizes, lazy, blur-up placeholder
 │   │   └── Pagination.tsx
+│   ├── motion/                  # SlidingIndicator, SwapText, CrossfadeIcon, MaskedWords, flyToCart
 │   └── layout/
 │       ├── Header.tsx, Footer.tsx, Navigation.tsx, MobileMenu.tsx
 │       ├── Container.tsx, Section.tsx
@@ -496,7 +498,7 @@ frontend/src/
 │       ├── customers/   list, detail
 │       ├── content/     gallery manager, contact inbox
 │       └── settings/    shipping methods, shipping pause
-├── hooks/                       # Generic hooks (useMediaQuery, useDebounce)
+├── hooks/                       # Generic hooks (useMediaQuery, useReturnFocus)
 └── styles/
     └── index.css                # Tailwind entry + @theme design tokens
 ```
@@ -569,8 +571,17 @@ design-led studio than a pet-supply store. Tokens live in
   availability dot. No clutter, no star-burst badges.
 - **Photography rules:** consistent background and lighting, macro shots, one
   aspect ratio per context, minimum 2000 px originals.
-- **Motion:** 150–300 ms ease-out transitions, gentle fade/slide-in on scroll,
-  image hover zoom ≤ 1.03. Everything disabled under `prefers-reduced-motion`.
+- **Motion:** motion explains what happened; it is never decoration. Tokens live in
+  `lib/motion/tokens.ts` and as CSS variables: entrances ease out, moves ease in and out,
+  exits are 20 % shorter, menus and dialogs take 150–250 ms, list rows stagger by 30 ms,
+  nothing in everyday UI bounces. Pressed controls scale to 0.97; dialogs start at 0.95 and
+  grow from the button that opened them; sheets slide in from the edge of their trigger and
+  can be swiped away (rubber band when pulled the wrong way). Selection markers are one
+  object that travels (shared `layoutId`), small knobs stretch 12 % on the way. Text and
+  icons that change crossfade (with a slight blur) with old and new overlapping. Reveals use
+  masks (headline lines, image wipes driven by scroll in CSS) rather than fade-up-on-scroll;
+  content is never hidden when JavaScript or scroll timelines are missing. Image hover zoom
+  ≤ 1.03. Under `prefers-reduced-motion` movement is off and changes are instant.
 - **Components** are built in `components/ui` with variants (e.g. `cva`) so pages
   never invent one-off styles.
 
@@ -698,6 +709,7 @@ endpoint (403).
 | ADR-008 | UUIDv7 primary keys | `bigint` identity (enumerable IDs) |
 | ADR-009 | Outbox for emails | Sending email inside the request |
 | ADR-010 | Hosted payment components; webhook-confirmed payments | Handling card data ourselves |
+| ADR-011 | Motion for React (`motion`) behind `LazyMotion`, CSS for simple effects | CSS only (no exit, shared-layout or drag animations), React Spring, GSAP |
 
 Each ADR gets its own file under `docs/adr/` when implemented.
 

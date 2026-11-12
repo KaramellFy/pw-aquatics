@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router';
 import { createQueryClient } from '@/app/providers';
+import { MotionProvider } from '@/lib/motion/MotionProvider';
 
 /** Renders a component inside a memory router and a fresh QueryClient. */
 export function renderWithProviders(ui: ReactElement, { path = '/' }: { path?: string } = {}) {
@@ -16,7 +17,9 @@ export function renderRoutes(routes: RouteObject[], { path = '/' }: { path?: str
     router,
     ...render(
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <MotionProvider>
+          <RouterProvider router={router} />
+        </MotionProvider>
       </QueryClientProvider>,
     ),
   };

@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { SlidingIndicator } from '@/components/motion/SlidingIndicator';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import { formatMoney } from '@/lib/format/money';
@@ -129,7 +130,7 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
   const id = useId();
   return (
     <section aria-labelledby={id}>
-      <h3 id={id} className="mb-3 font-sans eyebrow text-ink-soft">
+      <h3 id={id} className="mb-2 px-2 font-sans eyebrow text-ink">
         {title}
       </h3>
       <div className="space-y-0.5">{children}</div>
@@ -164,6 +165,8 @@ function CheckOption({
 
 function CategoryLinks({ categories, filters }: { categories: CategoryNode[]; filters: ShopFilters }) {
   const { t } = useTranslation();
+  // One marker per panel (the desktop sidebar and the phone sheet can both exist).
+  const marker = useId();
   // Keep the other filters when switching category, but start on page 1.
   const search = toSearchParams({ ...filters, page: 1 }).toString();
   const link = (slug: string | undefined, label: string, depth: number) => {
@@ -174,12 +177,19 @@ function CategoryLinks({ categories, filters }: { categories: CategoryNode[]; fi
         to={{ pathname: slug ? `/shop/${slug}` : '/shop', search }}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'flex min-h-11 items-center rounded-lg px-2 text-[0.9375rem] transition-colors hover:bg-mist',
-          depth > 0 && 'pl-6',
-          active ? 'font-medium text-brand-700' : 'text-ink-soft',
+          'relative flex min-h-11 press items-center rounded-lg px-3 text-[0.9375rem] transition-colors hover:bg-mist',
+          depth > 0 && 'pl-7',
+          active ? 'font-medium text-brand-800' : 'text-ink-soft',
         )}
       >
-        {active && <span aria-hidden className="mr-2 size-1.5 rounded-full bg-brand-400" />}
+        {active && (
+          <SlidingIndicator
+            layoutId={`category-${marker}`}
+            stretch="y"
+            className={cn('top-2.5 bottom-2.5 w-0.5 rounded-full', depth > 0 ? 'left-4' : 'left-0')}
+            markClassName="bg-brand-500"
+          />
+        )}
         {label}
       </Link>
     );

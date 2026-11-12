@@ -13,7 +13,7 @@ import { OrderStatusBadge } from '../components/OrderStatusBadge';
 function Card({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
     <section className="flex flex-col rounded-card border border-line bg-surface p-6">
-      <h2 className="font-sans eyebrow text-brand-700">{title}</h2>
+      <h2 className="font-sans eyebrow text-ink">{title}</h2>
       <div className="mt-4 flex-1">{children}</div>
       {action && <div className="mt-6">{action}</div>}
     </section>

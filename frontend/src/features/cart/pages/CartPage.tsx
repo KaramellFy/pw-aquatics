@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@/components/ui/Alert';
 import { Button, ButtonLink } from '@/components/ui/Button';
@@ -48,9 +49,11 @@ export function CartPage() {
             <div className="lg:col-span-7">
               <CartWarnings warnings={cart.data.warnings} />
               <ul className="divide-y divide-line border-y border-line">
-                {cart.data.items.map((line) => (
-                  <CartLineItem key={line.id} line={line} />
-                ))}
+                <AnimatePresence initial={false}>
+                  {cart.data.items.map((line) => (
+                    <CartLineItem key={line.id} line={line} />
+                  ))}
+                </AnimatePresence>
               </ul>
               <Button
                 variant="ghost"

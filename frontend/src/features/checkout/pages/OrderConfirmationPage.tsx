@@ -21,7 +21,7 @@ export function OrderConfirmationPage() {
       <PageMeta title={t('checkout.complete.metaTitle')} noIndex />
       <Container className="max-w-3xl pt-12 pb-24 sm:pt-16">
         <CircleCheck aria-hidden className="size-12 text-brand-700" strokeWidth={1.25} />
-        <p className="mt-6 eyebrow text-brand-700">{t('checkout.complete.eyebrow')}</p>
+        <p className="mt-6 eyebrow text-success">{t('checkout.complete.eyebrow')}</p>
         <h1 className="mt-3 text-headline">{t('checkout.complete.title')}</h1>
         <p className="mt-4 text-lg text-ink-soft">{t('checkout.complete.text')}</p>
         <p className="mt-6 text-ink-soft">

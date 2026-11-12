@@ -2,6 +2,7 @@ import { CalendarDays, Package, Thermometer } from 'lucide-react';
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
+import { SwapText } from '@/components/motion/SwapText';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
@@ -19,7 +20,7 @@ import { CareTable } from '../components/CareTable';
 import { ColourDots } from '../components/ColourDots';
 import { GradeBadge } from '../components/GradeBadge';
 import { ProductGrid } from '../components/ProductGrid';
-import { ProductImage } from '../components/ProductImage';
+import { ProductGallery } from '../components/ProductGallery';
 import { VariantSelector } from '../components/VariantSelector';
 
 const SCHEMA_AVAILABILITY: Record<ProductDetail['availability'], string> = {
@@ -69,7 +70,6 @@ function ProductView({ product }: { product: ProductDetail }) {
   const firstAvailable = product.variants.find((variant) => variant.available) ?? product.variants[0];
   const [variantId, setVariantId] = useState(firstAvailable?.id);
   const variant = product.variants.find((candidate) => candidate.id === variantId) ?? firstAvailable;
-  const [primaryImage, ...moreImages] = product.images;
   // availableFrom is a calendar date (YYYY-MM-DD); format it in UTC so it never shifts by a day.
   const dateFormat = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeZone: 'UTC' });
 
@@ -116,25 +116,12 @@ function ProductView({ product }: { product: ProductDetail }) {
           {/* Gallery */}
           <section aria-label={t('product.gallery')} className="lg:col-span-7">
             <div className="lg:sticky lg:top-28">
-              <div className="aspect-[4/5] overflow-hidden rounded-card bg-mist sm:aspect-[5/4] lg:aspect-[4/5]">
-                <ProductImage
-                  image={primaryImage ?? null}
-                  alt={primaryImage?.alt ?? product.name}
-                  categorySlug={product.categoryPath[0]?.slug}
-                  accentColor={product.colours[0]?.hexCode}
-                  sizes="(min-width: 1024px) 55vw, 100vw"
-                  priority
-                />
-              </div>
-              {moreImages.length > 0 && (
-                <ul className="mt-4 grid grid-cols-4 gap-3">
-                  {moreImages.map((image) => (
-                    <li key={image.url} className="aspect-square overflow-hidden rounded-xl bg-mist">
-                      <ProductImage image={image} alt={image.alt} sizes="12vw" />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <ProductGallery
+                images={product.images}
+                productName={product.name}
+                categorySlug={product.categoryPath[0]?.slug}
+                accentColor={product.colours[0]?.hexCode}
+              />
             </div>
           </section>
 
@@ -158,11 +145,10 @@ function ProductView({ product }: { product: ProductDetail }) {
             <div className="mt-8 border-t border-line pt-8">
               {variant && (
                 <div className="flex items-baseline gap-3">
-                  <Price
-                    value={variant.price}
-                    compareAt={variant.compareAtPrice}
-                    className="font-display text-3xl"
-                  />
+                  {/* The price of the chosen pack size slides in over the old one. */}
+                  <SwapText value={variant.id} className="font-display text-3xl">
+                    <Price value={variant.price} compareAt={variant.compareAtPrice} />
+                  </SwapText>
                 </div>
               )}
               <p className="mt-1 text-sm text-muted">

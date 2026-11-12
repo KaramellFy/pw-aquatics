@@ -41,108 +41,97 @@ export const en = {
     vatNote: 'All prices incl. VAT, plus shipping.',
   },
   categories: {
-    shrimp: { name: 'Shrimp', description: 'Neocaridina and Caridina in clean colours and strong lines.' },
-    snails: { name: 'Snails', description: 'Quiet helpers that keep a tank in balance.' },
-    crayfish: { name: 'Crayfish', description: 'Dwarf crayfish with real character.' },
-    crabs: { name: 'Crabs', description: 'Fascinating residents for specialised setups.' },
+    shrimp: { name: 'Shrimp', description: 'Neocaridina for most tanks, Caridina for soft water.' },
+    snails: { name: 'Snails', description: 'Nerites, ramshorns and other algae eaters.' },
+    crayfish: {
+      name: 'Crayfish',
+      description: 'Dwarf crayfish that stay small enough for a community tank.',
+    },
+    crabs: { name: 'Crabs', description: 'Thai micro crabs and other small species for nano tanks.' },
   },
   home: {
     meta: {
-      title: 'PW Aquatics – Ornamental shrimp & aquatic invertebrates',
+      title: 'PW Aquatics – Dwarf shrimp, snails and crayfish',
       description:
-        'Premium dwarf shrimp, snails and crayfish for your aquarium. Healthy animals, honest grading and careful live shipping.',
+        'Dwarf shrimp, snails, crayfish and crabs from our tanks in Germany. Honest grades, insulated packing, sent Monday to Wednesday to the EU and the UK.',
     },
     hero: {
-      eyebrow: 'Ornamental shrimp & invertebrates',
-      title: 'Clear water.\nVivid life.',
-      lead: 'Hand-selected dwarf shrimp, snails and crayfish – raised in stable water, graded honestly and shipped with care.',
-      primaryCta: 'Discover the animals',
-      secondaryCta: 'Our approach',
+      title: 'Dwarf shrimp, snails and crayfish from our own tanks.',
+      lead: 'We grade every animal the way it really looks and send live animals <days>Monday to Wednesday</days> to the EU and the UK, so no parcel waits in a depot over the weekend.',
+      primaryCta: 'Browse the shop',
+      secondaryCta: 'How we ship live animals',
+      spotlight: 'In our tanks right now',
     },
     categories: {
-      eyebrow: 'Collection',
-      title: 'From our water to yours',
-      cta: 'Explore',
+      title: 'What we keep',
     },
     featured: {
-      eyebrow: 'Featured',
-      title: 'Hand-picked from our tanks',
-      cta: 'Shop all animals',
+      title: 'Ready to ship',
+      cta: 'All animals',
     },
-    values: {
-      eyebrow: 'Our standard',
-      title: 'Quality you can see in the tank',
-      items: {
-        health: {
-          title: 'Healthy animals',
-          text: 'Our animals live in stable, mature tanks and are observed closely before they are offered for sale.',
+    shipping: {
+      title: 'Live animals travel Monday to Wednesday',
+      text: 'Parcels leave at the start of the week and arrive before the weekend. Every bag gets extra oxygen, and the insulated box gets a heat or cool pack depending on the weather on the way.',
+      weekLabel: 'Days on which we send live animals',
+      sends: 'We send',
+      rests: 'No dispatch',
+      points: {
+        quarantine: {
+          title: 'Settled before sale',
+          text: 'New animals live in separate tanks first. They go on sale once they eat, moult and behave normally.',
         },
         grading: {
-          title: 'Honest grading',
-          text: 'Clear, consistent grading of colour and pattern, so you know exactly what you receive.',
+          title: 'The grade means the animal',
+          text: 'The grade on a pack describes the animals you receive, not the best one in the tank.',
         },
-        shipping: {
-          title: 'Thoughtful shipping',
-          text: 'Insulated boxes, heat or cool packs depending on the weather, and dispatch only on safe weekdays.',
+        weather: {
+          title: 'Paused in heat and frost',
+          text: 'When it is too hot or too cold for a safe trip, we pause live shipping rather than risk it.',
         },
-      },
-    },
-    process: {
-      eyebrow: 'The way to you',
-      title: 'From our tank to yours',
-      steps: {
-        select: { title: 'Selection', text: 'Every animal is chosen for colour, vitality and size.' },
-        acclimate: {
-          title: 'Observation',
-          text: 'New animals spend time in separate tanks before they go on sale.',
-        },
-        pack: {
-          title: 'Packing',
-          text: 'Oxygen-rich bags, insulated boxes and seasonal temperature protection.',
-        },
-        ship: {
-          title: 'Shipping',
-          text: 'Express shipping on selected weekdays, so nobody spends a weekend in transit.',
+        species: {
+          title: 'Nothing invasive or protected',
+          text: 'Species that may not be traded in the EU are not sold here.',
         },
       },
     },
     gallery: {
-      eyebrow: 'Gallery',
-      title: 'A look into our tanks',
-      cta: 'View gallery',
+      title: 'From the tanks',
+      cta: 'More photos',
     },
-    closing: {
-      title: 'Questions about care or your order?',
-      text: 'We are happy to help – before you buy and after.',
-      cta: 'Get in touch',
+    contact: {
+      title: 'Not sure which shrimp suits your water?',
+      text: 'Send us your temperature, pH and GH, and we will tell you what does well in your tank – before you buy and after.',
+      cta: 'Write to us',
     },
   },
   about: {
     meta: {
       title: 'About – PW Aquatics',
-      description: 'Who is behind PW Aquatics and how we care for our animals.',
+      description: 'Who is behind PW Aquatics and how we keep, grade and ship our animals.',
     },
-    eyebrow: 'About',
-    title: 'Small animals, taken seriously',
-    lead: 'PW Aquatics grew out of a passion for dwarf shrimp – and the wish to sell them the way we would want to buy them ourselves.',
+    title: 'Why we sell shrimp the way we do',
+    lead: 'PW Aquatics grew out of keeping dwarf shrimp ourselves. We sell them the way we would want to buy them: graded honestly, packed for the weather, and with someone to ask afterwards.',
     story: {
       title: 'Our story',
       paragraphs: [
-        'What started with a single tank is now a small, carefully run facility. Our animals live in stable, well-established aquariums, and we take our time with every line.',
-        'We care about healthy animals, clean colours and happy keepers rather than volume. That is why we grade honestly and only ship when the weather allows it.',
+        'Our animals live in established tanks with stable water. We take our time with every line and only offer animals that have settled in.',
+        'We would rather sell fewer animals that arrive well than many that do not. That is why the grade on a pack describes what you get, and why live animals only travel early in the week.',
       ],
     },
     principles: {
-      title: 'What we stand for',
+      title: 'What you can expect',
       items: {
         care: {
-          title: 'Species-appropriate care',
-          text: 'Stable water parameters, a calm environment and high-quality food.',
+          title: 'Kept for the species',
+          text: 'Stable water values, a calm tank and good food – the conditions the animals need, not the cheapest ones.',
         },
-        transparency: { title: 'Transparency', text: 'Consistent grades, real photos and honest advice.' },
+        transparency: {
+          title: 'Straight answers',
+          text: 'Consistent grades, photos of the real animals and honest advice, including when something is not a good fit for your tank.',
+        },
         responsibility: {
-          title: 'Responsibility',
-          text: 'No trade in invasive or protected species. Shipping only under safe conditions.',
+          title: 'Responsible trade',
+          text: 'No invasive or protected species, and no live shipping when the weather makes the trip unsafe.',
         },
       },
     },
@@ -153,7 +142,6 @@ export const en = {
       title: 'Gallery – PW Aquatics',
       description: 'Impressions from our tanks: shrimp, snails and crayfish.',
     },
-    eyebrow: 'Gallery',
     title: 'Impressions from our tanks',
     lead: 'Colours, textures and small moments under water.',
     previous: 'Previous image',
@@ -177,7 +165,6 @@ export const en = {
       title: 'Contact – PW Aquatics',
       description: 'Write to us with questions about animals, care, shipping or your order.',
     },
-    eyebrow: 'Contact',
     title: 'We would love to hear from you',
     lead: 'Questions about care, shipping or an order? We usually reply within one to two working days.',
     info: {
@@ -237,7 +224,6 @@ export const en = {
       description:
         'Dwarf shrimp, snails, crayfish and crabs. Filter by species, colour, grade, price and availability.',
     },
-    eyebrow: 'Shop',
     allAnimals: 'All animals',
     lead: 'Healthy animals from stable tanks, graded honestly and shipped with care.',
     results_one: '{{count}} animal',
@@ -306,6 +292,7 @@ export const en = {
     soldOut: 'Sold out',
     addToCart: 'Add to cart',
     adding: 'Adding …',
+    added: 'Added',
     priceNote: 'incl. VAT, plus <shippingLink>shipping</shippingLink>',
     description: 'About this animal',
     care: 'Care parameters',
@@ -313,6 +300,8 @@ export const en = {
     speciesLink: 'Species profile',
     related: 'You might also like',
     gallery: 'Product images',
+    photoOf: 'Photo {{current}} of {{total}}',
+    showPhoto: 'Show photo {{number}}',
     shipping: {
       days: 'Dispatched Monday to Wednesday only',
       packaging: 'Insulated box, heat or cool pack by season',

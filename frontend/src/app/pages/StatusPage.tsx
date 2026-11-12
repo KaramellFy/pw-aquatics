@@ -23,7 +23,7 @@ export function StatusPage({
   return (
     <Container className="grid items-center gap-12 py-20 sm:py-28 lg:grid-cols-12 lg:py-36">
       <div className="lg:col-span-6">
-        <p className="mb-5 eyebrow text-brand-700">{eyebrow}</p>
+        <p className="mb-5 eyebrow text-muted">{eyebrow}</p>
         <h1 className="text-headline text-balance">{title}</h1>
         <p className="mt-6 max-w-lg text-lg leading-relaxed text-ink-soft">{text}</p>
         {actions && <div className="mt-10 flex flex-wrap gap-3">{actions}</div>}

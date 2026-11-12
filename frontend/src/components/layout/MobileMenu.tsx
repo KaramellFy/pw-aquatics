@@ -1,14 +1,17 @@
-import * as Dialog from '@radix-ui/react-dialog';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import { m } from 'motion/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
+import { Sheet } from '@/components/ui/Sheet';
 import { useSession } from '@/features/auth';
 import { cn } from '@/lib/cn';
+import { duration, ease, STAGGER } from '@/lib/motion/tokens';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { Logo } from './Logo';
 import { mainNavigation } from './navigation';
 
+/** Navigation for small screens: a sheet from the right whose links arrive one after another. */
 export function MobileMenu() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -16,54 +19,57 @@ export function MobileMenu() {
   const accountItem = signedIn
     ? ({ to: '/account', labelKey: 'nav.account' } as const)
     : ({ to: '/login', labelKey: 'auth.signIn' } as const);
+  const items = [...mainNavigation, accountItem];
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger
-        className="-mr-2 inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-brand-50 active:bg-brand-100 lg:hidden"
+    <>
+      <button
+        type="button"
+        className="-mr-2 inline-flex size-11 press items-center justify-center rounded-full text-ink hover:bg-brand-50 active:bg-brand-100 lg:hidden"
         aria-label={t('nav.openMenu')}
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
       >
         <Menu className="size-5" strokeWidth={1.5} />
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm data-[state=open]:animate-[fade-up_200ms_ease-out]" />
-        <Dialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-surface px-6 pt-5 pb-8 shadow-lift focus:outline-none">
-          <div className="flex items-center justify-between">
-            <Logo />
-            <Dialog.Close
-              className="-mr-2 inline-flex size-11 items-center justify-center rounded-full hover:bg-brand-50 active:bg-brand-100"
-              aria-label={t('common.close')}
-            >
-              <X className="size-5" strokeWidth={1.5} />
-            </Dialog.Close>
-          </div>
-          <Dialog.Title className="sr-only">{t('nav.menu')}</Dialog.Title>
-          <Dialog.Description className="sr-only">{t('nav.main')}</Dialog.Description>
-          <nav aria-label={t('nav.main')} className="mt-14 flex-1">
-            <ul className="space-y-1">
-              {[...mainNavigation, accountItem].map((item) => (
-                <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    onClick={() => setOpen(false)}
-                    className={({ isActive }) =>
-                      cn(
-                        'block py-3 font-display text-3xl font-light tracking-tight transition-colors',
-                        isActive
-                          ? 'relative pl-5 text-brand-700 before:absolute before:top-1/2 before:left-0 before:size-2 before:-translate-y-1/2 before:rounded-full before:bg-brand-400'
-                          : 'text-ink hover:text-brand-700',
-                      )
-                    }
-                  >
-                    {t(item.labelKey)}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
+      </button>
+      <Sheet open={open} onOpenChange={setOpen} title={t('nav.menu')} header={<Logo />} className="max-w-sm">
+        <nav aria-label={t('nav.main')} className="flex-1 overflow-y-auto px-6 pt-8">
+          <ul>
+            {items.map((item, index) => (
+              <m.li
+                key={item.to}
+                initial={{ opacity: 0, x: 16 }}
+                animate={{
+                  opacity: 1,
+                  x: 0,
+                  transition: { duration: duration.base, ease: ease.out, delay: 0.08 + index * STAGGER },
+                }}
+              >
+                <NavLink
+                  to={item.to}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-3 py-3 font-display text-3xl tracking-tight transition-colors',
+                      isActive ? 'text-brand-700' : 'text-ink hover:text-brand-700',
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {t(item.labelKey)}
+                      {isActive && <span aria-hidden className="size-2 rounded-full bg-brand-400" />}
+                    </>
+                  )}
+                </NavLink>
+              </m.li>
+            ))}
+          </ul>
+        </nav>
+        <div className="px-6 pb-8">
           <LanguageSwitcher />
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </div>
+      </Sheet>
+    </>
   );
 }

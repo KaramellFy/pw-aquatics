@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { CategoryShowcase } from '../components/CategoryShowcase';
-import { ClosingCta } from '../components/ClosingCta';
+import { ContactStrip } from '../components/ContactStrip';
 import { FeaturedProducts } from '../components/FeaturedProducts';
 import { GalleryTeaser } from '../components/GalleryTeaser';
 import { Hero } from '../components/Hero';
-import { ProcessSection } from '../components/ProcessSection';
-import { ValuesSection } from '../components/ValuesSection';
+import { ShippingWeek } from '../components/ShippingWeek';
 
 export function HomePage() {
   const { t } = useTranslation();
@@ -16,10 +15,9 @@ export function HomePage() {
       <Hero />
       <CategoryShowcase />
       <FeaturedProducts />
-      <ValuesSection />
-      <ProcessSection />
+      <ShippingWeek />
       <GalleryTeaser />
-      <ClosingCta />
+      <ContactStrip />
     </>
   );
 }

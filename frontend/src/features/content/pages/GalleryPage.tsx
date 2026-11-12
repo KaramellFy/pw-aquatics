@@ -10,13 +10,7 @@ export function GalleryPage() {
     <>
       <PageMeta title={t('gallery.meta.title')} description={t('gallery.meta.description')} />
       <Section spacing="compact" className="pb-0 sm:pb-0 lg:pb-0">
-        <SectionHeading
-          as="h1"
-          size="display"
-          eyebrow={t('gallery.eyebrow')}
-          title={t('gallery.title')}
-          lead={t('gallery.lead')}
-        />
+        <SectionHeading as="h1" size="display" title={t('gallery.title')} lead={t('gallery.lead')} />
       </Section>
       <Section spacing="compact">
         <GalleryGrid items={galleryItems} />

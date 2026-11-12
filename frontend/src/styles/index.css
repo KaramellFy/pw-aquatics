@@ -54,9 +54,9 @@
   --font-display: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  --text-display: clamp(2.75rem, 1.5rem + 4.8vw, 5.75rem);
-  --text-display--line-height: 1.02;
-  --text-display--letter-spacing: -0.035em;
+  --text-display: clamp(2.5rem, 1.45rem + 4.2vw, 5rem);
+  --text-display--line-height: 1.04;
+  --text-display--letter-spacing: -0.03em;
 
   --text-headline: clamp(2rem, 1.35rem + 2.5vw, 3.5rem);
   --text-headline--line-height: 1.08;
@@ -66,41 +66,62 @@
   --text-title--line-height: 1.2;
   --text-title--letter-spacing: -0.02em;
 
-  --text-eyebrow: 0.75rem;
-  --text-eyebrow--line-height: 1.2;
-  --text-eyebrow--letter-spacing: 0.2em;
+  --text-eyebrow: 0.8125rem;
+  --text-eyebrow--line-height: 1.3;
+  --text-eyebrow--letter-spacing: 0;
 
   /* Shape & depth (shadows tinted with ink, never pure black) */
-  --radius-card: 1.25rem;
+  --radius-card: 0.875rem;
   --shadow-soft: 0 1px 2px rgb(15 37 51 / 0.04), 0 10px 30px -14px rgb(15 37 51 / 0.14);
   --shadow-lift: 0 2px 4px rgb(15 37 51 / 0.05), 0 28px 56px -28px rgb(15 37 51 / 0.28);
 
-  /* Motion */
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Motion (mirrors lib/motion/tokens.ts).
+     Entrances ease out, moves ease in and out, exits are 20 % shorter, nothing bounces. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* Older name, kept for existing classes. */
+  --ease-out-soft: var(--ease-out);
+  --duration-press: 120ms;
   --duration-fast: 150ms;
-  --duration-base: 250ms;
-  --duration-slow: 700ms;
+  --duration-base: 200ms;
+  --duration-slow: 400ms;
 
-  --animate-fade-up: fade-up var(--duration-slow) var(--ease-out-soft) both;
-  --animate-drift: drift 18s ease-in-out infinite alternate;
+  --animate-enter: enter var(--duration-base) var(--ease-out) both;
+  --animate-line-up: line-up 600ms var(--ease-out) both;
+  --animate-confirm: confirm 600ms var(--ease-out);
 
-  @keyframes fade-up {
+  /* Small things appearing: a short rise and fade. */
+  @keyframes enter {
     from {
       opacity: 0;
-      transform: translateY(16px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
+      transform: translateY(6px);
     }
   }
 
-  @keyframes drift {
+  /* A line of text sliding up inside a clipping mask (see .mask-line). */
+  @keyframes line-up {
     from {
-      transform: translate3d(-2%, -1%, 0) scale(1);
+      transform: translateY(105%);
+    }
+  }
+
+  /* Images wiping open from the bottom edge, like water rising in a tank. */
+  @keyframes wipe {
+    from {
+      clip-path: inset(100% 0 0 0 round var(--radius-card));
     }
     to {
-      transform: translate3d(2%, 1%, 0) scale(1.06);
+      clip-path: inset(0 0 0 0 round var(--radius-card));
+    }
+  }
+
+  /* A ring that spreads out once to confirm an action (added to cart, saved). */
+  @keyframes confirm {
+    from {
+      box-shadow: 0 0 0 0 rgb(95 166 201 / 0.55);
+    }
+    to {
+      box-shadow: 0 0 0 12px rgb(95 166 201 / 0);
     }
   }
 }
@@ -130,7 +151,7 @@
   h2,
   h3 {
     font-family: var(--font-display);
-    font-weight: 300;
+    font-weight: 400;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -148,12 +169,51 @@
   }
 }
 
+/* A small label above a group (filters, form sections). Sentence case, not shouty capitals. */
 @utility eyebrow {
   font-size: var(--text-eyebrow);
   line-height: var(--text-eyebrow--line-height);
   letter-spacing: var(--text-eyebrow--letter-spacing);
-  text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
+}
+
+/* Pressing a control shrinks it slightly; it springs back on release. No tween while held. */
+@utility press {
+  transition-property: scale, background-color, color;
+  transition-duration: var(--duration-press), var(--duration-base), var(--duration-base);
+  transition-timing-function: var(--ease-out);
+  &:active {
+    scale: 0.97;
+  }
+}
+
+/* Wrapper for .mask-line: hides the line until it has slid up into place. */
+@utility mask {
+  display: block;
+  overflow: clip;
+  /* room for descenders, so g, p and y are not cut off */
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+@utility mask-line {
+  display: block;
+  animation: var(--animate-line-up);
+}
+
+/*
+ * Images open with a wipe as they scroll into view. Only where the browser supports
+ * scroll-driven animations; everywhere else (and with reduced motion) they are simply
+ * shown, so content is never hidden waiting for JavaScript.
+ */
+@utility reveal-wipe {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      animation: wipe linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 35%;
+    }
+  }
 }
 
 /* Scientific names are always set in italics. */

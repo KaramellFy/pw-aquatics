@@ -39,7 +39,7 @@ export function SpeciesPage() {
         {data ? (
           <div className="mt-8 grid gap-12 lg:grid-cols-12 lg:gap-16">
             <header className="lg:col-span-7">
-              <p className="eyebrow text-brand-700">{t('species.eyebrow')}</p>
+              <p className="eyebrow text-muted">{t('species.eyebrow')}</p>
               <h1 className="mt-4 text-headline">{title}</h1>
               <p className="mt-2 scientific text-xl text-muted">{data.scientificName}</p>
               {data.descriptionHtml && (

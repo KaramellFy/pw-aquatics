@@ -135,7 +135,7 @@ function OrderDetail({ order }: { order: Order }) {
 
           {order.customerNote && (
             <section className="mt-10">
-              <h2 className="font-sans eyebrow text-brand-700">{t('orders.detail.note')}</h2>
+              <h2 className="font-sans eyebrow text-ink">{t('orders.detail.note')}</h2>
               <p className="mt-3 whitespace-pre-line text-ink-soft">{order.customerNote}</p>
             </section>
           )}
@@ -143,13 +143,13 @@ function OrderDetail({ order }: { order: Order }) {
 
         <div className="space-y-8 lg:col-span-5">
           <section>
-            <h2 className="font-sans eyebrow text-brand-700">{t('orders.detail.timeline')}</h2>
+            <h2 className="font-sans eyebrow text-ink">{t('orders.detail.timeline')}</h2>
             <div className="mt-4">
               <OrderStatusTimeline entries={order.statusTimeline} />
             </div>
           </section>
           <section>
-            <h2 className="font-sans eyebrow text-brand-700">{t('orders.detail.shipping')}</h2>
+            <h2 className="font-sans eyebrow text-ink">{t('orders.detail.shipping')}</h2>
             <p className="mt-3 text-ink">{order.shippingMethodName}</p>
             {order.plannedDispatchDate && order.status !== 'CANCELLED' && (
               <p className="mt-1 text-sm text-ink-soft">
@@ -160,15 +160,15 @@ function OrderDetail({ order }: { order: Order }) {
             )}
           </section>
           <section>
-            <h2 className="font-sans eyebrow text-brand-700">{t('orders.detail.shippingAddress')}</h2>
+            <h2 className="font-sans eyebrow text-ink">{t('orders.detail.shippingAddress')}</h2>
             <AddressBlock address={order.shippingAddress} className="mt-3" />
           </section>
           <section>
-            <h2 className="font-sans eyebrow text-brand-700">{t('orders.detail.billingAddress')}</h2>
+            <h2 className="font-sans eyebrow text-ink">{t('orders.detail.billingAddress')}</h2>
             <AddressBlock address={order.billingAddress} className="mt-3" />
           </section>
           <section>
-            <h2 className="font-sans eyebrow text-brand-700">{t('orders.detail.payment')}</h2>
+            <h2 className="font-sans eyebrow text-ink">{t('orders.detail.payment')}</h2>
             <p className="mt-3 text-ink">{t(`orders.detail.paymentMethod.${order.paymentMethod}`)}</p>
           </section>
         </div>

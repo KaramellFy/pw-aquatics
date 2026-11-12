@@ -72,9 +72,7 @@ export function AddressStep({
           />
           {!billingSame && (
             <fieldset className="mt-5">
-              <legend className="font-sans eyebrow text-brand-700">
-                {t('checkout.address.billingLegend')}
-              </legend>
+              <legend className="font-sans eyebrow text-ink">{t('checkout.address.billingLegend')}</legend>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {addresses.map((address) => (
                   <OptionCard

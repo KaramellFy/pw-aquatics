@@ -42,6 +42,11 @@ export const shopConfig = {
     'SK',
   ],
   defaultCountry: 'DE',
+  /**
+   * Weekdays (ISO, 1 = Monday) on which live animals are sent, as described on the home
+   * page. Display text only: checkout uses the server's dispatch calendar.
+   */
+  liveDispatchWeekdays: [1, 2, 3],
   /** Calendar dates (payment deadline, order date) are shown in the shop's time zone. */
   timeZone: 'Europe/Berlin',
 } as const;

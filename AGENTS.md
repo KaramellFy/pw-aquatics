@@ -53,6 +53,10 @@ and some species may not be traded legally.
   module (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Coupon statistics follow
   with coupons.
 
+- **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
+  motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
+  pieces in `components/motion`, animated `Dialog`/`Sheet` (see §8 Motion and ADR-011).
+
 Work only on the phase the owner asked for; do not pull later-phase features forward.
 
 ## 3. Tech stack
@@ -62,7 +66,7 @@ Work only on the phase the owner asked for; do not pull later-phase features for
   springdoc-openapi, Gradle (Kotlin DSL).
 - **Frontend:** React 19, TypeScript 6 (strict), Vite 8, Tailwind CSS 4,
   React Router 8 (data mode), TanStack Query, React Hook Form + Zod, Radix UI,
-  react-i18next, Vitest. TypeScript stays on 6.x until typescript-eslint supports 7.
+  Motion (`motion`), react-i18next, Vitest. TypeScript stays on 6.x until typescript-eslint supports 7.
 - **Infra:** Docker, Docker Compose, Caddy, GitHub Actions.
 
 Do not add a new major dependency or framework without stating why in the PR
@@ -233,6 +237,18 @@ working around them.
   or prints its values, a legend for two or more series, and colours from the brand tokens
   (`brand-800`/`brand-500` for paid/awaiting payment, `brand-600` for one series) — never
   status colours as series colours.
+- **Motion** (see docs/adr/011-motion-library.md): animate to explain a change, never as
+  decoration. Use the curves and durations from `lib/motion/tokens.ts` (CSS: `--ease-*`,
+  `--duration-*`): entrances `ease.out`, moves `ease.inOut`, exits `exitDuration(...)`
+  (20 % shorter), list rows `STAGGER`; no bounce. Use `m.*` (never `motion.*`: `LazyMotion`
+  is strict) and the shared pieces in `components/motion` (`SlidingIndicator` for anything
+  selected, `SwapText`/`CrossfadeIcon` for changing text and icons, `MaskedWords` for
+  headlines) and `components/ui/{Dialog,Sheet}` for overlays. Pressable things get `press`
+  (or `Button`). Animations started by hand use rAF or `element.animate` and check
+  `prefersReducedMotion()`; don't import Motion's `animate`/`useAnimate` (they put the whole
+  engine in the first download). Content must be visible without JavaScript or scroll
+  timelines: no fade-up-on-scroll, no hiding until revealed. Disabled buttons drop keyboard
+  focus, so a button that is busy uses `aria-busy`/`aria-disabled` and ignores clicks instead.
 - Forms: React Hook Form + Zod for UX validation; always display server
   validation errors too.
 - Styling: Tailwind utilities and design tokens only; build variants in

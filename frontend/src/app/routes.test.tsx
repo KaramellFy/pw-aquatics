@@ -11,7 +11,12 @@ beforeAll(() => {
 describe('routes', () => {
   it('renders the home page inside the public layout', async () => {
     renderRoutes(routes, { path: '/' });
-    expect(await screen.findByRole('heading', { level: 1, name: /Clear water/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: /Dwarf shrimp, snails and crayfish from our own tanks/,
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main');
     expect(screen.getAllByRole('link', { name: 'PW Aquatics' })[0]).toHaveAttribute('href', '/');
@@ -19,7 +24,7 @@ describe('routes', () => {
   });
 
   it.each([
-    ['/about', 'Small animals, taken seriously'],
+    ['/about', 'Why we sell shrimp the way we do'],
     ['/gallery', 'Impressions from our tanks'],
     ['/contact', 'We would love to hear from you'],
     ['/legal/imprint', 'Legal notice'],

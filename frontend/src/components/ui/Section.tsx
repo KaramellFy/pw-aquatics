@@ -54,7 +54,7 @@ export function SectionHeading({
 }: SectionHeadingProps) {
   return (
     <div className={cn('max-w-3xl', align === 'center' && 'mx-auto text-center', className)}>
-      {eyebrow && <p className="mb-5 eyebrow text-brand-700">{eyebrow}</p>}
+      {eyebrow && <p className="mb-4 eyebrow text-muted">{eyebrow}</p>}
       <Heading className={cn('text-balance', size === 'display' ? 'text-display' : 'text-headline')}>
         {title}
       </Heading>
