@@ -60,6 +60,36 @@ public class StockMovement extends AbstractEntity {
         return movement;
     }
 
+    /** A change made by a person (restock, loss, correction, return, stocktake). */
+    public static StockMovement manual(
+            UUID productId, int delta, int stockAfter, StockMovementReason reason, String note, UUID createdBy,
+            Instant now) {
+        if (delta == 0) {
+            throw new IllegalArgumentException("A stock movement must change the stock");
+        }
+        StockMovement movement = new StockMovement();
+        movement.productId = productId;
+        movement.delta = delta;
+        movement.stockAfter = stockAfter;
+        movement.reason = reason;
+        movement.note = note;
+        movement.createdBy = createdBy;
+        movement.createdAt = now;
+        return movement;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public UUID getCreatedBy() {
+        return createdBy;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public UUID getProductId() {
         return productId;
     }

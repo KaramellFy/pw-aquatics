@@ -26,6 +26,19 @@ public class Colour extends AbstractEntity {
 
     protected Colour() {}
 
+    public Colour(String name, String slug) {
+        this.name = name;
+        this.slug = slug;
+    }
+
+    /** @param hexCode swatch colour as {@code #RRGGBB}, or null */
+    public void update(String name, String slug, String hexCode, int sortOrder) {
+        this.name = name;
+        this.slug = slug;
+        this.hexCode = hexCode;
+        this.sortOrder = sortOrder;
+    }
+
     public String getName() {
         return name;
     }

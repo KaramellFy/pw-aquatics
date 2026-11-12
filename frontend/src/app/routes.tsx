@@ -1,4 +1,5 @@
-import type { RouteObject } from 'react-router';
+import { Navigate, type RouteObject } from 'react-router';
+import { RequireAdmin } from './guards/RequireAdmin';
 import { RequireAuth } from './guards/RequireAuth';
 import { PublicLayout } from './layouts/PublicLayout';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -6,7 +7,7 @@ import { RouteErrorPage } from './pages/RouteErrorPage';
 
 /**
  * Route tree. Pages are lazy-loaded so every route ships as its own chunk
- * (the admin panel will be added as a separate lazy branch in Phase 6).
+ * (the admin panel is a separate lazy branch with its own layout).
  * The router imports page modules directly; a feature's index.ts only exposes
  * what other features need, so importing it never pulls in unrelated pages.
  */
@@ -150,6 +151,82 @@ export const routes: RouteObject[] = [
       },
 
       { path: '*', Component: NotFoundPage },
+    ],
+  },
+
+  // Admin panel (Phase 6): administrators only, own layout, own chunks
+  {
+    path: 'admin',
+    element: <RequireAdmin />,
+    errorElement: <RouteErrorPage />,
+    children: [
+      {
+        lazy: async () => ({ Component: (await import('./layouts/AdminLayout')).AdminLayout }),
+        children: [
+          { index: true, element: <Navigate to="products" replace /> },
+          {
+            path: 'products',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminProductsPage')).AdminProductsPage,
+            }),
+          },
+          {
+            path: 'products/new',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminProductEditPage')).AdminProductCreatePage,
+            }),
+          },
+          {
+            path: 'products/:id',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminProductEditPage')).AdminProductEditPage,
+            }),
+          },
+          {
+            path: 'inventory',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminInventoryPage')).AdminInventoryPage,
+            }),
+          },
+          {
+            path: 'inventory/:productId',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminStockHistoryPage')).AdminStockHistoryPage,
+            }),
+          },
+          {
+            path: 'categories',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminTaxonomyPages')).AdminCategoriesPage,
+            }),
+          },
+          {
+            path: 'species',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminTaxonomyPages')).AdminSpeciesPage,
+            }),
+          },
+          {
+            path: 'species/:id',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminSpeciesEditPage')).AdminSpeciesEditPage,
+            }),
+          },
+          {
+            path: 'colours',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminTaxonomyPages')).AdminColoursPage,
+            }),
+          },
+          {
+            path: 'grades',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminTaxonomyPages')).AdminGradesPage,
+            }),
+          },
+          { path: '*', element: <Navigate to="products" replace /> },
+        ],
+      },
     ],
   },
 ];

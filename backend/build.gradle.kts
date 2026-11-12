@@ -44,6 +44,9 @@ dependencies {
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.11.0")
     implementation("com.fasterxml.uuid:java-uuid-generator:5.2.0")
     implementation("org.commonmark:commonmark:0.32.0")
+    // Product photos: resizing and EXIF orientation (pure Java) and WebP encoding (bundled libwebp)
+    implementation("net.coobird:thumbnailator:0.4.21")
+    implementation("com.github.usefulness:webp-imageio:0.11.0")
 
     // Mapping
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
@@ -66,8 +69,14 @@ tasks.withType<JavaCompile> {
 
 tasks.test {
     useJUnitPlatform()
+    // webp-imageio loads its bundled libwebp through JNI.
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
     // Testcontainers needs Docker. Set TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX to use a registry mirror if needed.
     systemProperty("user.timezone", "UTC")
+}
+
+tasks.bootRun {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 tasks.bootJar {

@@ -8,4 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ColourRepository extends JpaRepository<Colour, UUID> {
 
     List<Colour> findAllByOrderBySortOrderAscNameAsc();
+
+    boolean existsBySlug(String slug);
+
+    boolean existsBySlugAndIdNot(String slug, UUID id);
 }

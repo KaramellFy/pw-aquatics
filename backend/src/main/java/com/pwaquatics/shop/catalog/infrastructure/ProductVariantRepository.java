@@ -20,4 +20,8 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
             WHERE v.id IN :ids
             """)
     List<ProductVariant> findAllForSale(@Param("ids") Collection<UUID> ids);
+
+    boolean existsBySkuIgnoreCase(String sku);
+
+    boolean existsBySkuIgnoreCaseAndIdNot(String sku, UUID id);
 }

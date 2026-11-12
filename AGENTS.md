@@ -44,7 +44,10 @@ and some species may not be traded legally.
   transfer, order emails, order history, customer cancel and expiry of unpaid orders
   (`/api/v1/account/orders/**`). The shop delivers to the EU and the United Kingdom
   with DHL, dispatching Monday to Wednesday. Marking orders as paid and shipping them
-  arrives with the admin tools (Phases 6–7).
+  arrives with the admin tools (Phase 7).
+- **Phase 6 (admin I)** is built end to end: `/admin` (administrators only) for products,
+  pack sizes, photos, categories, species, colours, grades and stock. Admin endpoints live
+  under `/api/v1/admin/**` in their feature modules.
 
 Work only on the phase the owner asked for; do not pull later-phase features forward.
 
@@ -179,6 +182,11 @@ working around them.
   addresses. Status changes go through `Order.transitionTo` / `markPaid` / `cancel`.
   Cancelling an unshipped order returns its stock (`OrderCancellation`). Calendar rules
   (dispatch days, payment deadline) use `ShippingService.SHOP_ZONE`.
+- **Admin rules:** admin services carry `@PreAuthorize("hasRole('ADMIN')")` in addition to
+  the URL rule, take an `Actor` (user id + IP) and record every write with `AuditService`.
+  Stock is never written through the `Product` entity (`stock_units` is read-only there):
+  use `CatalogStock` / `InventoryService` / `AdminInventoryService`, which write the
+  ledger. Uploaded files go through `media.ImageService` only (never stored as uploaded).
 
 ## 8. Frontend conventions
 
@@ -206,6 +214,10 @@ working around them.
   order can be cancelled all come from the API. An order request carries ids, the
   method code and the total the customer saw (`expectedTotal`) — never items or prices.
   Format API dates with `lib/format/date.ts`.
+- **Admin:** pages live in `features/admin`, routed under `/admin` with `RequireAdmin` and
+  `AdminLayout`; each page is a lazy chunk and nothing from it is imported by the shop.
+  Prices typed by the owner are parsed with `parseMoneyInput` ("3,90" → 390); what blocks
+  publishing comes from the server (`publishProblems`). Edits send the product's `version`.
 - Forms: React Hook Form + Zod for UX validation; always display server
   validation errors too.
 - Styling: Tailwind utilities and design tokens only; build variants in

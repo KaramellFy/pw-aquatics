@@ -34,6 +34,22 @@ export function toDecimalString(money: Money): string {
 }
 
 /**
+ * Reads a price typed into an admin form ("3,90", "3.9", "12") as minor units (390).
+ * Returns null for anything that is not a plain non-negative amount with at most two
+ * decimals. This parses input; prices shown to customers always come from the server.
+ */
+export function parseMoneyInput(text: string, currency = 'EUR'): number | null {
+  const normalised = text.trim().replace(',', '.');
+  if (!/^\d{1,7}(\.\d{1,2})?$/.test(normalised)) return null;
+  return majorToMinorUnits(Number(normalised), currency);
+}
+
+/** Minor units as text for an input field: 390 → "3.90". Formatting only. */
+export function moneyInputValue(cents: number, currency = 'EUR'): string {
+  return toDecimalString({ amount: cents, currency });
+}
+
+/**
  * Converts a price typed by the user in major units (e.g. "3.5" €) to minor units for
  * filter queries. This parses user input; it never calculates a price.
  */

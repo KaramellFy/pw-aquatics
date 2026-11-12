@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.boot.test.context.TestComponent;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -27,10 +28,12 @@ public class AuthFixture {
 
     private final MockMvc mvc;
     private final OutboxMessageRepository outbox;
+    private final JdbcTemplate jdbc;
 
-    public AuthFixture(MockMvc mvc, OutboxMessageRepository outbox) {
+    public AuthFixture(MockMvc mvc, OutboxMessageRepository outbox, JdbcTemplate jdbc) {
         this.mvc = mvc;
         this.outbox = outbox;
+        this.jdbc = jdbc;
     }
 
     public static String uniqueEmail() {
@@ -57,6 +60,14 @@ public class AuthFixture {
     public Cookie registeredSession(String email) throws Exception {
         register(email);
         verify(email);
+        return login(email, PASSWORD);
+    }
+
+    /** A verified account promoted to administrator, signed in (the role is read at login). */
+    public Cookie adminSession(String email) throws Exception {
+        register(email);
+        verify(email);
+        jdbc.update("UPDATE users SET role = 'ADMIN' WHERE email = ?::citext", email);
         return login(email, PASSWORD);
     }
 

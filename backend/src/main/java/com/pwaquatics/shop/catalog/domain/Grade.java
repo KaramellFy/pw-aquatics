@@ -32,6 +32,21 @@ public class Grade extends AbstractEntity {
 
     protected Grade() {}
 
+    public Grade(String name, String slug) {
+        this.name = name;
+        this.slug = slug;
+    }
+
+    /** @param rank higher means better; used to sort products by grade */
+    public void update(String name, String slug, String scale, String description, int rank, int sortOrder) {
+        this.name = name;
+        this.slug = slug;
+        this.scale = scale;
+        this.description = description;
+        this.rank = rank;
+        this.sortOrder = sortOrder;
+    }
+
     public String getName() {
         return name;
     }

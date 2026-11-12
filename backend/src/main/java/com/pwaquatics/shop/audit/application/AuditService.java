@@ -34,6 +34,12 @@ public class AuditService {
                 clock.instant()));
     }
 
+    /** Records an action of a signed-in user (e.g. an administrator changing the catalog). */
+    @Transactional
+    public void record(Actor actor, String action, String entityType, UUID entityId, Map<String, Object> details) {
+        record(actor.userId(), action, entityType, entityId, details, actor.ip());
+    }
+
     /** Shortcut for actions a user performs on their own account. */
     @Transactional
     public void recordUserAction(UUID userId, String action, String ip) {

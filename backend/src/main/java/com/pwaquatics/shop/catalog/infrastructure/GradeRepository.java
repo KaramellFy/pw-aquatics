@@ -8,4 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface GradeRepository extends JpaRepository<Grade, UUID> {
 
     List<Grade> findAllByOrderBySortOrderAscRankAsc();
+
+    boolean existsBySlug(String slug);
+
+    boolean existsBySlugAndIdNot(String slug, UUID id);
 }

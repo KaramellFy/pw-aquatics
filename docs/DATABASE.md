@@ -734,10 +734,16 @@ filter) are computed with grouped queries over the same base filter.
 
 ```sql
 UPDATE products
-SET stock_units = stock_units - :units, updated_at = now(), version = version + 1
+SET stock_units = stock_units - :units
 WHERE id = :productId AND stock_units >= :units;
 -- 0 rows updated ⇒ INSUFFICIENT_STOCK, transaction rolled back
 ```
+
+`stock_units` is never written through the `Product` entity (the column is mapped
+read-only); every change is one of these conditional updates (orders, manual
+adjustments, stocktakes). That is why stock changes do not touch `version`: editing a
+product's texts while an order comes in is no conflict, and a stale editor can never
+overwrite the stock.
 
 **Sales statistics** (paid orders only, grouped by day in shop time zone):
 
