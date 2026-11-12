@@ -104,7 +104,7 @@ Behind a Docker Hub rate limit, run tests with `TESTCONTAINERS_HUB_IMAGE_NAME_PR
 
 ```bash
 cp .env.example .env                  # set POSTGRES_PASSWORD
-docker compose up -d                  # postgres (host port 5433), mailpit (http://localhost:8025), backend (:8080)
+docker compose up -d --build          # postgres (host port 5433), mailpit (http://localhost:8025), backend (:8080); --build picks up code changes
 docker compose up -d postgres mailpit # infrastructure only, when running the API with bootRun
 ```
 

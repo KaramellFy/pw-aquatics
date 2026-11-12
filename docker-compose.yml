@@ -2,7 +2,7 @@
 # The frontend runs separately with `npm run dev` (it proxies /api to :8080).
 #
 #   cp .env.example .env        # then set a local database password
-#   docker compose up -d
+#   docker compose up -d --build   # --build: rebuild the API after pulling new code
 #
 # Ports are bound to 127.0.0.1 only.
 name: pw-aquatics
