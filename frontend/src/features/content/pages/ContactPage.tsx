@@ -29,12 +29,7 @@ export function ContactPage() {
       <Section spacing="compact">
         <div className="grid gap-16 lg:grid-cols-12 lg:gap-12">
           <div className="lg:col-span-5">
-            <SectionHeading
-              as="h1"
-              eyebrow={t('contact.eyebrow')}
-              title={t('contact.title')}
-              lead={t('contact.lead')}
-            />
+            <SectionHeading as="h1" title={t('contact.title')} lead={t('contact.lead')} />
             <dl className="mt-12 space-y-6 border-t border-line pt-10">
               {info.map(({ Icon, title, value }) => (
                 <div key={title} className="flex gap-4">

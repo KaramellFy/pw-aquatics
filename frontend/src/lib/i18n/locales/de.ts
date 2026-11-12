@@ -40,112 +40,98 @@ export const de: Messages = {
   categories: {
     shrimp: {
       name: 'Garnelen',
-      description: 'Neocaridina und Caridina in klaren Farben und starken Linien.',
+      description: 'Neocaridina für die meisten Becken, Caridina für weiches Wasser.',
     },
-    snails: { name: 'Schnecken', description: 'Stille Helfer für ein ausgewogenes Becken.' },
-    crayfish: { name: 'Krebse', description: 'Zwergkrebse mit echtem Charakter.' },
-    crabs: { name: 'Krabben', description: 'Faszinierende Bewohner für spezielle Aquarien.' },
+    snails: { name: 'Schnecken', description: 'Rennschnecken, Posthornschnecken und andere Algenfresser.' },
+    crayfish: {
+      name: 'Krebse',
+      description: 'Zwergkrebse, die klein genug für ein Gesellschaftsbecken bleiben.',
+    },
+    crabs: { name: 'Krabben', description: 'Thai-Mikrokrabben und andere kleine Arten für Nanobecken.' },
   },
   home: {
     meta: {
-      title: 'PW Aquatics – Zwerggarnelen & Zierwirbellose',
+      title: 'PW Aquatics – Zwerggarnelen, Schnecken und Krebse',
       description:
-        'Premium-Zwerggarnelen, Schnecken und Krebse für dein Aquarium. Gesunde Tiere, ehrliche Grades, sorgfältiger Lebendversand.',
+        'Zwerggarnelen, Schnecken, Krebse und Krabben aus unseren Becken in Deutschland. Ehrliche Grades, isoliert verpackt, Versand montags bis mittwochs in die EU und nach Großbritannien.',
     },
     hero: {
-      eyebrow: 'Zwerggarnelen & Zierwirbellose',
-      title: 'Klares Wasser.\nLebendige Farben.',
-      lead: 'Handverlesene Zwerggarnelen, Schnecken und Krebse – in stabilem Wasser gehalten, ehrlich eingestuft und sorgfältig versendet.',
-      primaryCta: 'Tiere entdecken',
-      secondaryCta: 'Unser Anspruch',
+      title: 'Zwerggarnelen, Schnecken und Krebse aus unseren eigenen Becken.',
+      lead: 'Wir bewerten jedes Tier so, wie es wirklich aussieht, und verschicken lebende Tiere <days>montags bis mittwochs</days> in die EU und nach Großbritannien – kein Paket liegt übers Wochenende im Depot.',
+      primaryCta: 'Zum Shop',
+      secondaryCta: 'So verschicken wir lebende Tiere',
+      spotlight: 'Gerade in unseren Becken',
     },
     categories: {
-      eyebrow: 'Sortiment',
-      title: 'Aus unserem Wasser in deins',
-      cta: 'Entdecken',
+      title: 'Was wir halten',
     },
     featured: {
-      eyebrow: 'Empfehlungen',
-      title: 'Handverlesen aus unseren Becken',
-      cta: 'Alle Tiere ansehen',
+      title: 'Versandbereit',
+      cta: 'Alle Tiere',
     },
-    values: {
-      eyebrow: 'Unser Anspruch',
-      title: 'Qualität, die man im Becken sieht',
-      items: {
-        health: {
-          title: 'Gesunde Tiere',
-          text: 'Unsere Tiere leben in stabilen, eingefahrenen Becken und werden vor dem Verkauf genau beobachtet.',
+    shipping: {
+      title: 'Lebende Tiere reisen montags bis mittwochs',
+      text: 'Pakete gehen am Wochenanfang raus und kommen vor dem Wochenende an. Jeder Beutel bekommt zusätzlichen Sauerstoff, die isolierte Box je nach Wetter ein Wärme- oder Kühlpack.',
+      weekLabel: 'Tage, an denen wir lebende Tiere verschicken',
+      sends: 'Versand',
+      rests: 'Kein Versand',
+      points: {
+        quarantine: {
+          title: 'Eingewöhnt vor dem Verkauf',
+          text: 'Neue Tiere leben zuerst in separaten Becken. In den Verkauf kommen sie, wenn sie fressen, sich häuten und sich normal verhalten.',
         },
         grading: {
-          title: 'Ehrliche Grades',
-          text: 'Klare, einheitliche Einstufung von Farbe und Zeichnung – du weißt genau, was du bekommst.',
+          title: 'Der Grade gilt für die Tiere',
+          text: 'Der Grade einer Packung beschreibt die Tiere, die du bekommst – nicht das schönste Tier im Becken.',
         },
-        shipping: {
-          title: 'Durchdachter Versand',
-          text: 'Isolierte Boxen, Wärme- oder Kühlpacks je nach Wetter und Versand nur an sicheren Wochentagen.',
+        weather: {
+          title: 'Pause bei Hitze und Frost',
+          text: 'Wenn es für eine sichere Reise zu heiß oder zu kalt ist, pausieren wir den Lebendversand, statt etwas zu riskieren.',
         },
-      },
-    },
-    process: {
-      eyebrow: 'Der Weg zu dir',
-      title: 'Von unserem Becken in deins',
-      steps: {
-        select: { title: 'Auswahl', text: 'Jedes Tier wird nach Farbe, Vitalität und Größe ausgewählt.' },
-        acclimate: {
-          title: 'Beobachtung',
-          text: 'Neue Tiere verbringen Zeit in separaten Becken, bevor sie in den Verkauf gehen.',
-        },
-        pack: {
-          title: 'Verpackung',
-          text: 'Sauerstoffreiche Beutel, isolierte Boxen und Temperaturschutz je nach Saison.',
-        },
-        ship: {
-          title: 'Versand',
-          text: 'Express-Versand an ausgewählten Wochentagen, damit niemand übers Wochenende unterwegs ist.',
+        species: {
+          title: 'Nichts Invasives oder Geschütztes',
+          text: 'Arten, die in der EU nicht gehandelt werden dürfen, gibt es hier nicht.',
         },
       },
     },
     gallery: {
-      eyebrow: 'Galerie',
-      title: 'Ein Blick in unsere Becken',
-      cta: 'Zur Galerie',
+      title: 'Aus den Becken',
+      cta: 'Mehr Fotos',
     },
-    closing: {
-      title: 'Fragen zu Haltung oder Bestellung?',
-      text: 'Wir helfen gerne – vor dem Kauf und danach.',
-      cta: 'Kontakt aufnehmen',
+    contact: {
+      title: 'Nicht sicher, welche Garnele zu deinem Wasser passt?',
+      text: 'Schick uns Temperatur, pH und GH, und wir sagen dir, was in deinem Becken gut klappt – vor dem Kauf und danach.',
+      cta: 'Schreib uns',
     },
   },
   about: {
     meta: {
       title: 'Über uns – PW Aquatics',
-      description: 'Wer hinter PW Aquatics steht und wie wir unsere Tiere pflegen.',
+      description: 'Wer hinter PW Aquatics steht und wie wir unsere Tiere halten, bewerten und verschicken.',
     },
-    eyebrow: 'Über uns',
-    title: 'Kleine Tiere, ernst genommen',
-    lead: 'PW Aquatics ist aus einer Leidenschaft für Zwerggarnelen entstanden – und aus dem Wunsch, sie so zu verkaufen, wie wir sie selbst kaufen möchten.',
+    title: 'Warum wir Garnelen so verkaufen, wie wir es tun',
+    lead: 'PW Aquatics ist aus unserer eigenen Garnelenhaltung entstanden. Wir verkaufen so, wie wir selbst kaufen möchten: ehrlich bewertet, passend zum Wetter verpackt und mit jemandem, den man danach fragen kann.',
     story: {
       title: 'Unsere Geschichte',
       paragraphs: [
-        'Was mit einem einzelnen Becken begann, ist heute eine kleine, sorgfältig geführte Anlage. Unsere Tiere leben in stabilen, gut eingefahrenen Aquarien, und wir nehmen uns Zeit für jede Linie.',
-        'Uns geht es nicht um Masse, sondern um gesunde Tiere, klare Farben und zufriedene Halterinnen und Halter. Deshalb stufen wir ehrlich ein und versenden nur, wenn das Wetter es zulässt.',
+        'Unsere Tiere leben in eingefahrenen Becken mit stabilem Wasser. Wir lassen uns bei jeder Linie Zeit und bieten nur Tiere an, die sich eingewöhnt haben.',
+        'Wir verkaufen lieber weniger Tiere, die gut ankommen, als viele, die es nicht tun. Deshalb beschreibt der Grade einer Packung, was du bekommst, und deshalb reisen lebende Tiere nur am Wochenanfang.',
       ],
     },
     principles: {
-      title: 'Wofür wir stehen',
+      title: 'Worauf du dich verlassen kannst',
       items: {
         care: {
-          title: 'Artgerechte Pflege',
-          text: 'Stabile Wasserwerte, ruhige Umgebung und hochwertiges Futter.',
+          title: 'Artgerecht gehalten',
+          text: 'Stabile Wasserwerte, ein ruhiges Becken und gutes Futter – die Bedingungen, die die Tiere brauchen, nicht die günstigsten.',
         },
         transparency: {
-          title: 'Transparenz',
-          text: 'Einheitliche Grades, echte Fotos und ehrliche Beratung.',
+          title: 'Klare Antworten',
+          text: 'Einheitliche Grades, Fotos der echten Tiere und ehrliche Beratung – auch wenn etwas nicht zu deinem Becken passt.',
         },
         responsibility: {
-          title: 'Verantwortung',
-          text: 'Kein Handel mit invasiven oder geschützten Arten. Versand nur unter sicheren Bedingungen.',
+          title: 'Verantwortungsvoller Handel',
+          text: 'Keine invasiven oder geschützten Arten und kein Lebendversand, wenn das Wetter die Reise unsicher macht.',
         },
       },
     },
@@ -156,7 +142,6 @@ export const de: Messages = {
       title: 'Galerie – PW Aquatics',
       description: 'Eindrücke aus unseren Becken: Garnelen, Schnecken und Krebse.',
     },
-    eyebrow: 'Galerie',
     title: 'Eindrücke aus unseren Becken',
     lead: 'Farben, Strukturen und kleine Momente unter Wasser.',
     previous: 'Vorheriges Bild',
@@ -180,7 +165,6 @@ export const de: Messages = {
       title: 'Kontakt – PW Aquatics',
       description: 'Schreib uns bei Fragen zu Tieren, Haltung, Versand oder deiner Bestellung.',
     },
-    eyebrow: 'Kontakt',
     title: 'Wir freuen uns auf deine Nachricht',
     lead: 'Fragen zur Haltung, zum Versand oder zu einer Bestellung? Wir antworten in der Regel innerhalb von ein bis zwei Werktagen.',
     info: {
@@ -242,7 +226,6 @@ export const de: Messages = {
       description:
         'Zwerggarnelen, Schnecken, Krebse und Krabben. Filter nach Art, Farbe, Grade, Preis und Verfügbarkeit.',
     },
-    eyebrow: 'Shop',
     allAnimals: 'Alle Tiere',
     lead: 'Gesunde Tiere aus stabilen Becken, ehrlich eingestuft und sorgfältig versendet.',
     results_one: '{{count}} Tier',
@@ -311,6 +294,7 @@ export const de: Messages = {
     soldOut: 'Ausverkauft',
     addToCart: 'In den Warenkorb',
     adding: 'Wird hinzugefügt …',
+    added: 'Hinzugefügt',
     priceNote: 'inkl. MwSt., zzgl. <shippingLink>Versand</shippingLink>',
     description: 'Über dieses Tier',
     care: 'Haltungsparameter',
@@ -318,6 +302,8 @@ export const de: Messages = {
     speciesLink: 'Artprofil',
     related: 'Das könnte dir auch gefallen',
     gallery: 'Produktbilder',
+    photoOf: 'Foto {{current}} von {{total}}',
+    showPhoto: 'Foto {{number}} anzeigen',
     shipping: {
       days: 'Versand nur montags bis mittwochs',
       packaging: 'Isolierte Box, Wärme- oder Kühlpack je nach Saison',

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CartDrawerProvider } from '@/features/cart';
@@ -100,6 +100,37 @@ describe('ProductPage', () => {
     expect(within(drawer).getByText('2 items in your cart')).toBeInTheDocument();
     expect(within(drawer).getAllByText('€11.80')).not.toHaveLength(0);
     expect(within(drawer).getByRole('link', { name: 'View cart' })).toHaveAttribute('href', '/cart');
+  });
+
+  it('sends one request while adding and gives focus back to the button afterwards', async () => {
+    let answer = () => {};
+    const answered = new Promise<void>((resolve) => (answer = resolve));
+    const fetchMock = mockApi({
+      '/products/blue-dream-premium': blueDreamDetail,
+      '/products/blue-dream-premium/related': [],
+      '/cart': { items: [], totals: cartWithBlueDream.totals, itemCount: 0, warnings: [] },
+      'POST /cart/items': async () => {
+        await answered;
+        return cartWithBlueDream;
+      },
+    });
+    renderRoutes(routes, { path: '/products/blue-dream-premium' });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Add to cart' }));
+    // While the request runs the button is busy but keeps focus, and a second press sends nothing.
+    const busy = await screen.findByRole('button', { name: /Adding/ });
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    expect(busy).toHaveFocus();
+    await userEvent.click(busy);
+    answer();
+
+    await screen.findByRole('dialog', { name: 'Added to your cart' });
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(posts.filter(([input]) => String(input).endsWith('/cart/items'))).toHaveLength(1);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /Added|Add to cart/ })).toHaveFocus();
   });
 
   it('limits the quantity to what the server allows and shows refusals', async () => {

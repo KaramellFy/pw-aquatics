@@ -45,20 +45,11 @@ interface ArtworkProps {
   /** Accessible description; omit for purely decorative use. */
   label?: string;
   className?: string;
-  /** Slowly drifting light, for large hero areas. */
-  animated?: boolean;
   /** Optional colour glow from data (e.g. a product's colour), as a CSS colour value. */
   accentColor?: string | null;
 }
 
-export function Artwork({
-  tone = 'sky',
-  motif = 'none',
-  label,
-  className,
-  animated = false,
-  accentColor,
-}: ArtworkProps) {
+export function Artwork({ tone = 'sky', motif = 'none', label, className, accentColor }: ArtworkProps) {
   const { t } = useTranslation();
   const Motif = motif === 'none' ? null : motifs[motif];
   const light = lightTones.has(tone);
@@ -71,7 +62,7 @@ export function Artwork({
       title={label ? `${label} — ${t('common.imagePlaceholder')}` : undefined}
       className={cn('relative isolate overflow-hidden', className)}
     >
-      <div className={cn('absolute -inset-[6%]', tones[tone], animated && 'animate-drift')} />
+      <div className={cn('absolute -inset-[6%]', tones[tone])} />
       {accentColor && (
         <div
           className="absolute inset-0 opacity-45 mix-blend-multiply"

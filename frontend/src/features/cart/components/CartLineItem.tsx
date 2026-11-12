@@ -1,4 +1,5 @@
 import { Trash2 } from 'lucide-react';
+import { m } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Price } from '@/components/ui/Price';
@@ -7,6 +8,7 @@ import { ProductImage } from '@/features/catalog';
 import { formatMoney } from '@/lib/format/money';
 import { useIntlLocale } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
+import { duration, ease, exitDuration, STAGGER } from '@/lib/motion/tokens';
 import { useRemoveCartItem, useUpdateCartItem, type CartLine } from '../api/cart';
 
 interface CartLineItemProps {
@@ -14,10 +16,20 @@ interface CartLineItemProps {
   /** Compact layout without quantity controls (cart drawer). */
   compact?: boolean;
   onNavigate?: () => void;
+  /** Position in the list: rows arrive 30 ms after each other. */
+  index?: number;
+  /** Whether the row slides in when it first appears (e.g. when the drawer opens). */
+  animateIn?: boolean;
 }
 
 /** One cart line. Prices and the allowed quantity come from the server. */
-export function CartLineItem({ line, compact = false, onNavigate }: CartLineItemProps) {
+export function CartLineItem({
+  line,
+  compact = false,
+  onNavigate,
+  index = 0,
+  animateIn = false,
+}: CartLineItemProps) {
   const { t } = useTranslation();
   const locale = useIntlLocale();
   const update = useUpdateCartItem();
@@ -25,7 +37,24 @@ export function CartLineItem({ line, compact = false, onNavigate }: CartLineItem
   const busy = update.isPending || remove.isPending;
 
   return (
-    <li className={cn('flex gap-4 py-5', !line.available && 'opacity-70')}>
+    <m.li
+      layout="position"
+      initial={animateIn ? { opacity: 0, y: 8 } : false}
+      animate={{
+        opacity: line.available ? 1 : 0.7,
+        y: 0,
+        transition: { duration: duration.base, ease: ease.out, delay: animateIn ? 0.1 + index * STAGGER : 0 },
+      }}
+      // A removed row folds away; the rows below move up into its place.
+      exit={{
+        opacity: 0,
+        height: 0,
+        paddingTop: 0,
+        paddingBottom: 0,
+        transition: { duration: exitDuration(duration.base), ease: ease.out },
+      }}
+      className="flex gap-4 overflow-hidden py-5"
+    >
       <Link
         to={`/products/${line.productSlug}`}
         onClick={onNavigate}
@@ -104,6 +133,6 @@ export function CartLineItem({ line, compact = false, onNavigate }: CartLineItem
           <p className="mt-2 text-xs text-muted">{t('cart.quantity.max', { count: line.maxQuantity })}</p>
         )}
       </div>
-    </li>
+    </m.li>
   );
 }

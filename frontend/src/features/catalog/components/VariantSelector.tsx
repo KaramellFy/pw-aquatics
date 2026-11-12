@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SlidingIndicator } from '@/components/motion/SlidingIndicator';
 import { Price } from '@/components/ui/Price';
 import { cn } from '@/lib/cn';
 import type { ProductDetail } from '../api/catalog';
@@ -12,13 +13,17 @@ interface VariantSelectorProps {
   onChange: (variantId: string) => void;
 }
 
-/** Pack-size choice as large radio cards. Availability per pack comes from the API. */
+/**
+ * Pack-size choice as large radio cards. Availability per pack comes from the API. The
+ * selection frame is one object that glides to the chosen card.
+ */
 export function VariantSelector({ variants, value, onChange }: VariantSelectorProps) {
   const { t } = useTranslation();
   const name = useId();
+  const frame = useId();
   return (
     <fieldset>
-      <legend className="mb-3 eyebrow text-ink-soft">{t('product.packSize')}</legend>
+      <legend className="mb-3 eyebrow text-ink">{t('product.packSize')}</legend>
       <div className="grid gap-3 sm:grid-cols-2">
         {variants.map((variant) => {
           const selected = variant.id === value;
@@ -26,11 +31,10 @@ export function VariantSelector({ variants, value, onChange }: VariantSelectorPr
             <label
               key={variant.id}
               className={cn(
-                'relative flex min-h-16 cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-[border-color,background-color,box-shadow]',
+                'relative flex min-h-16 press cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-[border-color]',
                 'has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand-400/40',
-                selected
-                  ? 'border-brand-700 bg-brand-50 shadow-soft'
-                  : 'border-line-strong hover:border-ink-soft',
+                'border-line-strong',
+                !selected && variant.available && 'hover:border-ink-soft',
                 !variant.available && 'cursor-not-allowed opacity-60',
               )}
             >
@@ -43,16 +47,25 @@ export function VariantSelector({ variants, value, onChange }: VariantSelectorPr
                 onChange={() => onChange(variant.id)}
                 className="sr-only"
               />
-              <span>
+              {selected && (
+                <SlidingIndicator
+                  layoutId={`pack-${frame}`}
+                  className="-inset-px rounded-xl"
+                  markClassName="border-2 border-brand-700 bg-brand-50"
+                />
+              )}
+              {/* Above the frame, which passes over the other cards while it moves. */}
+              <span className="relative z-10">
                 <span className="block font-medium">{variant.name}</span>
                 {!variant.available && (
                   <span className="block text-xs text-muted">{t('product.soldOut')}</span>
                 )}
               </span>
-              <Price value={variant.price} compareAt={variant.compareAtPrice} className="text-[0.9375rem]" />
-              {selected && (
-                <span aria-hidden className="absolute top-3 right-3 size-2 rounded-full bg-brand-400" />
-              )}
+              <Price
+                value={variant.price}
+                compareAt={variant.compareAtPrice}
+                className="relative z-10 text-[0.9375rem]"
+              />
             </label>
           );
         })}

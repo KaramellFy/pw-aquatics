@@ -1,75 +1,98 @@
 import { ArrowRight } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { BrandMark } from '@/components/layout/Brand';
-import { Artwork } from '@/components/ui/Artwork';
+import { Trans, useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { ButtonLink } from '@/components/ui/Button';
+import { Container } from '@/components/ui/Container';
+import { ProductImage, useProducts, type ProductSummary } from '@/features/catalog';
+import { formatMoney } from '@/lib/format/money';
 import { useIntlLocale } from '@/lib/i18n';
+import { MaskedWords } from '@/components/motion/MaskedWords';
 
-/** Editorial example data for the hero card (replaced by species data from the API in Phase 2). */
-const featuredSpecies = {
-  scientificName: 'Neocaridina davidi',
-  variety: 'Blue Dream',
-  ph: [6.5, 8],
-  temp: [18, 28],
-  gh: [6, 15],
-};
+/** Shared with FeaturedProducts, so both read the same cached request. */
+export const FEATURED_QUERY = { featured: 'true', availability: 'IN_STOCK', size: '4' };
 
+/**
+ * Opening of the home page: what the shop sells and how it ships, in plain words, next to an
+ * animal that is actually for sale right now.
+ */
 export function Hero() {
   const { t } = useTranslation();
-  const locale = useIntlLocale();
-  const [firstLine, secondLine] = t('home.hero.title').split('\n');
-  const decimal = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  const range = ([min, max]: number[], format: (n: number) => string = String) =>
-    `${format(min ?? 0)}–${format(max ?? 0)}`;
+  const featured = useProducts(FEATURED_QUERY).data?.items[0];
 
   return (
-    <section className="px-3 sm:px-5">
-      <div className="relative isolate flex min-h-[min(86svh,54rem)] flex-col justify-end overflow-hidden rounded-[2rem] bg-ice">
-        <Artwork tone="ice" animated className="absolute inset-0 -z-10" />
-        {/* soft baby-blue light and the brand mark, decorative only */}
-        <div className="absolute -top-[25%] -right-[15%] -z-10 aspect-square w-[75%] animate-drift rounded-full bg-brand-300/45 blur-3xl" />
-        <BrandMark className="absolute top-[5%] right-[6%] -z-10 h-[24%] w-auto animate-drift text-brand-400/25 lg:top-[6%] lg:right-[7%] lg:h-[58%]" />
-
-        <div className="grid gap-12 px-6 pt-28 pb-10 sm:px-12 sm:pb-14 lg:grid-cols-12 lg:px-16 lg:pb-16">
-          <div className="lg:col-span-8">
-            <p className="animate-fade-up eyebrow text-brand-700">{t('home.hero.eyebrow')}</p>
-            <h1 className="mt-6 text-display text-balance">
-              <span className="block animate-fade-up [animation-delay:80ms]">{firstLine}</span>
-              <span className="block animate-fade-up text-brand-600 [animation-delay:160ms]">
-                {secondLine}
-              </span>
-            </h1>
-            <p className="mt-8 max-w-xl animate-fade-up text-lg leading-relaxed text-ink-soft [animation-delay:240ms]">
-              {t('home.hero.lead')}
-            </p>
-            <div className="mt-10 flex animate-fade-up flex-wrap gap-3 [animation-delay:320ms]">
-              <ButtonLink to="/shop" size="lg" className="group">
-                {t('home.hero.primaryCta')}
-                <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </ButtonLink>
-              <ButtonLink to="/about" variant="secondary" size="lg">
-                {t('home.hero.secondaryCta')}
-              </ButtonLink>
-            </div>
+    <section className="border-b border-line">
+      <Container className="grid gap-12 pt-10 pb-16 sm:pt-14 lg:grid-cols-12 lg:gap-10 lg:pt-20 lg:pb-24">
+        <div className="flex flex-col justify-end lg:col-span-7">
+          <h1 className="text-display text-balance">
+            <MaskedWords text={t('home.hero.title')} />
+          </h1>
+          <p className="mt-8 max-w-xl animate-enter text-lg leading-relaxed text-pretty text-ink-soft [animation-delay:320ms]">
+            <Trans
+              i18nKey="home.hero.lead"
+              components={{
+                days: <strong className="font-medium text-ink" />,
+              }}
+            />
+          </p>
+          <div className="mt-10 flex animate-enter flex-wrap items-center gap-x-6 gap-y-4 [animation-delay:400ms]">
+            <ButtonLink to="/shop" size="lg" className="group">
+              {t('home.hero.primaryCta')}
+              <ArrowRight
+                aria-hidden
+                className="size-4 transition-transform duration-(--duration-base) group-hover:translate-x-0.5"
+              />
+            </ButtonLink>
+            <Link
+              to="/legal/shipping"
+              className="text-[0.9375rem] font-medium text-brand-700 underline decoration-brand-300 underline-offset-[6px] transition-colors hover:decoration-brand-700"
+            >
+              {t('home.hero.secondaryCta')}
+            </Link>
           </div>
-
-          {/* Editorial species card */}
-          <aside className="hidden animate-fade-up self-end justify-self-end rounded-2xl border border-white/80 bg-white/65 p-6 shadow-soft backdrop-blur-md [animation-delay:480ms] lg:col-span-4 lg:block lg:w-72">
-            <p className="scientific text-lg text-ink">{featuredSpecies.scientificName}</p>
-            <p className="mt-1 text-sm text-muted">“{featuredSpecies.variety}”</p>
-            <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-5 text-sm">
-              <dt className="text-muted">Temp.</dt>
-              <dd className="text-right tabular-nums">{range(featuredSpecies.temp)} °C</dd>
-              <dt className="text-muted">pH</dt>
-              <dd className="text-right tabular-nums">
-                {range(featuredSpecies.ph, (n) => decimal.format(n))}
-              </dd>
-              <dt className="text-muted">GH</dt>
-              <dd className="text-right tabular-nums">{range(featuredSpecies.gh)}</dd>
-            </dl>
-          </aside>
         </div>
-      </div>
+
+        {featured && <Spotlight product={featured} />}
+      </Container>
     </section>
+  );
+}
+
+/** One animal from the featured list, opening with a wipe from the bottom. */
+function Spotlight({ product }: { product: ProductSummary }) {
+  const { t } = useTranslation();
+  const locale = useIntlLocale();
+  return (
+    <Link to={`/products/${product.slug}`} className="group block self-end lg:col-span-5 lg:col-start-8">
+      <p className="mb-3 flex items-center gap-2 text-sm text-ink-soft">
+        <span aria-hidden className="size-1.5 rounded-full bg-success" />
+        {t('home.hero.spotlight')}
+      </p>
+      <div className="aspect-[5/4] animate-[wipe_900ms_var(--ease-out)_200ms_both] overflow-hidden rounded-card bg-mist">
+        <ProductImage
+          image={product.primaryImage}
+          alt={product.primaryImage?.alt ?? product.name}
+          categorySlug={product.category.slug}
+          accentColor={product.colours[0]?.hexCode}
+          sizes="(min-width: 1024px) 40vw, 100vw"
+          priority
+          className="transition-transform duration-(--duration-slow) ease-(--ease-out) group-hover:scale-[1.02]"
+        />
+      </div>
+      <div className="mt-4 flex items-baseline justify-between gap-4">
+        <div className="min-w-0">
+          <p className="truncate font-display text-xl">{product.name}</p>
+          {product.species && (
+            <p className="truncate scientific text-sm text-muted">{product.species.scientificName}</p>
+          )}
+        </div>
+        {product.priceFrom && (
+          <p className="shrink-0 text-[0.9375rem] font-medium">
+            {product.hasMultipleVariants
+              ? t('product.from', { price: formatMoney(product.priceFrom, locale) })
+              : formatMoney(product.priceFrom, locale)}
+          </p>
+        )}
+      </div>
+    </Link>
   );
 }

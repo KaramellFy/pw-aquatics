@@ -2,6 +2,7 @@ import { ExternalLink, LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, ScrollRestoration } from 'react-router';
 import { Logo } from '@/components/layout/Logo';
+import { SlidingIndicator } from '@/components/motion/SlidingIndicator';
 import { Button } from '@/components/ui/Button';
 import { useLogout } from '@/features/auth';
 import { cn } from '@/lib/cn';
@@ -76,7 +77,7 @@ export function AdminLayout() {
             <div className="-mx-5 flex gap-6 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:px-0">
               {groups.map((group) => (
                 <div key={group.labelKey} className="shrink-0">
-                  <p className="px-4 eyebrow text-muted">{t(group.labelKey)}</p>
+                  <p className="relative z-10 px-4 eyebrow text-muted">{t(group.labelKey)}</p>
                   <ul className="mt-2 flex gap-1 lg:flex-col">
                     {group.items.map((item) => (
                       <li key={item.to} className="shrink-0">
@@ -85,14 +86,23 @@ export function AdminLayout() {
                           end={item.end}
                           className={({ isActive }) =>
                             cn(
-                              'flex min-h-11 items-center rounded-full px-4 text-[0.9375rem] whitespace-nowrap transition-colors lg:rounded-xl',
-                              isActive
-                                ? 'bg-surface font-medium text-brand-800 shadow-soft'
-                                : 'text-ink-soft hover:bg-surface',
+                              'relative flex min-h-11 press items-center rounded-full px-4 text-[0.9375rem] whitespace-nowrap transition-colors lg:rounded-xl',
+                              isActive ? 'font-medium text-brand-800' : 'text-ink-soft hover:bg-surface',
                             )
                           }
                         >
-                          {t(item.labelKey)}
+                          {({ isActive }) => (
+                            <>
+                              {isActive && (
+                                <SlidingIndicator
+                                  layoutId="admin-nav"
+                                  className="inset-0 rounded-full lg:rounded-xl"
+                                  markClassName="bg-surface shadow-soft"
+                                />
+                              )}
+                              <span className="relative z-10">{t(item.labelKey)}</span>
+                            </>
+                          )}
                         </NavLink>
                       </li>
                     ))}

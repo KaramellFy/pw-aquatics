@@ -2,6 +2,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { useState, type ReactNode } from 'react';
 import { ApiError } from '@/lib/api/client';
 import { queryKeys } from '@/lib/api/queryKeys';
+import { MotionProvider } from '@/lib/motion/MotionProvider';
 
 export function createQueryClient(): QueryClient {
   // When the server says the session is gone (expired, or ended on another device),
@@ -30,5 +31,9 @@ export function createQueryClient(): QueryClient {
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <MotionProvider>{children}</MotionProvider>
+    </QueryClientProvider>
+  );
 }

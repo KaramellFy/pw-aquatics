@@ -117,13 +117,13 @@ export function ReviewStep({
     <form onSubmit={onSubmit} noValidate>
       <dl className="grid gap-6 sm:grid-cols-2">
         <div>
-          <dt className="font-sans eyebrow text-brand-700">{t('checkout.review.deliverTo')}</dt>
+          <dt className="font-sans eyebrow text-ink">{t('checkout.review.deliverTo')}</dt>
           <dd className="mt-3">
             <AddressBlock address={shippingAddress} className="text-sm" />
           </dd>
         </div>
         <div>
-          <dt className="font-sans eyebrow text-brand-700">{t('checkout.review.billTo')}</dt>
+          <dt className="font-sans eyebrow text-ink">{t('checkout.review.billTo')}</dt>
           <dd className="mt-3">
             {billingAddress ? (
               <AddressBlock address={billingAddress} className="text-sm" />
@@ -133,14 +133,14 @@ export function ReviewStep({
           </dd>
         </div>
         <div>
-          <dt className="font-sans eyebrow text-brand-700">{t('checkout.steps.shipping')}</dt>
+          <dt className="font-sans eyebrow text-ink">{t('checkout.steps.shipping')}</dt>
           <dd className="mt-3 text-sm">
             <span className="block text-ink">{quote.shippingMethod.name}</span>
             <ShippingDates method={quote.shippingMethod} className="mt-1 block text-ink-soft" />
           </dd>
         </div>
         <div>
-          <dt className="font-sans eyebrow text-brand-700">{t('checkout.review.payment')}</dt>
+          <dt className="font-sans eyebrow text-ink">{t('checkout.review.payment')}</dt>
           <dd className="mt-3 text-sm">
             {paymentMethod ? (
               <>

@@ -2,6 +2,8 @@ import { ShoppingBag, SlidersHorizontal, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink } from 'react-router';
+import { SlidingIndicator } from '@/components/motion/SlidingIndicator';
+import { SwapText } from '@/components/motion/SwapText';
 import { cn } from '@/lib/cn';
 import { Container } from '@/components/ui/Container';
 import { useSession } from '@/features/auth';
@@ -11,7 +13,7 @@ import { MobileMenu } from './MobileMenu';
 import { mainNavigation } from './navigation';
 
 const iconLink =
-  'inline-flex size-11 items-center justify-center rounded-full text-ink transition-colors hover:bg-brand-50 active:bg-brand-100';
+  'press inline-flex size-11 items-center justify-center rounded-full text-ink transition-colors hover:bg-brand-50 active:bg-brand-100';
 
 export function Header() {
   const { t } = useTranslation();
@@ -48,15 +50,24 @@ export function Header() {
                   to={item.to}
                   className={({ isActive }) =>
                     cn(
-                      'relative py-2 text-[0.9375rem] transition-colors',
-                      'after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-left after:rounded-full after:bg-brand-400 after:transition-transform after:duration-(--duration-base)',
-                      isActive
-                        ? 'font-medium text-ink after:scale-x-100'
-                        : 'text-ink-soft after:scale-x-0 hover:text-ink hover:after:scale-x-100',
+                      'relative inline-block press py-2 text-[0.9375rem] transition-colors',
+                      isActive ? 'font-medium text-ink' : 'text-ink-soft hover:text-ink',
                     )
                   }
                 >
-                  {t(item.labelKey)}
+                  {({ isActive }) => (
+                    <>
+                      {t(item.labelKey)}
+                      {isActive && (
+                        <SlidingIndicator
+                          layoutId="main-nav"
+                          stretch="x"
+                          className="inset-x-0 -bottom-0.5 h-0.5 rounded-full"
+                          markClassName="bg-brand-400"
+                        />
+                      )}
+                    </>
+                  )}
                 </NavLink>
               </li>
             ))}
@@ -81,22 +92,40 @@ export function Header() {
           </Link>
           <Link
             to="/cart"
+            data-cart-target
             className={cn(iconLink, 'relative')}
             aria-label={cartCount > 0 ? t('nav.cartWithCount', { count: cartCount }) : t('nav.cart')}
           >
             <ShoppingBag className="size-5" strokeWidth={1.5} />
-            {cartCount > 0 && (
-              <span
-                aria-hidden
-                className="absolute top-0.5 right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-400 px-1 text-[0.6875rem] font-semibold text-ink tabular-nums"
-              >
-                {cartCount > 99 ? '99+' : cartCount}
-              </span>
-            )}
+            {cartCount > 0 && <CartBadge count={cartCount} />}
           </Link>
           <MobileMenu />
         </div>
       </Container>
     </header>
+  );
+}
+
+/**
+ * Number of items on the cart icon. When it goes up the number slides up and a ring pulses
+ * once to confirm; on first load it just sits there.
+ */
+function CartBadge({ count }: { count: number }) {
+  const [seen, setSeen] = useState({ count, changes: 0, direction: 1 as 1 | -1 });
+  if (seen.count !== count) {
+    setSeen({ count, changes: seen.changes + 1, direction: count > seen.count ? 1 : -1 });
+  }
+  return (
+    <span
+      aria-hidden
+      className="absolute top-0.5 right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-400 px-1 text-[0.6875rem] font-semibold text-ink tabular-nums"
+    >
+      {seen.changes > 0 && seen.direction === 1 && (
+        <span key={seen.changes} className="absolute inset-0 animate-confirm rounded-full" />
+      )}
+      <SwapText value={count} direction={seen.direction}>
+        {count > 99 ? '99+' : count}
+      </SwapText>
+    </span>
   );
 }

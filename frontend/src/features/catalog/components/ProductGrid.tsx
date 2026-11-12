@@ -1,4 +1,6 @@
+import { AnimatePresence, m } from 'motion/react';
 import { cn } from '@/lib/cn';
+import { duration, ease, exitDuration, STAGGER } from '@/lib/motion/tokens';
 import type { ProductSummary } from '../api/catalog';
 import { ProductCard, ProductCardSkeleton } from './ProductCard';
 
@@ -32,13 +34,32 @@ export function ProductGrid({
       </div>
     );
   }
+  // When filters change, cards that stay glide to their new place, new ones arrive one after
+  // another (30 ms apart, at most the first 12) and removed ones fade out quickly.
   return (
     <ul className={cn(grid, loading && 'opacity-60 transition-opacity')}>
-      {products?.map((product, index) => (
-        <li key={product.id}>
-          <ProductCard product={product} priority={index < 3} />
-        </li>
-      ))}
+      <AnimatePresence mode="popLayout">
+        {products?.map((product, index) => (
+          <m.li
+            key={product.id}
+            layout="position"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              transition: { duration: duration.base, ease: ease.out, delay: Math.min(index, 12) * STAGGER },
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.97,
+              transition: { duration: exitDuration(duration.fast), ease: ease.out },
+            }}
+            transition={{ layout: { duration: 0.3, ease: ease.inOut } }}
+          >
+            <ProductCard product={product} priority={index < 3} />
+          </m.li>
+        ))}
+      </AnimatePresence>
     </ul>
   );
 }

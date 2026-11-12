@@ -22,7 +22,7 @@ export function Footer() {
         </div>
 
         <nav aria-label={t('footer.shopTitle')} className="lg:col-span-2 lg:col-start-6">
-          <h2 className="mb-4 font-sans eyebrow text-brand-300">{t('footer.shopTitle')}</h2>
+          <h2 className="mb-4 font-sans eyebrow text-white">{t('footer.shopTitle')}</h2>
           <ul className="space-y-1 text-[0.9375rem]">
             <li>
               <Link to="/shop" className={linkClass}>
@@ -40,7 +40,7 @@ export function Footer() {
         </nav>
 
         <nav aria-label={t('footer.infoTitle')} className="lg:col-span-2">
-          <h2 className="mb-4 font-sans eyebrow text-brand-300">{t('footer.infoTitle')}</h2>
+          <h2 className="mb-4 font-sans eyebrow text-white">{t('footer.infoTitle')}</h2>
           <ul className="space-y-1 text-[0.9375rem]">
             <li>
               <Link to="/about" className={linkClass}>
@@ -66,7 +66,7 @@ export function Footer() {
         </nav>
 
         <nav aria-label={t('footer.legalTitle')} className="lg:col-span-3">
-          <h2 className="mb-4 font-sans eyebrow text-brand-300">{t('footer.legalTitle')}</h2>
+          <h2 className="mb-4 font-sans eyebrow text-white">{t('footer.legalTitle')}</h2>
           <ul className="space-y-1 text-[0.9375rem]">
             {legalNavigation.map((item) => (
               <li key={item.to}>

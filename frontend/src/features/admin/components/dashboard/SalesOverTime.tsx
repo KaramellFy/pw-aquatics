@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SlidingIndicator } from '@/components/motion/SlidingIndicator';
 import { cn } from '@/lib/cn';
 import { formatCalendarDateWith } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
@@ -59,6 +60,7 @@ export function useBucketLabels(granularity: Granularity) {
 
 /** Sales over time as stacked columns, switchable between revenue, orders and animals. */
 export function SalesOverTime({ stats, dimmed }: { stats: SalesStats; dimmed: boolean }) {
+  const switchId = useId();
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage ?? 'en';
   const [metric, setMetric] = useState<Metric>('revenue');
@@ -105,11 +107,18 @@ export function SalesOverTime({ stats, dimmed }: { stats: SalesStats; dimmed: bo
               aria-pressed={metric === value}
               onClick={() => setMetric(value)}
               className={cn(
-                'min-h-9 rounded-full px-4 text-sm transition-colors',
-                metric === value ? 'bg-ink font-medium text-white' : 'text-ink-soft hover:bg-ink/5',
+                'relative min-h-9 press rounded-full px-4 text-sm transition-colors',
+                metric === value ? 'font-medium text-white' : 'text-ink-soft hover:bg-ink/5',
               )}
             >
-              {t(`admin.dashboard.sales.metrics.${value}`)}
+              {metric === value && (
+                <SlidingIndicator
+                  layoutId={`sales-metric-${switchId}`}
+                  className="inset-0 rounded-full"
+                  markClassName="bg-ink"
+                />
+              )}
+              <span className="relative z-10">{t(`admin.dashboard.sales.metrics.${value}`)}</span>
             </button>
           ))}
         </div>

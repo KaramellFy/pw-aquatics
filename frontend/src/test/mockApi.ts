@@ -12,7 +12,8 @@ export function problem(status: number, code: string, extra: Record<string, unkn
 /**
  * Stubs fetch for /api/v1 calls. Keys are paths (without /api/v1), optionally prefixed with a
  * method ("POST /auth/login"); a key ending in '*' matches by prefix. A handler may return a
- * Response (passed through), `undefined` (204) or any JSON value (200). Unknown paths give 404.
+ * Response (passed through), `undefined` (204) or any JSON value (200), or a promise of one of
+ * those to keep a request open. Unknown paths give 404.
  * The CSRF endpoint is always answered.
  */
 export function mockApi(routes: Record<string, Handler>) {
@@ -32,10 +33,9 @@ export function mockApi(routes: Record<string, Handler>) {
     const key = Object.keys(routes).find(matches);
     if (!key) return problem(404, 'NOT_FOUND');
     const handler = routes[key];
-    const body =
-      typeof handler === 'function'
-        ? (handler as (u: URL, i: RequestInit | undefined) => unknown)(url, init)
-        : handler;
+    const body: unknown = await (typeof handler === 'function'
+      ? (handler as (u: URL, i: RequestInit | undefined) => unknown)(url, init)
+      : handler);
     if (body instanceof Response) return body;
     if (body === undefined) return new Response(null, { status: 204 });
     return new Response(JSON.stringify(body), {
