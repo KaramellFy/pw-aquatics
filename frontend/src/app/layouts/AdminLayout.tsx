@@ -9,19 +9,23 @@ import { PageMeta } from '@/lib/seo/PageMeta';
 
 const groups = [
   {
+    labelKey: 'admin.nav.overview',
+    items: [{ to: '/admin', labelKey: 'admin.nav.dashboard', end: true }],
+  },
+  {
     labelKey: 'admin.nav.catalog',
     items: [
-      { to: '/admin/products', labelKey: 'admin.nav.products' },
-      { to: '/admin/inventory', labelKey: 'admin.nav.inventory' },
+      { to: '/admin/products', labelKey: 'admin.nav.products', end: false },
+      { to: '/admin/inventory', labelKey: 'admin.nav.inventory', end: false },
     ],
   },
   {
     labelKey: 'admin.nav.taxonomy',
     items: [
-      { to: '/admin/categories', labelKey: 'admin.nav.categories' },
-      { to: '/admin/species', labelKey: 'admin.nav.species' },
-      { to: '/admin/colours', labelKey: 'admin.nav.colours' },
-      { to: '/admin/grades', labelKey: 'admin.nav.grades' },
+      { to: '/admin/categories', labelKey: 'admin.nav.categories', end: false },
+      { to: '/admin/species', labelKey: 'admin.nav.species', end: false },
+      { to: '/admin/colours', labelKey: 'admin.nav.colours', end: false },
+      { to: '/admin/grades', labelKey: 'admin.nav.grades', end: false },
     ],
   },
 ] as const;
@@ -43,11 +47,7 @@ export function AdminLayout() {
         </a>
         <header className="sticky top-0 z-30 border-b border-line bg-surface">
           <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-4 px-5 sm:px-8">
-            <Link
-              to="/admin/products"
-              aria-label={t('admin.title')}
-              className="flex items-center gap-3 rounded-lg"
-            >
+            <Link to="/admin" aria-label={t('admin.title')} className="flex items-center gap-3 rounded-lg">
               <Logo />
               <span className="hidden rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white sm:inline">
                 {t('admin.title')}
@@ -82,6 +82,7 @@ export function AdminLayout() {
                       <li key={item.to} className="shrink-0">
                         <NavLink
                           to={item.to}
+                          end={item.end}
                           className={({ isActive }) =>
                             cn(
                               'flex min-h-11 items-center rounded-full px-4 text-[0.9375rem] whitespace-nowrap transition-colors lg:rounded-xl',

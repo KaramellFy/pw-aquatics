@@ -24,6 +24,9 @@ export const queryKeys = {
   adminColours: ['admin', 'colours'] as const,
   adminGrades: ['admin', 'grades'] as const,
   adminMovements: (productId: string, page: number) => ['admin', 'movements', productId, page] as const,
+  adminDashboard: ['admin', 'dashboard'] as const,
+  adminStats: (kind: 'sales' | 'products' | 'stock', from: string, to: string) =>
+    ['admin', 'stats', kind, from, to] as const,
   products: (query: Record<string, string>) => ['catalog', 'products', query] as const,
   facets: (query: Record<string, string>) => ['catalog', 'facets', query] as const,
   product: (slug: string) => ['catalog', 'product', slug] as const,

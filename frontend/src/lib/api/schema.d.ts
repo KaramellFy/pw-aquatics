@@ -922,6 +922,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stats/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Restocks, sales and losses from the stock ledger */
+        get: operations["stock"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stats/sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sales figures, time series and breakdowns of a period, compared with the period before */
+        get: operations["sales"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stats/sales/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Daily sales of a period as CSV (no personal data) */
+        get: operations["export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stats/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Best sellers and revenue by category and species */
+        get: operations["products_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/inventory/{productId}/movements": {
         parameters: {
             query?: never;
@@ -931,6 +999,23 @@ export interface paths {
         };
         /** Stock history of a product, newest first */
         get: operations["movements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What needs attention now: open orders, low stock, latest orders */
+        get: operations["dashboard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1750,6 +1835,133 @@ export interface components {
             parameterName: string;
             token: string;
         };
+        CountKpiView: {
+            /** Format: int64 */
+            value: number;
+            /** Format: int64 */
+            previous: number;
+            /** Format: int64 */
+            changeBps: number | null;
+        };
+        ShareKpiView: {
+            /** Format: int32 */
+            valueBps: number | null;
+            /** Format: int32 */
+            previousBps: number | null;
+        };
+        StatsPeriodView: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @enum {string} */
+            granularity: "DAY" | "WEEK" | "MONTH";
+            /** Format: date */
+            previousFrom: string;
+            /** Format: date */
+            previousTo: string;
+        };
+        StockReasonView: {
+            /** @enum {string} */
+            reason: "INITIAL" | "RESTOCK" | "ORDER_PLACED" | "ORDER_CANCELLED" | "MANUAL_ADJUSTMENT" | "LOSS" | "RETURN";
+            /** Format: int64 */
+            units: number;
+        };
+        StockStatsView: {
+            period: components["schemas"]["StatsPeriodView"];
+            restocked: components["schemas"]["CountKpiView"];
+            sold: components["schemas"]["CountKpiView"];
+            lost: components["schemas"]["CountKpiView"];
+            lossRate: components["schemas"]["ShareKpiView"];
+            byReason: components["schemas"]["StockReasonView"][];
+        };
+        CountryView: {
+            countryCode: string;
+            /** Format: int64 */
+            orders: number;
+            revenue: components["schemas"]["Money"];
+        };
+        MoneyKpiView: {
+            value: components["schemas"]["Money"];
+            previous: components["schemas"]["Money"];
+            /** Format: int64 */
+            changeBps: number | null;
+        };
+        SalesBucketView: {
+            /** Format: date */
+            start: string;
+            revenue: components["schemas"]["Money"];
+            /** Format: int64 */
+            orders: number;
+            /** Format: int64 */
+            animals: number;
+            paidRevenue: components["schemas"]["Money"];
+            awaitingRevenue: components["schemas"]["Money"];
+            /** Format: int64 */
+            paidOrders: number;
+            /** Format: int64 */
+            awaitingOrders: number;
+            /** Format: int64 */
+            paidAnimals: number;
+            /** Format: int64 */
+            awaitingAnimals: number;
+        };
+        SalesKpisView: {
+            revenue: components["schemas"]["MoneyKpiView"];
+            paidRevenue: components["schemas"]["MoneyKpiView"];
+            orders: components["schemas"]["CountKpiView"];
+            averageOrderValue: components["schemas"]["MoneyKpiView"];
+            animalsSold: components["schemas"]["CountKpiView"];
+            newAccounts: components["schemas"]["CountKpiView"];
+            returningCustomerShare: components["schemas"]["ShareKpiView"];
+            cancelledOrders: components["schemas"]["CountKpiView"];
+            cancellationRate: components["schemas"]["ShareKpiView"];
+        };
+        SalesStatsView: {
+            period: components["schemas"]["StatsPeriodView"];
+            kpis: components["schemas"]["SalesKpisView"];
+            series: components["schemas"]["SalesBucketView"][];
+            byStatus: components["schemas"]["StatusCountView"][];
+            byWeekday: components["schemas"]["WeekdayView"][];
+            byCountry: components["schemas"]["CountryView"][];
+        };
+        StatusCountView: {
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** Format: int64 */
+            orders: number;
+            total: components["schemas"]["Money"];
+        };
+        WeekdayView: {
+            /** Format: int32 */
+            weekday: number;
+            /** Format: int64 */
+            orders: number;
+            revenue: components["schemas"]["Money"];
+        };
+        GroupSalesView: {
+            name: string | null;
+            /** Format: int64 */
+            units: number;
+            revenue: components["schemas"]["Money"];
+        };
+        ProductSalesView: {
+            /** Format: uuid */
+            productId: string | null;
+            name: string;
+            gradeName: string | null;
+            /** Format: int64 */
+            units: number;
+            /** Format: int64 */
+            packs: number;
+            revenue: components["schemas"]["Money"];
+        };
+        ProductStatsView: {
+            period: components["schemas"]["StatsPeriodView"];
+            topProducts: components["schemas"]["ProductSalesView"][];
+            byCategory: components["schemas"]["GroupSalesView"][];
+            bySpecies: components["schemas"]["GroupSalesView"][];
+        };
         AdminProductSummaryView: {
             /** Format: uuid */
             id: string;
@@ -1810,6 +2022,44 @@ export interface components {
             manual: boolean;
             /** Format: date-time */
             createdAt: string;
+        };
+        DashboardView: {
+            /** Format: int64 */
+            awaitingPaymentOrders: number;
+            awaitingPayment: components["schemas"]["Money"];
+            /** Format: int64 */
+            ordersToShip: number;
+            /** Format: int64 */
+            liveProducts: number;
+            /** Format: int64 */
+            lowStockProducts: number;
+            /** Format: int64 */
+            soldOutProducts: number;
+            recentOrders: components["schemas"]["RecentOrderView"][];
+            lowStock: components["schemas"]["LowStockProductView"][];
+        };
+        LowStockProductView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            stockUnits: number;
+            /** Format: int32 */
+            lowStockThreshold: number;
+        };
+        RecentOrderView: {
+            orderNumber: string;
+            /** Format: date-time */
+            placedAt: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+            total: components["schemas"]["Money"];
+            customerName: string | null;
+            countryCode: string | null;
+            /** Format: int64 */
+            animals: number;
         };
         OrderSummaryView: {
             orderNumber: string;
@@ -3477,6 +3727,99 @@ export interface operations {
             };
         };
     };
+    stock: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StockStatsView"];
+                };
+            };
+        };
+    };
+    sales: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SalesStatsView"];
+                };
+            };
+        };
+    };
+    export: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    products_1: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProductStatsView"];
+                };
+            };
+        };
+    };
     movements: {
         parameters: {
             query?: {
@@ -3498,6 +3841,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PageResponseStockMovementView"];
+                };
+            };
+        };
+    };
+    dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DashboardView"];
                 };
             };
         };
