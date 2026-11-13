@@ -47,6 +47,10 @@ dependencies {
     // Product photos: resizing and EXIF orientation (pure Java) and WebP encoding (bundled libwebp)
     implementation("net.coobird:thumbnailator:0.4.21")
     implementation("com.github.usefulness:webp-imageio:0.11.0")
+    // Card payments: official Stripe SDK (API calls, webhook signature check); see ADR-010
+    implementation("com.stripe:stripe-java:34.1.0")
+    // Its model classes are annotated for Gson (a runtime dependency); this only keeps javac from warning about it.
+    compileOnly("com.google.code.gson:gson")
 
     // Mapping
     implementation("org.mapstruct:mapstruct:$mapstructVersion")

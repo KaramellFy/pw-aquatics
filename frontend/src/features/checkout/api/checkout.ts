@@ -52,7 +52,8 @@ function newIdempotencyKey(): string {
 }
 
 /**
- * Places the order and moves on to the confirmation page.
+ * Places the order and moves on: to the payment page for card payment, otherwise to the
+ * confirmation page.
  *
  * Every attempt carries an idempotency key. If the answer gets lost (network error, server
  * hiccup) the same key is sent again, so the retry returns the order created the first
@@ -72,8 +73,9 @@ export function usePlaceOrder() {
         body: request,
         headers: { 'Idempotency-Key': idempotencyKey.current },
       });
-      // Leave the checkout before the (now empty) cart is refreshed.
-      await navigate(`/checkout/complete/${placed.orderNumber}`, { replace: true });
+      // Leave the checkout before the (now empty) cart is refreshed. Card orders are paid next.
+      const next = placed.paymentMethod === 'STRIPE' ? 'pay' : 'complete';
+      await navigate(`/checkout/${next}/${placed.orderNumber}`, { replace: true });
       return placed;
     },
     onSuccess: () => {

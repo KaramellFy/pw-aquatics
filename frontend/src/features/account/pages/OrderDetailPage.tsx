@@ -8,7 +8,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Price } from '@/components/ui/Price';
 import { ApiError } from '@/lib/api/client';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
-import { formatCalendarDate, formatInstantDate } from '@/lib/format/date';
+import { formatCalendarDate, formatInstantDate, formatLocalTime } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
 import { useIntlLocale } from '@/lib/i18n';
 import { PageMeta } from '@/lib/seo/PageMeta';
@@ -109,6 +109,26 @@ function OrderDetail({ order }: { order: Order }) {
         />
       )}
 
+      {/* Whether the order can still be paid by card is decided by the server. */}
+      {order.payableByCard && (
+        <section
+          aria-labelledby="card-payment"
+          className="mt-8 rounded-card border border-brand-100 bg-brand-50 p-6 sm:p-8"
+        >
+          <h2 id="card-payment" className="text-title">
+            {t('orders.cardPayment.title')}
+          </h2>
+          {order.paymentDueAt && (
+            <p className="mt-3 text-ink-soft">
+              {t('orders.cardPayment.text', { time: formatLocalTime(order.paymentDueAt, locale) })}
+            </p>
+          )}
+          <ButtonLink to={`/checkout/pay/${order.orderNumber}`} className="mt-6">
+            {t('orders.cardPayment.payNow')}
+          </ButtonLink>
+        </section>
+      )}
+
       <div className="mt-10 grid gap-10 lg:grid-cols-12 lg:gap-12">
         <div className="lg:col-span-7">
           <h2 className="text-title">{t('orders.detail.items')}</h2>
@@ -188,7 +208,11 @@ function OrderDetail({ order }: { order: Order }) {
         open={confirming}
         onOpenChange={setConfirming}
         title={t('orders.detail.cancelConfirmTitle')}
-        description={t('orders.detail.cancelConfirmText')}
+        description={t(
+          order.paymentMethod === 'STRIPE'
+            ? 'orders.detail.cancelConfirmTextCard'
+            : 'orders.detail.cancelConfirmText',
+        )}
       >
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="secondary" onClick={() => setConfirming(false)}>

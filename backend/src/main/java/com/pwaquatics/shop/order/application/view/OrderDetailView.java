@@ -16,6 +16,7 @@ import java.util.List;
  * @param plannedDispatchDate earliest dispatch day
  * @param paymentInstructions how to pay, while the order is waiting for a bank transfer
  * @param cancellable whether the customer may cancel the order right now
+ * @param payableByCard whether the customer can (still) pay this order by card right now
  */
 public record OrderDetailView(
         String orderNumber,
@@ -35,4 +36,5 @@ public record OrderDetailView(
         boolean containsLiveAnimals,
         List<OrderStatusEntryView> statusTimeline,
         @Nullable PaymentInstructionsView paymentInstructions,
-        boolean cancellable) {}
+        boolean cancellable,
+        boolean payableByCard) {}

@@ -359,6 +359,11 @@ export const en = {
     PAYMENT_METHOD_UNAVAILABLE: 'This payment method is not available at the moment.',
     LIVE_ANIMAL_CONDITIONS_REQUIRED: 'Please confirm the conditions for shipping live animals.',
     ORDER_NOT_CANCELLABLE: 'This order can no longer be cancelled online. Please contact us.',
+    ORDER_ALREADY_PAID: 'This order has already been paid.',
+    ORDER_NOT_PAYABLE:
+      'This order can no longer be paid. It may have been cancelled because the time for paying ran out.',
+    PAYMENT_PROVIDER_UNAVAILABLE:
+      'Card payment is not available right now. Please try again in a few minutes.',
     CONFLICT: 'Someone else changed this in the meantime. Please reload and try again.',
     VERSION_REQUIRED: 'Please reload the page and try again.',
     SLUG_TAKEN: 'This web address is already used.',
@@ -653,8 +658,14 @@ export const en = {
       cancelConfirmTitle: 'Cancel this order?',
       cancelConfirmText:
         'The animals go back on sale. If you have already transferred the money, please contact us and we will refund it.',
+      cancelConfirmTextCard: 'The animals go back on sale and nothing is charged to your card.',
       cancelConfirm: 'Cancel order',
       keep: 'Keep order',
+    },
+    cardPayment: {
+      title: 'Payment outstanding',
+      text: 'Please complete your card payment by {{time}}. After that the order is cancelled automatically and the animals go back on sale.',
+      payNow: 'Pay now',
     },
     payment: {
       title: 'Pay by bank transfer',
@@ -715,9 +726,19 @@ export const en = {
       deliverTo: 'Deliver to',
       billTo: 'Bill to',
       sameAsDelivery: 'Same as delivery address',
-      payment: 'Payment',
-      bankTransferText:
-        'You receive our bank details right after ordering and by email. We ship once your payment has arrived.',
+      payment: 'Payment method',
+      method: {
+        STRIPE: 'Card',
+        BANK_TRANSFER: 'Bank transfer',
+        PAYPAL: 'PayPal',
+      },
+      methodText: {
+        STRIPE:
+          'Visa, Mastercard and other cards – or Apple Pay and Google Pay where your device offers them. You pay right after ordering; we ship once the payment is confirmed.',
+        BANK_TRANSFER:
+          'You receive our bank details right after ordering and by email. We ship once your payment has arrived.',
+        PAYPAL: 'You pay with your PayPal account right after ordering.',
+      },
       noPayment: 'No payment method is available at the moment. Please try again later.',
       note: 'Note for your order (optional)',
       noteHint: 'For example a preferred delivery day.',
@@ -749,6 +770,34 @@ export const en = {
       stepTrack: 'You can follow every step under “Orders” in your account.',
       viewOrder: 'View order',
       continue: 'Continue shopping',
+      card: {
+        confirming: 'We are confirming your card payment with Stripe …',
+        paid: 'Payment received – thank you! We have sent you a confirmation by email.',
+        pending:
+          'Your payment has not been confirmed yet. If you completed it, the confirmation follows shortly and we will email you.',
+        failed:
+          'The payment did not go through and nothing was charged. You can try again, with another card if you like.',
+        cancelled: 'This order has been cancelled.',
+        payNow: 'Pay now',
+        retry: 'Try again',
+      },
+    },
+    pay: {
+      metaTitle: 'Payment – PW Aquatics',
+      eyebrow: 'Almost done',
+      title: 'Pay for your order',
+      order: 'Order {{number}}',
+      deadline: 'The animals are reserved for you until {{time}}.',
+      loading: 'Loading the payment form …',
+      submit: 'Pay {{amount}}',
+      paying: 'Processing payment …',
+      failed: 'The payment could not be completed. Please try again or use another card.',
+      loadFailed:
+        'The payment form could not be loaded. Please check your internet connection – content blockers can also prevent it – and try again.',
+      secure:
+        'You enter your card details directly with Stripe, our payment provider, and they are sent encrypted. We never see or store them.',
+      later: 'You can also pay later from your order page while the animals are reserved.',
+      viewOrder: 'View order',
     },
   },
   admin: {

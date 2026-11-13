@@ -75,16 +75,17 @@ stable `code` the frontend can switch on:
 
 | HTTP | Typical `code` values |
 |---|---|
-| 400 | `VALIDATION_FAILED`, `MALFORMED_REQUEST` |
+| 400 | `VALIDATION_FAILED`, `MALFORMED_REQUEST`, `WEBHOOK_SIGNATURE_INVALID`, `WEBHOOK_INVALID` |
 | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS` |
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
-| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `INVALID_STATUS_TRANSITION`, `CONFLICT` (optimistic lock), `DUPLICATE` |
+| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `CONFLICT` (optimistic lock), `DUPLICATE` |
 | 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
 | 500 | `INTERNAL_ERROR` (no stack traces or internals in the body) |
+| 503 | `PAYMENT_PROVIDER_UNAVAILABLE` (Stripe could not be reached or refused the call; try again later) |
 
 ### 1.5 Idempotency and concurrency
 
@@ -384,8 +385,9 @@ back to the cart, which shows what changed (§2.4).
 
 Response: `items` (cart lines with current names, prices and `lineTotal`), `totals`
 (`subtotal`, `shipping`, `total`, `includedTax`), the chosen `shippingMethod` (as above),
-`containsLiveAnimals` and the `paymentMethods` that can be used right now
-(`["BANK_TRANSFER"]`; empty while the shop's bank account is not configured).
+`containsLiveAnimals` and the `paymentMethods` that can be used right now, card first:
+`STRIPE` while the Stripe account is configured, `BANK_TRANSFER` while the shop's bank
+account is (e.g. `["STRIPE", "BANK_TRANSFER"]`; empty when neither is).
 Another customer's address → `404`; a method that does not fit → `409 SHIPPING_METHOD_UNAVAILABLE`.
 
 **`POST /checkout/orders`**
@@ -395,7 +397,7 @@ Another customer's address → `404`; a method that does not fit → `409 SHIPPI
   "shippingAddressId": "0193…",
   "billingAddressId": null,
   "shippingMethodCode": "DHL_LIVE_DE",
-  "paymentMethod": "BANK_TRANSFER",
+  "paymentMethod": "STRIPE",
   "customerNote": "Please ring twice.",
   "acceptedTerms": true,
   "acceptedLiveAnimalConditions": true,
@@ -416,7 +418,8 @@ Another customer's address → `404`; a method that does not fit → `409 SHIPPI
 
 In one transaction the server locks the cart and the products, checks everything
 again, takes the animals out of stock, stores the order with snapshots of items, prices
-and addresses, empties the cart and queues the confirmation email.
+and addresses, empties the cart and queues the confirmation email (for card payment it
+contains the link to the payment page and the deadline; for bank transfer, the bank details).
 
 `201 Created`:
 
@@ -425,6 +428,7 @@ and addresses, empties the cart and queues the confirmation email.
   "orderNumber": "PW-2027-000123",
   "status": "PENDING_PAYMENT",
   "paymentStatus": "UNPAID",
+  "paymentMethod": "BANK_TRANSFER",
   "total": { "amount": 1770, "currency": "EUR" },
   "paymentDueAt": "2027-03-08T22:59:59Z",
   "paymentInstructions": {
@@ -439,9 +443,14 @@ and addresses, empties the cart and queues the confirmation email.
 }
 ```
 
-An unpaid bank-transfer order expires at the end of the day `ORDER_BANK_TRANSFER_PAYMENT_DAYS`
-(default 7) after it was placed: a job cancels it, returns the animals to stock and
-emails the customer.
+`paymentInstructions` is `null` for card payment: the client continues with §2.7.
+
+Unpaid orders expire: a bank-transfer order at the end of the day
+`ORDER_BANK_TRANSFER_PAYMENT_DAYS` (default 7) after it was placed, a card order
+`ORDER_CARD_PAYMENT_MINUTES` (default 60) after it was placed (`paymentDueAt`). A job
+(every 15 minutes) cancels it, returns the animals to stock and emails the customer. For a
+card order it first cancels the PaymentIntent at Stripe; if Stripe already has the money or
+is still processing it, the order is kept and the webhook marks it as paid.
 
 ### 2.6 Account — `/api/v1/account` (customer)
 
@@ -470,7 +479,7 @@ Orders:
 |---|---|---|
 | GET | `/account/orders?page=0&size=10` | Order history (paged, newest first): `orderNumber`, `status`, `paymentStatus`, `placedAt`, `total`, `itemCount`, `productNames` |
 | GET | `/account/orders/{orderNumber}` | Order detail (below) |
-| POST | `/account/orders/{orderNumber}/cancel` | Cancels an unpaid order, returns the animals to stock and emails the customer → updated detail. Otherwise `409 ORDER_NOT_CANCELLABLE` |
+| POST | `/account/orders/{orderNumber}/cancel` | Cancels an unpaid order, returns the animals to stock and emails the customer → updated detail. A card order's PaymentIntent is cancelled at Stripe first. Paid, shipped or cancelled orders, and card orders whose payment Stripe is processing → `409 ORDER_NOT_CANCELLABLE` |
 
 Another customer's order → `404`; a malformed order number → `400`.
 
@@ -479,8 +488,10 @@ Another customer's order → `404`; a malformed order number → `400`.
 `speciesName`, `gradeName`, `quantity`, `unitPrice`, `lineTotal` — all snapshots from the
 purchase), `totals`, `shippingMethodName`, `shippingCarrier`, `shippingAddress`,
 `billingAddress`, `customerNote`, `containsLiveAnimals`, `statusTimeline`,
-`paymentInstructions` (only while the order waits for a bank transfer, otherwise `null`)
-and `cancellable` (whether the customer may cancel right now — decided by the server).
+`paymentInstructions` (only while the order waits for a bank transfer, otherwise `null`),
+`cancellable` (whether the customer may cancel right now) and `payableByCard` (whether
+the card payment can be started or resumed right now: an unpaid card order before its
+`paymentDueAt`) — both decided by the server.
 
 ```json
 "statusTimeline": [
@@ -498,15 +509,80 @@ Shipments with tracking numbers are added with the admin order tools (Phase 7):
 ]
 ```
 
-### 2.7 Payments — implemented in Phase 9
+### 2.7 Payments
+
+Card payment (including Apple Pay and Google Pay, which Stripe treats as cards) is built
+(Phase 9); PayPal follows.
 
 | Method | Path | Access | Description |
 |---|---|---|---|
-| POST | `/payments/stripe/intents` | customer | `{ orderNumber }` → `{ clientSecret }` for the Payment Element (cards, Apple Pay, Google Pay). Amount taken from the stored order |
-| POST | `/payments/paypal/orders` | customer | `{ orderNumber }` → PayPal order ID |
-| POST | `/payments/paypal/orders/{paypalOrderId}/capture` | customer | Capture after approval; final confirmation still via webhook |
-| POST | `/webhooks/stripe` | provider | Signature-verified (`Stripe-Signature`), idempotent, CSRF-exempt |
-| POST | `/webhooks/paypal` | provider | Signature-verified, idempotent, CSRF-exempt |
+| POST | `/payments/stripe/intents` | customer (CSRF) | Start or resume the card payment of one of the customer's own orders (below) |
+| POST | `/webhooks/stripe` | Stripe | Payment events; signature-verified, idempotent, no session, CSRF-exempt |
+| POST | `/payments/paypal/orders` | customer | *Later:* `{ orderNumber }` → PayPal order ID |
+| POST | `/payments/paypal/orders/{paypalOrderId}/capture` | customer | *Later:* capture after approval; final confirmation still via webhook |
+| POST | `/webhooks/paypal` | PayPal | *Later:* signature-verified, idempotent, CSRF-exempt |
+
+**`POST /payments/stripe/intents`**
+
+```json
+{ "orderNumber": "PW-2027-000123" }
+```
+
+```json
+{
+  "orderNumber": "PW-2027-000123",
+  "amount": { "amount": 1770, "currency": "EUR" },
+  "paymentDueAt": "2027-03-01T10:12:00Z",
+  "clientSecret": "pi_…_secret_…",
+  "publishableKey": "pk_live_…",
+  "alreadyPaid": false
+}
+```
+
+- The first call creates the Stripe PaymentIntent for the **stored order total** (one per
+  order, Stripe idempotency key `order-<id>-intent`); later calls — a reload, another card
+  after a decline — return the same one. Amounts in the request are ignored.
+- `clientSecret` and `publishableKey` go to Stripe.js (`Elements` + Payment Element,
+  `confirmPayment` with `redirect: "if_required"` and the confirmation page as `return_url`).
+  The publishable key is public by design; it comes from the API so the frontend build
+  needs no Stripe configuration.
+- `alreadyPaid: true` (and `clientSecret: null`): Stripe already has the money; the order
+  turns `PAID` as soon as the webhook arrives.
+- Refusals: another customer's or an unknown order → `404`; malformed number → `400`;
+  `409 ORDER_ALREADY_PAID`; `409 ORDER_NOT_PAYABLE` (cancelled or past `paymentDueAt`);
+  `409 PAYMENT_METHOD_UNAVAILABLE` (not a card order, or Stripe not configured);
+  `503 PAYMENT_PROVIDER_UNAVAILABLE`; `429 RATE_LIMITED`.
+
+**The order is paid only through the webhook.** What the browser reports after
+`confirmPayment` is never trusted; the confirmation page asks for the order status until
+the server has heard from Stripe.
+
+**`POST /webhooks/stripe`** — configured in the Stripe Dashboard (Developers → Webhooks)
+for `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.payment_failed`,
+`payment_intent.canceled` and `charge.refunded`; its signing secret is `STRIPE_WEBHOOK_SECRET`.
+
+- The `Stripe-Signature` header is checked against the raw body (5 minutes tolerance);
+  missing or wrong → `400 WEBHOOK_SIGNATURE_INVALID`. A signed body that is not an event →
+  `400 WEBHOOK_INVALID`. Bodies over 256 KB are refused. Without a configured Stripe
+  account the endpoint answers `404`.
+- Each event is stored once per Stripe event id (`payment_webhook_events`), reduced to ids,
+  amounts and statuses, and processed in one transaction with its effect on the order;
+  a repeated delivery changes nothing. If processing fails, the answer is `500` and
+  Stripe delivers again later.
+- `payment_intent.succeeded`: the amount and currency must equal the stored payment
+  (otherwise nothing changes and the event is noted as `amount mismatch`); the order turns
+  `PAID`, the customer gets a "payment received" email. If the order had been cancelled in
+  the meantime it stays cancelled and the shop inbox is told, so the owner can refund.
+- `payment_intent.payment_failed` records the decline reason; the order stays open and
+  can be paid with another card until `paymentDueAt`.
+- `charge.refunded` (refunds are made in the Stripe Dashboard) sets `paymentStatus` to
+  `PARTIALLY_REFUNDED` or `REFUNDED`; the order status stays for the owner to decide.
+- Events for PaymentIntents the shop did not create, and other event types, are
+  acknowledged (`204`) and ignored.
+
+**Local development:** Stripe cannot reach `localhost`. Forward events with the Stripe CLI
+(`stripe listen --forward-to localhost:8080/api/v1/webhooks/stripe`, then use the
+`whsec_…` it prints as `STRIPE_WEBHOOK_SECRET`).
 
 ---
 
@@ -690,6 +766,8 @@ simultaneous changes), a ledger entry and an audit record in one transaction.
 | `PUT /cart/coupon` | 10/min per session |
 | `POST /checkout/orders` | 10/min per user |
 | `POST /account/orders/{orderNumber}/cancel` | 10/min per user |
+| `POST /payments/stripe/intents` | 20/min per user |
+| `POST /webhooks/stripe` | 300/min per IP |
 | Everything else | 300/min per IP |
 
 ---

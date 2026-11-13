@@ -48,6 +48,11 @@ and some species may not be traded legally.
 - **Phase 6 (admin I)** is built end to end: `/admin` (administrators only) for products,
   pack sizes, photos, categories, species, colours, grades and stock. Admin endpoints live
   under `/api/v1/admin/**` in their feature modules.
+- **Card payments with Stripe** (from Phase 9, built early) are built end to end: card (with
+  Apple Pay / Google Pay as wallets) next to bank transfer, payment page with Stripe's Payment
+  Element (`/checkout/pay/:orderNumber`), PaymentIntents from the stored total
+  (`POST /api/v1/payments/stripe/intents`), signed and idempotent webhook
+  (`POST /api/v1/webhooks/stripe`), 60-minute expiry of unpaid card orders. PayPal follows.
 - **Dashboard & statistics** (from Phase 8, built early) are built end to end: the admin start
   page with key figures, charts and CSV export, served by the read model in the `admin`
   module (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Coupon statistics follow
@@ -195,6 +200,14 @@ working around them.
   Stock is never written through the `Product` entity (`stock_units` is read-only there):
   use `CatalogStock` / `InventoryService` / `AdminInventoryService`, which write the
   ledger. Uploaded files go through `media.ImageService` only (never stored as uploaded).
+- **Payment rules** (ADR-010): an order becomes paid only through a signature-verified
+  webhook (`StripeWebhooks`), never because the browser says so. The amount always comes from
+  the stored order. Calls to Stripe go through `StripeGateway` (tests use `FakeStripeGateway`).
+  The payment module never imports the order module: it calls `PayableOrders`, which
+  `OrderPayments` implements. Take locks in the order order → payment. Webhook payloads are
+  reduced to ids, amounts and statuses before they are stored; never log or store card or
+  billing details. Cancelling an unpaid card order cancels its PaymentIntent first
+  (`OrderCancellation`).
 - **Statistics rules:** dashboard figures come from the read model in `admin`
   (`StatisticsQueries`, read-only SQL; which orders count as sales is defined there once).
   Periods are whole days in `ShippingService.SHOP_ZONE` (`StatsPeriod`). Shares, changes,
@@ -227,6 +240,10 @@ working around them.
   order can be cancelled all come from the API. An order request carries ids, the
   method code and the total the customer saw (`expectedTotal`) — never items or prices.
   Format API dates with `lib/format/date.ts`.
+- **Card payment:** Stripe.js is loaded only on the payment page (`features/checkout/lib/stripe.ts`,
+  `@stripe/stripe-js/pure`), with the publishable key from the API. The page calls
+  `confirmPayment` and moves on; whether the order is paid comes from the API (the
+  confirmation page polls the order). Never show an order as paid from Stripe's browser result.
 - **Admin:** pages live in `features/admin`, routed under `/admin` with `RequireAdmin` and
   `AdminLayout`; each page is a lazy chunk and nothing from it is imported by the shop.
   Prices typed by the owner are parsed with `parseMoneyInput` ("3,90" → 390); what blocks

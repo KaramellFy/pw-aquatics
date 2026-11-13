@@ -15,6 +15,8 @@ export const queryKeys = {
   shippingMethods: (country: string) => ['account', 'checkout', 'shipping', country] as const,
   quote: (addressId: string, methodCode: string) =>
     ['account', 'checkout', 'quote', addressId, methodCode] as const,
+  /** The Stripe payment form of an order (client secret and publishable key). */
+  cardPayment: (orderNumber: string) => ['account', 'payments', 'card', orderNumber] as const,
   /** Prefix of everything in the admin area. */
   admin: ['admin'] as const,
   adminProducts: (query: Record<string, string>) => ['admin', 'products', 'list', query] as const,

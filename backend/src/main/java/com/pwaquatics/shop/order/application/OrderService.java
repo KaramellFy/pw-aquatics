@@ -55,7 +55,8 @@ public class OrderService {
     /**
      * Cancels an order the customer has not paid yet and returns its animals to stock.
      *
-     * @throws ConflictException {@code ORDER_NOT_CANCELLABLE} once the order is paid, shipped or already cancelled
+     * @throws ConflictException {@code ORDER_NOT_CANCELLABLE} once the order is paid, shipped or already
+     *     cancelled, or while Stripe is processing its card payment
      */
     @Transactional
     public OrderDetailView cancel(UUID userId, String orderNumber, String clientIp) {
@@ -65,7 +66,11 @@ public class OrderService {
             throw new ConflictException(
                     "ORDER_NOT_CANCELLABLE", "This order can no longer be cancelled online. Please contact us.");
         }
-        cancellation.cancel(order, "Cancelled by the customer", userId, false);
+        if (!cancellation.cancel(order, "Cancelled by the customer", userId, false)) {
+            throw new ConflictException(
+                    "ORDER_NOT_CANCELLABLE",
+                    "Your card payment is already being processed, so the order can no longer be cancelled online.");
+        }
         audit.record(userId, "ORDER_CANCELLED", "ORDER", order.getId(), Map.of("orderNumber", order.getOrderNumber()),
                 clientIp);
         return views.detail(order);

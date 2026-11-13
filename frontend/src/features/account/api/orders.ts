@@ -24,13 +24,28 @@ export function useOrders(page: number) {
   });
 }
 
+interface UseOrderOptions {
+  /**
+   * Right after paying by card: until this time (epoch ms), ask every two seconds whether the
+   * server has heard from Stripe that the payment went through.
+   */
+  awaitCardPaymentUntil?: number;
+}
+
 /** One order with everything the server knows about it: status, totals, whether it can be cancelled. */
-export function useOrder(orderNumber: string) {
+export function useOrder(orderNumber: string, { awaitCardPaymentUntil }: UseOrderOptions = {}) {
   return useQuery({
     queryKey: queryKeys.order(orderNumber),
     queryFn: ({ signal }) => api.get<Order>(`/account/orders/${encodeURIComponent(orderNumber)}`, signal),
     // The status changes on the shop's side (payment received, shipped).
     refetchOnWindowFocus: true,
+    refetchInterval: (query) => {
+      const order = query.state.data;
+      const waiting = order?.paymentMethod === 'STRIPE' && order.status === 'PENDING_PAYMENT';
+      return waiting && awaitCardPaymentUntil !== undefined && Date.now() < awaitCardPaymentUntil
+        ? 2000
+        : false;
+    },
   });
 }
 

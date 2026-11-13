@@ -7,6 +7,7 @@ import com.pwaquatics.shop.order.domain.Order;
 import com.pwaquatics.shop.order.domain.OrderAddress;
 import com.pwaquatics.shop.order.domain.OrderItem;
 import com.pwaquatics.shop.payment.application.view.PaymentInstructionsView;
+import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.shipping.application.ShippingService;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -33,7 +34,10 @@ class OrderEmails {
         this.baseUrl = properties.baseUrl().replaceAll("/+$", "");
     }
 
-    /** Confirmation with all items, totals and — for bank transfer — the payment details. */
+    /**
+     * Confirmation with all items and totals, sent as soon as the order is placed. For bank
+     * transfer it carries the payment details; for card payment, the link to pay and the deadline.
+     */
     EmailMessage confirmation(Order order, PaymentInstructionsView payment) {
         boolean german = german(order);
         Locale locale = locale(order);
@@ -81,6 +85,17 @@ class OrderEmails {
             body.append(german
                     ? "Geht bis dahin keine Zahlung ein, wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf.\n\n"
                     : "If no payment has arrived by then, the order is cancelled automatically and the animals go back on sale.\n\n");
+        } else if (order.getPaymentMethod() == PaymentMethod.STRIPE && order.getPaymentDueAt() != null) {
+            body.append(german ? "Zahlung mit Karte\n" : "Payment by card\n");
+            body.append(german
+                    ? "Falls du die Zahlung noch nicht abgeschlossen hast, kannst du das bis %s (deutsche Zeit) hier tun:\n"
+                            .formatted(dateTime(order.getPaymentDueAt(), locale))
+                    : "If you have not completed the payment yet, you can do so until %s (German time) here:\n"
+                            .formatted(dateTime(order.getPaymentDueAt(), locale)));
+            body.append("  ").append(payLink(order)).append('\n');
+            body.append(german
+                    ? "Danach wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf. Sobald die Zahlung bestätigt ist, bekommst du eine weitere E-Mail.\n\n"
+                    : "After that the order is cancelled automatically and the animals go back on sale. You will get another email as soon as the payment is confirmed.\n\n");
         }
 
         body.append(german ? "Lieferadresse\n" : "Shipping to\n");
@@ -96,15 +111,58 @@ class OrderEmails {
         return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
     }
 
+    /** The card payment has been confirmed by Stripe; the order is paid. */
+    EmailMessage paymentReceived(Order order) {
+        boolean german = german(order);
+        Locale locale = locale(order);
+        StringBuilder body = new StringBuilder();
+        body.append(german ? "Hallo " : "Hello ").append(order.billingAddress().getFirstName()).append(",\n\n");
+        body.append(german
+                ? "deine Zahlung über %s für die Bestellung %s ist bei uns eingegangen. Vielen Dank!\n"
+                        .formatted(money(order.total(), locale), order.getOrderNumber())
+                : "we have received your payment of %s for order %s. Thank you!\n"
+                        .formatted(money(order.total(), locale), order.getOrderNumber()));
+        if (order.getPlannedDispatchDate() != null) {
+            body.append(german
+                    ? "Wir versenden frühestens am %s und melden uns, sobald das Paket unterwegs ist.\n"
+                            .formatted(date(order.getPlannedDispatchDate(), locale))
+                    : "We dispatch on %s at the earliest and will let you know as soon as the parcel is on its way.\n"
+                            .formatted(date(order.getPlannedDispatchDate(), locale)));
+        }
+        body.append('\n').append(german ? "Deine Bestellung im Überblick: " : "Follow your order: ")
+                .append(orderLink(order)).append('\n');
+        String subject = (german ? "Zahlung erhalten – Bestellung %s" : "Payment received – order %s")
+                .formatted(order.getOrderNumber());
+        return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
+    }
+
+    /**
+     * For the shop owner: a card payment was confirmed for an order that had already been
+     * cancelled. The animals may be sold again, so the owner decides whether to refund
+     * (in the Stripe Dashboard) or to reinstate the order. Contains no customer details.
+     */
+    EmailMessage paymentForCancelledOrder(Order order, String shopInbox) {
+        String body = "Stripe has confirmed a card payment of %s for order %s, but the order had already been cancelled.\n\n"
+                        .formatted(money(order.total(), ENGLISH), order.getOrderNumber())
+                + "Please check whether the animals are still available. Then either refund the payment in the Stripe "
+                + "Dashboard or get in touch with the customer.\n";
+        return new EmailMessage(shopInbox, null, "Payment for cancelled order " + order.getOrderNumber(), body);
+    }
+
     /**
      * @param paymentMissed true when the order expired because no payment arrived; false when the
      *     customer cancelled it
      */
     EmailMessage cancelled(Order order, boolean paymentMissed) {
         boolean german = german(order);
+        boolean card = order.getPaymentMethod() == PaymentMethod.STRIPE;
         String firstName = order.billingAddress().getFirstName();
         String reason;
-        if (paymentMissed) {
+        if (paymentMissed && card) {
+            reason = german
+                    ? "die Kartenzahlung wurde nicht rechtzeitig abgeschlossen. Wir haben deine Bestellung %s deshalb storniert."
+                    : "the card payment was not completed in time, so your order %s has been cancelled.";
+        } else if (paymentMissed) {
             reason = german
                     ? "bis zum Zahlungsziel ist keine Zahlung bei uns eingegangen. Wir haben deine Bestellung %s deshalb storniert."
                     : "we did not receive a payment by the due date, so your order %s has been cancelled.";
@@ -113,11 +171,19 @@ class OrderEmails {
                     ? "deine Bestellung %s wurde wie gewünscht storniert."
                     : "your order %s has been cancelled as requested.";
         }
+        String money;
+        if (card) {
+            money = german
+                    ? "Die Tiere sind wieder im Shop verfügbar. Deine Karte wurde nicht belastet.\n\n"
+                    : "The animals are available in the shop again. Your card has not been charged.\n\n";
+        } else {
+            money = german
+                    ? "Die Tiere sind wieder im Shop verfügbar. Falls du bereits überwiesen hast, melde dich bitte bei uns – wir erstatten den Betrag.\n\n"
+                    : "The animals are available in the shop again. If you have already transferred the money, please get in touch – we will refund it.\n\n";
+        }
         String body = (german ? "Hallo " : "Hello ") + firstName + ",\n\n"
                 + reason.formatted(order.getOrderNumber()) + "\n\n"
-                + (german
-                        ? "Die Tiere sind wieder im Shop verfügbar. Falls du bereits überwiesen hast, melde dich bitte bei uns – wir erstatten den Betrag.\n\n"
-                        : "The animals are available in the shop again. If you have already transferred the money, please get in touch – we will refund it.\n\n")
+                + money
                 + (german ? "Bestellung ansehen: " : "View the order: ") + orderLink(order) + "\n";
         String subject = (german ? "Bestellung %s storniert" : "Order %s cancelled").formatted(order.getOrderNumber());
         return new EmailMessage(order.getCustomerEmail(), null, subject, body);
@@ -125,6 +191,10 @@ class OrderEmails {
 
     private String orderLink(Order order) {
         return baseUrl + "/account/orders/" + order.getOrderNumber();
+    }
+
+    private String payLink(Order order) {
+        return baseUrl + "/checkout/pay/" + order.getOrderNumber();
     }
 
     private static void appendAddress(StringBuilder body, OrderAddress address) {
@@ -157,6 +227,13 @@ class OrderEmails {
 
     private static String date(Instant instant, Locale locale) {
         return date(LocalDate.ofInstant(instant, ShippingService.SHOP_ZONE), locale);
+    }
+
+    private static String dateTime(Instant instant, Locale locale) {
+        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.LONG, FormatStyle.SHORT)
+                .withLocale(locale)
+                .withZone(ShippingService.SHOP_ZONE)
+                .format(instant);
     }
 
     private static String date(LocalDate date, Locale locale) {

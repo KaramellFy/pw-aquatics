@@ -9,11 +9,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
-/** Full application context against a Testcontainers PostgreSQL, with MockMvc. */
+/** Full application context against a Testcontainers PostgreSQL, with MockMvc and a fake Stripe API. */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import({TestcontainersConfiguration.class, AuthFixture.class})
+@Import({TestcontainersConfiguration.class, AuthFixture.class, FakeStripeGateway.class})
 public @interface IntegrationTest {}

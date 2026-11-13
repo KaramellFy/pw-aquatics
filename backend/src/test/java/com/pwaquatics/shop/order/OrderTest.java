@@ -109,6 +109,20 @@ class OrderTest {
     }
 
     @Test
+    void refundsAreRecordedOnlyForPaidOrdersAndLeaveTheStatusAlone() {
+        Order order = newOrder();
+        assertThat(order.recordRefund(true, NOW)).isFalse();
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+
+        order.markPaid(null, "Card payment confirmed by Stripe", NOW);
+        assertThat(order.recordRefund(false, NOW.plusSeconds(60))).isTrue();
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.PARTIALLY_REFUNDED);
+        assertThat(order.recordRefund(true, NOW.plusSeconds(120))).isTrue();
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+    }
+
+    @Test
     void orderNumbersCarryTheYearAndAPaddedSequence() {
         assertThat(OrderNumber.of(2027, 123)).isEqualTo("PW-2027-000123");
         assertThat(OrderNumber.of(2027, 1_234_567)).isEqualTo("PW-2027-1234567");

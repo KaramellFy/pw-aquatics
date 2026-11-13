@@ -588,34 +588,40 @@ CREATE TABLE shipments (
 CREATE INDEX idx_shipments_order ON shipments (order_id);
 CREATE INDEX idx_shipments_tracking ON shipments (tracking_number);
 
--- Phase 9 (payments). Never contains card data — only provider references.
+-- Phase 9 (payments; built for Stripe). Never contains card data — only provider references.
 CREATE TABLE payments (
     id                   uuid PRIMARY KEY,
     order_id             uuid         NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
     provider             varchar(20)  NOT NULL CHECK (provider IN ('BANK_TRANSFER', 'STRIPE', 'PAYPAL')),
-    provider_reference   varchar(255) UNIQUE,     -- PaymentIntent ID / PayPal order ID
+    provider_reference   varchar(255) UNIQUE,     -- Stripe PaymentIntent id (pi_…) / PayPal order ID
     status               varchar(20)  NOT NULL CHECK (status IN (
                              'CREATED', 'PENDING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'REFUNDED', 'PARTIALLY_REFUNDED')),
-    amount_cents         bigint       NOT NULL,
-    refunded_cents       bigint       NOT NULL DEFAULT 0,
+    amount_cents         bigint       NOT NULL CHECK (amount_cents >= 0),   -- the order total when created
+    refunded_cents       bigint       NOT NULL DEFAULT 0 CHECK (refunded_cents >= 0),
     currency             char(3)      NOT NULL DEFAULT 'EUR',
-    method_detail        varchar(50),             -- e.g. 'card', 'apple_pay' (no card numbers)
+    method_detail        varchar(50),             -- e.g. 'card' (never card numbers)
+    failure_code         varchar(100),            -- last decline reason, e.g. 'card_declined'
     created_at           timestamptz  NOT NULL DEFAULT now(),
-    updated_at           timestamptz  NOT NULL DEFAULT now()
+    updated_at           timestamptz  NOT NULL DEFAULT now(),
+    version              bigint       NOT NULL DEFAULT 0,
+    CHECK (refunded_cents <= amount_cents)
 );
 CREATE INDEX idx_payments_order ON payments (order_id);
+-- One payment per order and provider: a second card attempt reuses the same PaymentIntent.
+CREATE UNIQUE INDEX uq_payments_order_provider ON payments (order_id, provider);
 
 CREATE TABLE payment_webhook_events (
     id            uuid PRIMARY KEY,
-    provider      varchar(20)  NOT NULL,
+    provider      varchar(20)  NOT NULL CHECK (provider IN ('STRIPE', 'PAYPAL')),
     event_id      varchar(255) NOT NULL,
     event_type    varchar(100) NOT NULL,
-    payload       jsonb        NOT NULL,
+    payload       jsonb        NOT NULL,          -- reduced: ids, amounts, statuses, decline code
     received_at   timestamptz  NOT NULL DEFAULT now(),
     processed_at  timestamptz,
-    error         text,
+    error         text,                           -- processing error, or why nothing changed
     UNIQUE (provider, event_id)                   -- idempotency
 );
+CREATE INDEX idx_payment_webhook_events_received ON payment_webhook_events (received_at);
 
 -- Later: sequential, gap-free invoice numbers as required for German invoices
 CREATE TABLE invoices (
@@ -634,6 +640,14 @@ updated. `order_items` additionally checks `line_total_cents = unit_price_cents 
 quantity − discount_cents`. An order number is `PW-<year>-<6 digits>` from
 `order_number_seq` (gaps are fine). `UNIQUE (user_id, idempotency_key)` backs the
 idempotent placement. Orders are locked `FOR UPDATE` when they are cancelled or expire.
+
+Notes on payments (built in Phase 9 for Stripe): a row is created with the PaymentIntent
+for the stored order total, and only Stripe's signed webhook moves it to `SUCCEEDED`; a
+different amount is never accepted. Bank transfers don't use this table yet (the admin
+marks them paid in Phase 7). Every path that touches both takes the order's lock first and
+then the payment's (checkout, expiry, webhook), so two transactions never wait for each
+other. A webhook delivery is stored first in its own transaction, then processed; its row
+is locked while processing, so a repeated delivery is skipped once `processed_at` is set.
 
 ### 3.8 Content
 
@@ -834,18 +848,27 @@ adviser.
 | Emails to be sent | `outbox_messages` | Delivery of transactional emails | Text erased as soon as the email is sent; row deleted after 30 days (`app.retention.sent-emails`), undeliverable ones after 30 days |
 | Contact form messages: name, email, message | `contact_messages` (+ the email to the shop inbox) | Answering the enquiry, Art. 6(1)(b)/(f) | 365 days (`app.retention.contact-messages`); copies in the shop mailbox follow the mailbox's own rules |
 | Audit log: who did what, when; IP address | `audit_log` | Security, Art. 6(1)(f) | IP address erased after 90 days (`app.retention.audit-ip-addresses`); entries stay |
+| Card payments: Stripe PaymentIntent id, amount, status, refunded amount, method (`card`), decline code — no card or billing details | `payments` | Contract Art. 6(1)(b); accounting Art. 6(1)(c) | With the order (statutory retention) |
+| Stripe webhook deliveries: event id and type, reduced to ids, amounts and statuses | `payment_webhook_events` | Recognising repeated deliveries, tracing payment problems, Art. 6(1)(f) | 90 days (`app.retention.payment-webhook-events`) |
 | Language choice | Browser `localStorage` key `pwa.language` (no personal data) | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
 
 **Cookies:** `SESSION` (login), `XSRF-TOKEN` (CSRF protection) and `CART_TOKEN` (guest
 cart) are strictly necessary for services the visitor asks for, so no consent banner is
 needed (§ 25(2) no. 2 TDDDG). Adding analytics, tracking, external fonts, maps or videos
-would change that. Fonts are self-hosted; the site makes no third-party requests.
+would change that. Fonts are self-hosted; the only third-party requests are made by
+Stripe.js, and only on the card payment page (`/checkout/pay/…`): Stripe sets its own
+cookies there for fraud prevention, which we treat as necessary for the payment the
+customer asked for (to be confirmed by the legal adviser). The privacy policy must name
+Stripe (Stripe Payments Europe, Ltd.) as the recipient of payment data for card payments.
 
-**Payment data:** none is stored. Customers pay by bank transfer to the shop's account
-(configured in the environment, not in the database); the shop never asks for a
-customer's bank or card details. With card and PayPal payments (Phase 9) the browser
-talks to Stripe/PayPal directly and the shop keeps only provider references, status and
-amounts (PCI DSS SAQ A); webhook payloads must be stored without billing details.
+**Payment data:** no card or bank details of customers are stored. Bank transfers go to
+the shop's account (configured in the environment, not in the database). For card payment
+the customer types the card details into Stripe's own fields (Payment Element); they never
+reach our servers (PCI DSS SAQ A). The shop keeps only the PaymentIntent id, amounts,
+status and decline code; webhook payloads are reduced to ids, amounts and statuses before
+they are stored, because Stripe's events also carry names, addresses and the last digits of
+cards. Stripe's "Link" (saving card details in a Stripe account) is switched off in the
+payment form.
 
 **Account deletion:** the user row is anonymised (`status = 'ANONYMISED'`, email
 replaced with a placeholder, names and phone cleared, password hash and newsletter

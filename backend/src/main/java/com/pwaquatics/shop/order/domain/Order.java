@@ -234,6 +234,22 @@ public class Order extends AbstractEntity {
         paymentDueAt = null;
     }
 
+    /**
+     * Records money paid back to the customer (refunds are made in the payment provider's
+     * dashboard). The status is left as it is: whether the order is cancelled is the owner's
+     * decision.
+     *
+     * @return false if the order was never paid, so there is nothing to record
+     */
+    public boolean recordRefund(boolean full, Instant now) {
+        if (paymentStatus == PaymentStatus.UNPAID || paymentStatus == PaymentStatus.FAILED) {
+            return false;
+        }
+        paymentStatus = full ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
+        updatedAt = now;
+        return true;
+    }
+
     /** Customers may cancel on their own only while nothing has been paid. */
     public boolean isCancellableByCustomer() {
         return status == OrderStatus.PENDING_PAYMENT;

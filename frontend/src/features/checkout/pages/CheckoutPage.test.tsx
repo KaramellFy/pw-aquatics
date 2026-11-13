@@ -82,6 +82,7 @@ const placed = {
   orderNumber: 'PW-2026-000042',
   status: 'PENDING_PAYMENT',
   paymentStatus: 'UNPAID',
+  paymentMethod: 'BANK_TRANSFER',
   total: money(1770),
   paymentDueAt: '2026-11-17T22:59:59Z',
   paymentInstructions: null,
@@ -90,6 +91,7 @@ const placed = {
 const routes = [
   { path: '/checkout', element: <CheckoutPage /> },
   { path: '/checkout/complete/:orderNumber', element: <h1>Order placed</h1> },
+  { path: '/checkout/pay/:orderNumber', element: <h1>Card payment</h1> },
   { path: '/cart', element: <h1>Cart page</h1> },
 ];
 
@@ -183,6 +185,43 @@ describe('CheckoutPage', () => {
       expectedTotal: money(1770),
     });
     expect(orderKeys(fetchMock)[0]).toMatch(/^[A-Za-z0-9_-]{16,100}$/);
+  });
+
+  it('offers the payment methods the server allows and goes on to pay by card', async () => {
+    const fetchMock = api({
+      'POST /checkout/quote': { ...quoteOf(1770), paymentMethods: ['STRIPE', 'BANK_TRANSFER'] },
+      'POST /checkout/orders': (_url: URL, init: RequestInit | undefined) => ({
+        ...placed,
+        paymentMethod: (JSON.parse(String(init?.body)) as { paymentMethod: string }).paymentMethod,
+      }),
+    });
+    const { router } = renderRoutes(routes, { path: '/checkout' });
+    await goToReview();
+
+    const methods = screen.getByRole('group', { name: 'Payment method' });
+    const card = within(methods).getByRole('radio', { name: /Card/ });
+    expect(card).toBeChecked();
+    expect(within(methods).getByRole('radio', { name: /Bank transfer/ })).not.toBeChecked();
+    await acceptConditions();
+    await userEvent.click(screen.getByRole('button', { name: 'Order and pay' }));
+
+    expect(await screen.findByRole('heading', { name: 'Card payment' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/checkout/pay/PW-2026-000042');
+    expect(lastBody(fetchMock, 'POST', '/checkout/orders')).toMatchObject({ paymentMethod: 'STRIPE' });
+  });
+
+  it('sends bank transfer when the customer chooses it', async () => {
+    const fetchMock = api({
+      'POST /checkout/quote': { ...quoteOf(1770), paymentMethods: ['STRIPE', 'BANK_TRANSFER'] },
+    });
+    renderRoutes(routes, { path: '/checkout' });
+    await goToReview();
+    await userEvent.click(screen.getByRole('radio', { name: /Bank transfer/ }));
+    await acceptConditions();
+    await userEvent.click(screen.getByRole('button', { name: 'Order and pay' }));
+
+    await screen.findByRole('heading', { name: 'Order placed' });
+    expect(lastBody(fetchMock, 'POST', '/checkout/orders')).toMatchObject({ paymentMethod: 'BANK_TRANSFER' });
   });
 
   it('sends a different billing address only when the customer chooses one', async () => {

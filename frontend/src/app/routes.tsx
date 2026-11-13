@@ -129,7 +129,7 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/cart/pages/CartPage')).CartPage }),
       },
 
-      // Checkout (Phase 5): signed-in customers only
+      // Checkout (Phase 5, card payment from Phase 9): signed-in customers only
       {
         path: 'checkout',
         element: <RequireAuth />,
@@ -138,6 +138,12 @@ export const routes: RouteObject[] = [
             index: true,
             lazy: async () => ({
               Component: (await import('@/features/checkout/pages/CheckoutPage')).CheckoutPage,
+            }),
+          },
+          {
+            path: 'pay/:orderNumber',
+            lazy: async () => ({
+              Component: (await import('@/features/checkout/pages/CardPaymentPage')).CardPaymentPage,
             }),
           },
           {

@@ -2,6 +2,7 @@ package com.pwaquatics.shop.order.application;
 
 import com.pwaquatics.shop.order.domain.Order;
 import com.pwaquatics.shop.order.infrastructure.OrderRepository;
+import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +36,8 @@ public class OrderExpiry {
 
     /**
      * Cancels one order if it is still unpaid and overdue (it may have been paid or cancelled
-     * since it was listed).
+     * since it was listed). A card payment that Stripe is still processing keeps the order; the
+     * next run looks at it again.
      *
      * @return whether the order was cancelled
      */
@@ -45,7 +47,9 @@ public class OrderExpiry {
         if (order == null || !order.isPaymentOverdue(clock.instant())) {
             return false;
         }
-        cancellation.cancel(order, "Payment not received by the due date", null, true);
-        return true;
+        String reason = order.getPaymentMethod() == PaymentMethod.STRIPE
+                ? "Card payment not completed in time"
+                : "Payment not received by the due date";
+        return cancellation.cancel(order, reason, null, true);
     }
 }

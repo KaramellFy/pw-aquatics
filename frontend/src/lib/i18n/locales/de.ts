@@ -364,6 +364,11 @@ export const de: Messages = {
     PAYMENT_METHOD_UNAVAILABLE: 'Diese Zahlungsart ist derzeit nicht verfügbar.',
     LIVE_ANIMAL_CONDITIONS_REQUIRED: 'Bitte bestätige die Bedingungen für den Versand lebender Tiere.',
     ORDER_NOT_CANCELLABLE: 'Diese Bestellung kann nicht mehr online storniert werden. Bitte kontaktiere uns.',
+    ORDER_ALREADY_PAID: 'Diese Bestellung ist bereits bezahlt.',
+    ORDER_NOT_PAYABLE:
+      'Diese Bestellung kann nicht mehr bezahlt werden. Möglicherweise wurde sie storniert, weil die Zahlungsfrist abgelaufen ist.',
+    PAYMENT_PROVIDER_UNAVAILABLE:
+      'Die Kartenzahlung ist gerade nicht erreichbar. Bitte versuche es in ein paar Minuten erneut.',
     CONFLICT: 'Jemand anderes hat das inzwischen geändert. Bitte lade neu und versuche es erneut.',
     VERSION_REQUIRED: 'Bitte lade die Seite neu und versuche es erneut.',
     SLUG_TAKEN: 'Diese Webadresse wird bereits verwendet.',
@@ -660,8 +665,14 @@ export const de: Messages = {
       cancelConfirmTitle: 'Diese Bestellung stornieren?',
       cancelConfirmText:
         'Die Tiere gehen wieder in den Verkauf. Falls du bereits überwiesen hast, melde dich bitte bei uns – wir erstatten den Betrag.',
+      cancelConfirmTextCard: 'Die Tiere gehen wieder in den Verkauf und deine Karte wird nicht belastet.',
       cancelConfirm: 'Bestellung stornieren',
       keep: 'Bestellung behalten',
+    },
+    cardPayment: {
+      title: 'Zahlung ausstehend',
+      text: 'Bitte schließe die Kartenzahlung bis {{time}} Uhr ab. Danach wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf.',
+      payNow: 'Jetzt bezahlen',
     },
     payment: {
       title: 'Per Überweisung bezahlen',
@@ -724,9 +735,19 @@ export const de: Messages = {
       deliverTo: 'Lieferung an',
       billTo: 'Rechnung an',
       sameAsDelivery: 'Wie Lieferadresse',
-      payment: 'Zahlung',
-      bankTransferText:
-        'Du erhältst unsere Bankverbindung direkt nach der Bestellung und per E-Mail. Wir versenden, sobald deine Zahlung eingegangen ist.',
+      payment: 'Zahlungsart',
+      method: {
+        STRIPE: 'Karte',
+        BANK_TRANSFER: 'Überweisung',
+        PAYPAL: 'PayPal',
+      },
+      methodText: {
+        STRIPE:
+          'Visa, Mastercard und weitere Karten – oder Apple Pay und Google Pay, wo dein Gerät sie anbietet. Du bezahlst direkt nach der Bestellung; wir versenden, sobald die Zahlung bestätigt ist.',
+        BANK_TRANSFER:
+          'Du erhältst unsere Bankverbindung direkt nach der Bestellung und per E-Mail. Wir versenden, sobald deine Zahlung eingegangen ist.',
+        PAYPAL: 'Du bezahlst direkt nach der Bestellung mit deinem PayPal-Konto.',
+      },
       noPayment: 'Derzeit ist keine Zahlungsart verfügbar. Bitte versuche es später erneut.',
       note: 'Anmerkung zur Bestellung (optional)',
       noteHint: 'Zum Beispiel ein Wunschtermin für die Zustellung.',
@@ -757,6 +778,35 @@ export const de: Messages = {
       stepTrack: 'Unter „Bestellungen“ in deinem Konto kannst du jeden Schritt verfolgen.',
       viewOrder: 'Bestellung ansehen',
       continue: 'Weiter einkaufen',
+      card: {
+        confirming: 'Wir bestätigen deine Kartenzahlung bei Stripe …',
+        paid: 'Zahlung erhalten – vielen Dank! Eine Bestätigung haben wir dir per E-Mail geschickt.',
+        pending:
+          'Deine Zahlung ist noch nicht bestätigt. Wenn du sie abgeschlossen hast, folgt die Bestätigung in Kürze und wir schicken dir eine E-Mail.',
+        failed:
+          'Die Zahlung hat nicht geklappt, es wurde nichts abgebucht. Du kannst es noch einmal versuchen, gern auch mit einer anderen Karte.',
+        cancelled: 'Diese Bestellung wurde storniert.',
+        payNow: 'Jetzt bezahlen',
+        retry: 'Erneut versuchen',
+      },
+    },
+    pay: {
+      metaTitle: 'Bezahlung – PW Aquatics',
+      eyebrow: 'Fast geschafft',
+      title: 'Bestellung bezahlen',
+      order: 'Bestellung {{number}}',
+      deadline: 'Die Tiere sind bis {{time}} Uhr für dich reserviert.',
+      loading: 'Zahlungsformular wird geladen …',
+      submit: '{{amount}} bezahlen',
+      paying: 'Zahlung wird verarbeitet …',
+      failed:
+        'Die Zahlung konnte nicht abgeschlossen werden. Bitte versuche es erneut oder nutze eine andere Karte.',
+      loadFailed:
+        'Das Zahlungsformular konnte nicht geladen werden. Bitte prüfe deine Internetverbindung – auch Inhaltsblocker können es verhindern – und versuche es erneut.',
+      secure:
+        'Deine Kartendaten gibst du direkt bei unserem Zahlungsdienstleister Stripe ein; sie werden verschlüsselt übertragen. Wir sehen und speichern sie nie.',
+      later: 'Du kannst auch später über deine Bestellung bezahlen, solange die Tiere reserviert sind.',
+      viewOrder: 'Bestellung ansehen',
     },
   },
   admin: {

@@ -29,6 +29,7 @@ import com.pwaquatics.shop.order.domain.OrderAddress;
 import com.pwaquatics.shop.order.domain.OrderNumber;
 import com.pwaquatics.shop.order.infrastructure.OrderRepository;
 import com.pwaquatics.shop.payment.application.BankTransferPayments;
+import com.pwaquatics.shop.payment.application.StripePayments;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.pricing.domain.PriceCalculator;
 import com.pwaquatics.shop.pricing.domain.PricedLine;
@@ -38,9 +39,11 @@ import com.pwaquatics.shop.shipping.application.ShippingService;
 import com.pwaquatics.shop.shipping.application.view.ShippingOption;
 import com.pwaquatics.shop.shipping.application.view.ShippingOptions;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +72,7 @@ public class CheckoutService {
     private final AddressService addresses;
     private final ShippingService shipping;
     private final BankTransferPayments bankTransfer;
+    private final StripePayments stripe;
     private final AccountService accounts;
     private final OrderRepository orders;
     private final OrderViews views;
@@ -77,6 +81,7 @@ public class CheckoutService {
     private final AuditService audit;
     private final RateLimiter rateLimiter;
     private final int bankTransferPaymentDays;
+    private final Duration cardPaymentTime;
     private final Clock clock;
 
     CheckoutService(
@@ -87,6 +92,7 @@ public class CheckoutService {
             AddressService addresses,
             ShippingService shipping,
             BankTransferPayments bankTransfer,
+            StripePayments stripe,
             AccountService accounts,
             OrderRepository orders,
             OrderViews views,
@@ -103,6 +109,7 @@ public class CheckoutService {
         this.addresses = addresses;
         this.shipping = shipping;
         this.bankTransfer = bankTransfer;
+        this.stripe = stripe;
         this.accounts = accounts;
         this.orders = orders;
         this.views = views;
@@ -111,6 +118,7 @@ public class CheckoutService {
         this.audit = audit;
         this.rateLimiter = rateLimiter;
         this.bankTransferPaymentDays = properties.orders().bankTransferPaymentDays();
+        this.cardPaymentTime = Duration.ofMinutes(properties.orders().cardPaymentMinutes());
         this.clock = clock;
     }
 
@@ -150,7 +158,8 @@ public class CheckoutService {
     /**
      * Places the order: one transaction that checks everything again, takes the animals out
      * of stock, stores the order with all snapshots, empties the cart and queues the
-     * confirmation email.
+     * confirmation email. A card order is paid afterwards on the payment page
+     * ({@link OrderPayments#startCardPayment}).
      *
      * <p>Repeating a request with the same {@code idempotencyKey} returns the order created
      * the first time instead of creating another one.
@@ -223,7 +232,7 @@ public class CheckoutService {
                         snapshot(billingAddress),
                         command.customerNote(),
                         idempotencyKey,
-                        paymentDueAt(today)),
+                        paymentDueAt(command.paymentMethod(), now)),
                 now);
         if (!order.total().equals(totals.total())) {
             throw new IllegalStateException("Order total differs from the quoted total");
@@ -302,13 +311,29 @@ public class CheckoutService {
                 "CART_CHANGED", "Some items in your cart are no longer available as requested. Please review your cart.");
     }
 
+    /** Card payment first (it is the quickest way to get the animals on their way), then bank transfer. */
     private List<PaymentMethod> availablePaymentMethods() {
-        return bankTransfer.isAvailable() ? List.of(PaymentMethod.BANK_TRANSFER) : List.of();
+        List<PaymentMethod> methods = new ArrayList<>(2);
+        if (stripe.isAvailable()) {
+            methods.add(PaymentMethod.STRIPE);
+        }
+        if (bankTransfer.isAvailable()) {
+            methods.add(PaymentMethod.BANK_TRANSFER);
+        }
+        return List.copyOf(methods);
     }
 
-    /** Unpaid orders are kept until the end of the day, {@code bankTransferPaymentDays} days after the order. */
-    private Instant paymentDueAt(LocalDate today) {
-        return today.plusDays(bankTransferPaymentDays)
+    /**
+     * How long the animals stay reserved for an unpaid order: {@code cardPaymentMinutes} for card
+     * payment; for bank transfer, until the end of the day {@code bankTransferPaymentDays} days
+     * after the order.
+     */
+    private Instant paymentDueAt(PaymentMethod method, Instant now) {
+        if (method == PaymentMethod.STRIPE) {
+            return now.plus(cardPaymentTime);
+        }
+        return LocalDate.ofInstant(now, ShippingService.SHOP_ZONE)
+                .plusDays(bankTransferPaymentDays)
                 .atTime(LocalTime.of(23, 59, 59))
                 .atZone(ShippingService.SHOP_ZONE)
                 .toInstant();

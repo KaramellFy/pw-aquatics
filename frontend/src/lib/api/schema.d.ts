@@ -198,6 +198,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payments/stripe/intents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start (or resume) the card payment of an order; returns what Stripe.js needs */
+        post: operations["startCardPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contact": {
         parameters: {
             query?: never;
@@ -1376,6 +1393,18 @@ export interface components {
             shipping?: boolean;
             billing?: boolean;
         };
+        CardPaymentRequest: {
+            orderNumber: string;
+        };
+        CardPaymentView: {
+            orderNumber: string;
+            amount: components["schemas"]["Money"];
+            /** Format: date-time */
+            paymentDueAt: string | null;
+            clientSecret: string | null;
+            publishableKey: string;
+            alreadyPaid: boolean;
+        };
         ContactMessageRequest: {
             name: string;
             /** Format: email */
@@ -1476,6 +1505,8 @@ export interface components {
             status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
             /** @enum {string} */
             paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+            /** @enum {string} */
+            paymentMethod: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
             total: components["schemas"]["Money"];
             /** Format: date-time */
             paymentDueAt: string | null;
@@ -1614,6 +1645,7 @@ export interface components {
             statusTimeline: components["schemas"]["OrderStatusEntryView"][];
             paymentInstructions: components["schemas"]["PaymentInstructionsView"] | null;
             cancellable: boolean;
+            payableByCard: boolean;
         };
         OrderItemView: {
             sku: string;
@@ -2516,6 +2548,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AddressView"][];
+                };
+            };
+        };
+    };
+    startCardPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CardPaymentView"];
                 };
             };
         };
