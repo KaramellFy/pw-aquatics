@@ -17,4 +17,10 @@ public interface ShippingMethodRepository extends JpaRepository<ShippingMethod, 
             ORDER BY m.sortOrder, m.name
             """)
     List<ShippingMethod> findActiveFor(@Param("country") String countryCode);
+
+    /** Every method, active or not, in display order (admin). */
+    @Query("SELECT DISTINCT m FROM ShippingMethod m LEFT JOIN FETCH m.countries ORDER BY m.sortOrder, m.name")
+    List<ShippingMethod> findAllForAdmin();
+
+    boolean existsByCode(String code);
 }

@@ -79,8 +79,8 @@ stable `code` the frontend can switch on:
 | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS` |
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
-| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `CONFLICT` (optimistic lock), `DUPLICATE` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
@@ -246,9 +246,9 @@ object is always present (marked `required` in OpenAPI); properties that can be
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/gallery` | Published gallery images (paged) |
+| GET | `/gallery?page=0&size=24` | Published gallery photos in the owner's order (paged, `size` ≤ 48): `id`, `title`, `caption`, `image` (`url`, `srcSet`, `alt`, `width`, `height`) |
 | POST | `/contact` | `{ name, email, subject, message, orderNumber?, website (honeypot) }` → `202`. Rate limited |
-| GET | `/shop-info` | Public settings: shipping pause banner, free-shipping threshold, bank-transfer note |
+| GET | `/shop-info` | Shop-wide notices for every page: `{ shippingPause: { message, until } \| null }` — set only while a pause is in force (`until` is its last day; `null` for an open-ended pause). Free-shipping threshold and bank-transfer note may follow |
 | GET | `/sitemap.xml` | Generated sitemap (served at `/sitemap.xml` via proxy) |
 
 ### 2.4 Cart — `/api/v1/cart` (public; guest or customer)
@@ -501,11 +501,15 @@ the card payment can be started or resumed right now: an unpaid card order befor
 ]
 ```
 
-Shipments with tracking numbers are added with the admin order tools (Phase 7):
+`shipments` lists the parcels the shop has entered (oldest first, empty until the order
+leaves). `trackingUrl` is built by the server from the carrier's URL template
+(`app.shipping.carriers`); `deliveredAt` is set when the shop marks the order as delivered:
 
 ```json
 "shipments": [
-  { "carrier": "DHL", "trackingNumber": "00340434…", "trackingUrl": "https://…", "shippedAt": "2027-03-03T14:30:00Z", "deliveredAt": null }
+  { "id": "0193…", "carrier": "DHL", "trackingNumber": "JJD000123456789",
+    "trackingUrl": "https://www.dhl.com/de-en/home/tracking/tracking-parcel.html?submit=1&tracking-id=JJD000123456789",
+    "shippedAt": "2027-03-03T14:30:00Z", "deliveredAt": null }
 ]
 ```
 
@@ -701,18 +705,40 @@ simultaneous changes), a ledger entry and an audit record in one transaction.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/admin/orders?status=&paymentStatus=&q=&from=&to=&page=` | Search by order number, email, name |
-| GET | `/admin/orders/{orderNumber}` | Full detail incl. internal notes and history |
-| POST | `/admin/orders/{orderNumber}/status` | `{ status, note, customerMessage, notifyCustomer }` — validated by the state machine |
-| POST | `/admin/orders/{orderNumber}/mark-paid` | Bank transfer received `{ paidAt, note }` |
-| POST | `/admin/orders/{orderNumber}/cancel` | `{ reason, restock: true, notifyCustomer }` |
-| POST | `/admin/orders/{orderNumber}/notes` | Internal note |
-| POST | `/admin/orders/{orderNumber}/shipments` | `{ carrier, trackingNumber, shippedAt, notifyCustomer }` → order becomes `SHIPPED`, customer emailed |
-| PUT | `/admin/orders/{orderNumber}/shipments/{id}` | Correct tracking number / carrier, set `deliveredAt` |
-| DELETE | `/admin/orders/{orderNumber}/shipments/{id}` | Remove wrongly entered shipment |
+| GET | `/admin/orders?q=&status=&status=&paymentStatus=&from=&to=&oldestFirst=&page=&size=` | Search by order number, email or name (case-insensitive, `%`/`_` taken literally); `status` repeats; `from`/`to` are days (`yyyy-MM-dd`, shop time, inclusive; `from` after `to` → `422 RANGE_INVALID`); newest first unless `oldestFirst=true`; `size` ≤ 100. Rows: `orderNumber`, `placedAt`, `status`, `paymentStatus`, `paymentMethod`, `total`, `customerName`, `customerEmail`, `countryCode`, `itemCount`, `containsLiveAnimals`, `plannedDispatchDate`, `paymentDueAt` |
+| GET | `/admin/orders/{orderNumber}` | Admin order view (below) |
+| POST | `/admin/orders/{orderNumber}/mark-paid` | Bank transfer received `{ paidOn?, note?, notifyCustomer = true }`. `paidOn` is the day the money arrived (default today; not in the future, not more than a day before the order → `422 DATE_INVALID`). Card orders → `409 PAID_BY_PROVIDER` (only Stripe's webhook marks them). Emails "payment received" |
+| POST | `/admin/orders/{orderNumber}/status` | `{ status: PROCESSING \| DELIVERED, note?, customerMessage?, notifyCustomer = true }` — being packed, or arrived (sets `deliveredAt` on every parcel). Other statuses have their own action → `409 INVALID_STATUS_TRANSITION`; so does any move the state machine refuses |
+| POST | `/admin/orders/{orderNumber}/cancel` | `{ reason, customerMessage?, restock = true, notifyCustomer = true }` — until shipped (later → `409 INVALID_STATUS_TRANSITION`). `restock: false` keeps the animals off sale (e.g. lost). An unpaid card order's PaymentIntent is cancelled first (`409 ORDER_NOT_CANCELLABLE` while Stripe processes it). Paid orders can be cancelled too; the refund is made in the Stripe Dashboard or by bank transfer (refunds via the API follow in Phase 9). The reason stays internal; the customer message goes into the email |
+| POST | `/admin/orders/{orderNumber}/notes` | `{ body }` (1–2000 characters) — internal note, never shown to the customer |
+| POST | `/admin/orders/{orderNumber}/shipments` | `{ carrier, trackingNumber, shippedOn?, customerMessage?, notifyCustomer = true }`. `carrier` must be one of `carriers` (`422 CARRIER_UNKNOWN`); `trackingNumber` 4–40 letters, digits and spaces (spaces are dropped); `shippedOn` defaults to today (`422 DATE_INVALID` if before the order or in the future). The first parcel moves a paid order to `SHIPPED` (through `PROCESSING` if packing was not recorded) and emails the tracking link; later parcels of a split order are only added. Unpaid or cancelled orders → `409 INVALID_STATUS_TRANSITION` |
+| PUT | `/admin/orders/{orderNumber}/shipments/{id}` | `{ carrier, trackingNumber }` — correct a parcel (no email) |
+| DELETE | `/admin/orders/{orderNumber}/shipments/{id}` | Remove a parcel entered by mistake; the only parcel of a shipped order stays → `422 LAST_SHIPMENT` |
 | POST | `/admin/orders/{orderNumber}/refunds` | Phase 9: `{ amount, reason }` via payment provider |
-| GET | `/admin/orders/{orderNumber}/packing-slip` | PDF packing slip |
-| GET | `/admin/orders/export?from=&to=` | CSV export |
+| GET | `/admin/orders/export?from=&to=` | CSV export (later) |
+
+Every action locks the order, answers with the full admin order view and is written to the
+audit log (`ORDER_MARKED_PAID`, `ORDER_STATUS_CHANGED`, `ORDER_CANCELLED_BY_SHOP`,
+`ORDER_NOTE_ADDED`, `ORDER_SHIPPED`, `SHIPMENT_CORRECTED`, `SHIPMENT_REMOVED`).
+An order number that does not match `PW-yyyy-nnnnnn` → `400`; unknown → `404`.
+
+**Admin order view:** `order` (the customer's order detail, §2.6, including `shipments`),
+`customerId` (null for a deleted account), `customerEmail`, `customerLocale`, `paidAt`,
+`cancelledAt`, `cancellationReason`, `history` (`from`, `to`, `at`, `note` — internal,
+`customerMessage`, `changedBy` — a name, or null for the system), `notes` (`id`, `body`,
+`at`, `author`), `payment` (card orders: `provider`, `reference`, `status`, `amount`,
+`refunded`, `methodDetail`, `failureCode`, `dashboardUrl`; `null` for bank transfers),
+`carriers` (names for the shipment form) and `actions` — which steps are possible right
+now, decided by the server: `markPaid`, `startProcessing`, `ship`, `markDelivered`,
+`cancel`, `removeShipment`.
+
+**Packing slip:** a printable page in the admin app (`/admin/orders/{orderNumber}/packing-slip`)
+built from the admin order view: delivery address, shipping method and dispatch day,
+parcels, items with quantity and SKU (no prices), the customer's note and the live-animal
+notice. A PDF arrives with invoices (Phase 10).
+
+**Carriers** are configured in `app.shipping.carriers` (`name` + `trackingUrl`, an https
+URL containing `{trackingNumber}`); DHL and DHL Express are preset.
 
 ### 3.6 Coupons
 
@@ -730,17 +756,30 @@ simultaneous changes), a ledger entry and an audit record in one transaction.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/admin/customers?q=&page=` | Customer list |
-| GET | `/admin/customers/{id}` | Profile, addresses, orders, lifetime value |
-| POST | `/admin/customers/{id}/lock` / `/unlock` | Lock or unlock account |
-| GET/POST/PUT/DELETE | `/admin/gallery[/{id}]` | Gallery management (multipart upload on POST) |
-| PATCH | `/admin/gallery/order` | Reorder |
-| GET | `/admin/contact-messages?status=` | Inbox |
-| PATCH | `/admin/contact-messages/{id}` | `{ status }` |
-| GET/POST/PUT | `/admin/shipping-methods[/{id}]` | Shipping methods, countries, dispatch weekdays |
-| GET | `/admin/settings` | Shop settings |
-| PUT | `/admin/settings/{key}` | e.g. `shipping.pause` `{ active, message, until }` |
-| GET | `/admin/audit-log?entityType=&entityId=&actor=&page=` | Audit trail |
+| GET | `/admin/customers?q=&status=&page=&size=` | Customer accounts (role `CUSTOMER`, deleted accounts left out), newest first; search by email or name; `status` `ACTIVE` or `LOCKED`. Rows: `id`, `name`, `email`, `status`, `emailVerified`, `registeredAt`, `lastLoginAt`, `orderCount`, `lifetimeValue`, `lastOrderAt` |
+| GET | `/admin/customers/{id}` | Profile (`firstName`, `lastName`, `email`, `phone`, `locale`, `status`, `lockable`, `emailVerified`, `marketingOptIn`, `registeredAt`, `lastLoginAt`), `addresses`, the latest 50 `orders`, `orderCount`, `paidOrderCount`, `lifetimeValue`, `averageOrderValue` (null without paid orders). Administrators and unknown or deleted accounts → `404` |
+| POST | `/admin/customers/{id}/lock` | `{ reason? }` (≤ 500, kept in the audit log) → customer view. The account cannot sign in (`423 ACCOUNT_LOCKED`) and its sessions end at once. Administrator accounts → `409 ACCOUNT_NOT_LOCKABLE`. Locking twice changes nothing |
+| POST | `/admin/customers/{id}/unlock` | → customer view; also clears a temporary lock after failed sign-ins |
+| GET | `/admin/gallery` | Every gallery photo, published or not, in gallery order: `id`, `title`, `caption`, `altText`, `published`, `sortOrder`, `image`, `createdAt`, `version` |
+| POST | `/admin/gallery` | Multipart `file` (JPEG, PNG or WebP, ≥ 400 px wide, ≤ 15 MB) + `altText` (required, ≤ 255), `title?` (≤ 150), `caption?` (≤ 500) → `201`, unpublished, at the end. Processed by `media.ImageService` like product photos. Max. 200 photos (`422 IMAGE_LIMIT_REACHED`) |
+| PUT | `/admin/gallery/{id}` | `{ title?, caption?, altText, published, version }` (`409 CONFLICT` for a stale version) |
+| PATCH | `/admin/gallery/order` | `{ imageIds }` — every photo exactly once (`422 IMAGE_ORDER_INVALID`) → the new list |
+| DELETE | `/admin/gallery/{id}` | → `204`; the files are removed after the commit |
+| GET | `/admin/contact-messages?status=&page=&size=` | Inbox, newest first; without `status` everything except spam. Rows: `id`, `name`, `email`, `subject`, `message`, `orderNumber`, `status`, `createdAt` |
+| GET | `/admin/contact-messages/counts` | `{ NEW, READ, ANSWERED, SPAM }` |
+| PATCH | `/admin/contact-messages/{id}` | `{ status: NEW \| READ \| ANSWERED \| SPAM }`. Replies are written in the mail program; messages are deleted after `app.retention.contact-messages` |
+| GET | `/admin/shipping-methods` | All methods, active or not: `id`, `code`, `name`, `description`, `carrier`, `price`, `freeFrom`, `liveAnimalsAllowed`, `dispatchDays` (`MONDAY`…), `estimatedDaysMin/Max`, `countries`, `active`, `sortOrder`, `version` |
+| POST | `/admin/shipping-methods` | `{ code, name, description?, carrier?, priceCents, freeShippingThresholdCents?, liveAnimalsAllowed, dispatchDays, estimatedDaysMin?, estimatedDaysMax?, countries, active, sortOrder }` → `201`. `code` (`[A-Z][A-Z0-9_]{1,49}`) is permanent (`409 CODE_TAKEN`); unknown country codes → `422 COUNTRY_INVALID`; longest delivery time shorter than the shortest → `422 DELIVERY_ESTIMATE_INVALID` |
+| PUT | `/admin/shipping-methods/{id}` | Same body with `version` (the code is ignored). Methods are switched off, never deleted: placed orders keep their snapshot |
+| GET | `/admin/settings/shipping-pause` | `{ active, inForce, message, until }` |
+| PUT | `/admin/settings/shipping-pause` | `{ active, message? (≤ 300), until? }` — while active no live animals leave up to and including `until`; without `until` orders with live animals are refused (`SHIPPING_PAUSED`). A last day in the past → `422 DATE_INVALID`; switching off clears the message |
+| GET | `/admin/audit-log?entityType=&entityId=&actor=&page=` | Audit trail (later) |
+
+Every write is recorded in the audit log (`ACCOUNT_LOCKED_BY_SHOP`, `ACCOUNT_UNLOCKED_BY_SHOP`,
+`GALLERY_IMAGE_*`, `GALLERY_REORDERED`, `CONTACT_MESSAGE_STATUS_CHANGED`,
+`SHIPPING_METHOD_CREATED/UPDATED`, `SHIPPING_PAUSE_CHANGED`). Lifetime value and averages
+count paid orders that are not cancelled or refunded (the dashboard's definition) and are
+calculated on the server.
 
 ---
 

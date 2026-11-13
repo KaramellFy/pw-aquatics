@@ -30,19 +30,22 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 | 4 Shopping cart | ✅ add to cart on the product page, cart drawer, cart page with quantity steppers, stock warnings, header badge; checkout button disabled until Phase 5 | ✅ carts for guests (HttpOnly cookie, hash stored) and customers, merge after sign-in, server-side prices/totals/VAT (`pricing`), stock limits, automatic quantity correction with warnings, daily cleanup of expired guest carts |
 | 5 Checkout & orders | ✅ three-step checkout (address → shipping → review with mandatory confirmations), order button „Zahlungspflichtig bestellen“, confirmation page with bank details, order history, order detail with status timeline and cancel | ✅ shipping methods per country with dispatch weekdays and shipping pause, quote, order placement in one transaction (cart and product locks, idempotency key, price check), stock ledger, order lifecycle, bank-transfer instructions, confirmation and cancellation emails, customer cancel, expiry of unpaid orders |
 | 6 Admin I: catalog & inventory | ✅ separate admin area (own layout, lazy chunks, admins only): product list with search/filters, product editor (details, Markdown with preview, colours, SEO), pack sizes with prices, photo manager (upload, drag/arrow reorder, alt texts), publish/archive/duplicate, stock overview with low/sold-out filters, stock changes and stocktake, stock history, categories, species with care data and trade restriction, colours, grades | ✅ admin APIs for products, pack sizes, photos, taxonomy and stock; photo processing to WebP renditions (content sniffing, size limits, EXIF orientation, metadata stripped); publish rules; optimistic locking for edits with stock outside it; stock corrections through the ledger; audit log of every admin write; ADMIN checked at URL and method level |
+| 7 Admin II: orders & fulfilment | ✅ order list with search, status/payment/date filters and work queues (awaiting payment, to ship), order page with next step, history, notes, parcels and card-payment details; mark paid, packing, ship with tracking number, delivered, cancel with or without restock; printable packing slip; tracking links on the customer's order page; customer list and page with spend, lock/unlock; contact inbox; gallery manager (upload, alt text, publish, reorder) with the public gallery reading it; shipping methods and dispatch days; shipping pause with a banner on every shop page | ✅ `shipments`, `order_notes`, `gallery_images`; admin order API with server-decided next steps, state machine and audit log, bank transfers marked paid (card orders only by Stripe), shop cancellation with optional restock, carriers with tracking URL templates, "payment received"/"being prepared"/"shipped"/"delivered"/"cancelled" emails; customer read model and account lock that ends sessions; gallery and inbox APIs; shipping-method and pause admin with `GET /shop-info` |
 | 9 (part) Card payments (Stripe) | ✅ choice of card or bank transfer in the review step, payment page with Stripe's Payment Element (cards; Apple Pay/Google Pay where offered; 3-D Secure), clear decline messages, "pay now" on the order page until the deadline, confirmation page that waits for Stripe's confirmation, EN/DE | ✅ `payments` and `payment_webhook_events`, one PaymentIntent per order from the stored total, signed and idempotent webhook (`succeeded`, `processing`, `payment_failed`, `canceled`, `charge.refunded`), payload reduced before storing, 60-minute expiry that cancels the PaymentIntent first, "payment received" email, refunds recorded, tested with real test-mode payments |
 | 8 (part) Dashboard & statistics | ✅ admin start page: right-now tiles (awaiting payment, to ship, low stock, sold out), period filter (presets and custom), key figures compared with the previous period, sales over time (paid vs. awaiting payment; revenue, orders, animals), best sellers, revenue by category/species/country, orders by weekday and status, stock changes with loss rate, latest orders, running-low list, table view for every chart, CSV download | ✅ read model in `admin` (`/admin/dashboard`, `/admin/stats/{sales,products,stock}`, CSV export), periods in shop time with automatic day/week/month buckets, tested against hand-counted data |
 
+Open in Phase 7: a packing slip as PDF (with invoices in Phase 10; the print page covers it
+until then), the audit-log page, the orders CSV export, the real carrier list and tracking
+URLs (DHL and DHL Express are preset), linking gallery photos to species, refunds through
+the API (Phase 9).
 Open in Phase 6: real product photos and texts (entered by the owner in the admin), the
 owner's own administrator account (`APP_ADMIN_BOOTSTRAP_*` on first start), image storage
 outside the server (S3) if wanted.
-Open in the dashboard: coupon statistics (with coupons in Phase 8); "paid" figures only move once orders
-can be marked as paid (Phase 7).
+Open in the dashboard: coupon statistics (with coupons in Phase 8).
 Open in Phase 5: real shipping prices (the dev seed has placeholders; production has no
 shipping methods until they are entered), the shop's bank account (`BANK_*`), final
 checkout wording and legal texts, VAT treatment of deliveries outside Germany, public
-holidays in the dispatch calendar. Orders can only be marked as paid once the admin
-order tools exist (Phase 7); until then unpaid orders simply expire.
+holidays in the dispatch calendar.
 Phase 1 brand applied: PW Aquatics logo, white + baby-blue scheme, English default.
 Open in Phase 2: real product photos (uploads arrive with the admin in Phase 6), owner review of species data and product copy, CI check that generated API types are up to date.
 Open in Phase 1: owner approval of the visual direction, photography, final copy and the real contact email.
@@ -206,13 +209,14 @@ submissions create one order, price change between quote and order is caught.
 **Done when:** a new product can be created, photographed, published and
 stocked entirely through the admin UI; non-admins get 403 on every admin endpoint.
 
-## Phase 7 — Admin II: orders & fulfilment
+## Phase 7 — Admin II: orders & fulfilment ✅
 
 **Goal:** the owner can process orders end-to-end.
 
 - Migrations: shipments, order_notes, gallery_images.
 - Order management: list with filters, detail, mark as paid, status changes
-  (state machine), cancellation with restock, internal notes, packing slip PDF.
+  (state machine), cancellation with restock, internal notes, packing slip
+  (built as a print page; the PDF follows with invoices in Phase 10).
 - Tracking: add/edit shipments with carrier + tracking number; carrier
   tracking URL templates; "shipped" email with tracking link.
 - Customer tracking view in the account area.

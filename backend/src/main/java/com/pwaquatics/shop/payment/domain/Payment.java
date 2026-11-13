@@ -175,4 +175,8 @@ public class Payment extends AbstractEntity {
     public String getFailureCode() {
         return failureCode;
     }
+
+    public String getMethodDetail() {
+        return methodDetail;
+    }
 }

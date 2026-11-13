@@ -160,6 +160,26 @@ public class User extends AbstractEntity {
         this.updatedAt = now;
     }
 
+    /** Locked by the shop: the account cannot sign in until it is unlocked. */
+    public void lock(Instant now) {
+        if (status != UserStatus.ACTIVE) {
+            throw new IllegalStateException("Only active accounts can be locked");
+        }
+        status = UserStatus.LOCKED;
+        updatedAt = now;
+    }
+
+    /** Lifts a lock by the shop and any temporary lock after failed logins. */
+    public void unlock(Instant now) {
+        if (status != UserStatus.LOCKED) {
+            throw new IllegalStateException("Only locked accounts can be unlocked");
+        }
+        status = UserStatus.ACTIVE;
+        failedLoginAttempts = 0;
+        lockedUntil = null;
+        updatedAt = now;
+    }
+
     /**
      * Removes all personal data but keeps the row, so orders stay linked for the statutory
      * retention period (docs/DATABASE.md §6). The account can never be used again.

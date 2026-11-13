@@ -23,6 +23,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/shipping-methods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a shipping method (the code stays; send the version you loaded) */
+        put: operations["update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/settings/shipping-pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The shipping pause for live animals */
+        get: operations["pause"];
+        /** Switch the shipping pause for live animals on or off */
+        put: operations["updatePause"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/products/{id}": {
         parameters: {
             query?: never;
@@ -33,7 +68,7 @@ export interface paths {
         /** One product with pack sizes, photos and what blocks publishing */
         get: operations["get"];
         /** Save the product's details (send the version you loaded) */
-        put: operations["update"];
+        put: operations["update_1"];
         post?: never;
         delete?: never;
         options?: never;
@@ -53,6 +88,24 @@ export interface paths {
         put: operations["updateVariant"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{orderNumber}/shipments/{shipmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Correct a parcel's carrier or tracking number */
+        put: operations["correctShipment"];
+        post?: never;
+        /** Remove a parcel entered by mistake (not the only one) */
+        delete: operations["removeShipment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -88,6 +141,24 @@ export interface paths {
         post?: never;
         /** Delete an unused grade */
         delete: operations["deleteGrade"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/gallery/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a photo's texts and whether it is shown (send the version you loaded) */
+        put: operations["update_2"];
+        post?: never;
+        /** Delete a photo and its files */
+        delete: operations["delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -172,10 +243,10 @@ export interface paths {
         };
         get?: never;
         /** Update an address */
-        put: operations["update_1"];
+        put: operations["update_3"];
         post?: never;
         /** Delete an address */
-        delete: operations["delete"];
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -420,6 +491,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/shipping-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All shipping methods, active or not */
+        get: operations["list"];
+        put?: never;
+        /** Add a shipping method */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/products": {
         parameters: {
             query?: never;
@@ -428,10 +517,10 @@ export interface paths {
             cookie?: never;
         };
         /** All products incl. drafts and archived, with exact stock */
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         /** Create a product (unpublished, no stock) */
-        post: operations["create"];
+        post: operations["create_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -523,6 +612,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders/{orderNumber}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move an order to PROCESSING (being packed) or DELIVERED */
+        post: operations["changeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{orderNumber}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enter a parcel; the first one marks the order as shipped and emails the tracking link */
+        post: operations["addShipment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{orderNumber}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add an internal note (never shown to the customer) */
+        post: operations["addNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{orderNumber}/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A bank transfer has arrived (card payments are confirmed by Stripe) */
+        post: operations["markPaid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{orderNumber}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel an order that has not been shipped */
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/markdown/preview": {
         parameters: {
             query?: never;
@@ -575,6 +749,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/gallery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every gallery photo, published or not, in gallery order */
+        get: operations["list_2"];
+        put?: never;
+        /** Upload a photo (JPEG, PNG or WebP, at least 400 px wide, max. 15 MB); it starts unpublished */
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unlock an account */
+        post: operations["unlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lock an account: it cannot sign in, and its sessions end now */
+        post: operations["lock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/colours": {
         parameters: {
             query?: never;
@@ -621,7 +847,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Cancel an order that has not been paid yet */
-        post: operations["cancel"];
+        post: operations["cancel_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -636,10 +862,10 @@ export interface paths {
             cookie?: never;
         };
         /** Saved addresses, defaults first */
-        get: operations["list_1"];
+        get: operations["list_3"];
         put?: never;
         /** Add an address */
-        post: operations["create_1"];
+        post: operations["create_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -699,6 +925,40 @@ export interface paths {
         patch: operations["reorderImages"];
         trace?: never;
     };
+    "/api/v1/admin/gallery/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Put the photos in a new order (every photo once, first one first) */
+        patch: operations["reorder"];
+        trace?: never;
+    };
+    "/api/v1/admin/contact-messages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark a message as new, read, answered or spam */
+        patch: operations["changeStatus_1"];
+        trace?: never;
+    };
     "/api/v1/account/profile": {
         parameters: {
             query?: never;
@@ -743,6 +1003,23 @@ export interface paths {
         };
         /** Species profile with care parameters */
         get: operations["species_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shop-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shop-wide notices for every page, e.g. a shipping pause for live animals */
+        get: operations["shopInfo"];
         put?: never;
         post?: never;
         delete?: never;
@@ -828,6 +1105,23 @@ export interface paths {
         };
         /** Grades */
         get: operations["grades_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Published gallery photos, in the shop's order */
+        get: operations["gallery"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1007,6 +1301,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Orders, newest first (or oldest first); search by order number, email or name */
+        get: operations["list_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{orderNumber}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One order with customer, history, internal notes, payment and possible actions */
+        get: operations["get_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/inventory/{productId}/movements": {
         parameters: {
             query?: never;
@@ -1041,6 +1369,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Customers, newest first; search by email or name */
+        get: operations["list_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A customer with addresses, latest orders and what they have spent */
+        get: operations["get_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/contact-messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Messages, newest first; without a status everything except spam */
+        get: operations["list_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/contact-messages/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Number of messages per status */
+        get: operations["counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/orders": {
         parameters: {
             query?: never;
@@ -1049,7 +1445,7 @@ export interface paths {
             cookie?: never;
         };
         /** Order history, newest first */
-        get: operations["list_2"];
+        get: operations["list_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1162,6 +1558,68 @@ export interface components {
             /** Format: int64 */
             productCount: number;
         };
+        ShippingMethodRequest: {
+            code?: string;
+            name: string;
+            description?: string;
+            carrier?: string;
+            /** Format: int64 */
+            priceCents?: number;
+            /** Format: int64 */
+            freeShippingThresholdCents?: number;
+            liveAnimalsAllowed?: boolean;
+            dispatchDays: ("MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY")[];
+            /** Format: int32 */
+            estimatedDaysMin?: number;
+            /** Format: int32 */
+            estimatedDaysMax?: number;
+            countries: string[];
+            active?: boolean;
+            /** Format: int32 */
+            sortOrder?: number;
+            /** Format: int64 */
+            version?: number;
+        };
+        AdminShippingMethodView: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: string | null;
+            carrier: string | null;
+            price: components["schemas"]["Money"];
+            freeFrom: components["schemas"]["Money"] | null;
+            liveAnimalsAllowed: boolean;
+            dispatchDays: ("MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY")[];
+            /** Format: int32 */
+            estimatedDaysMin: number | null;
+            /** Format: int32 */
+            estimatedDaysMax: number | null;
+            countries: string[];
+            active: boolean;
+            /** Format: int32 */
+            sortOrder: number;
+            /** Format: int64 */
+            version: number;
+        };
+        Money: {
+            /** Format: int64 */
+            amount: number;
+            currency: string;
+        };
+        ShippingPauseRequest: {
+            active?: boolean;
+            message?: string;
+            /** Format: date */
+            until?: string;
+        };
+        ShippingPauseView: {
+            active: boolean;
+            inForce: boolean;
+            message: string | null;
+            /** Format: date */
+            until: string | null;
+        };
         ProductRequest: {
             name: string;
             slug?: string;
@@ -1257,11 +1715,6 @@ export interface components {
             /** Format: int32 */
             sortOrder: number;
         };
-        Money: {
-            /** Format: int64 */
-            amount: number;
-            currency: string;
-        };
         VariantRequest: {
             sku: string;
             name: string;
@@ -1272,6 +1725,151 @@ export interface components {
             /** Format: int64 */
             compareAtPriceCents?: number;
             active?: boolean;
+        };
+        ShipmentCorrection: {
+            carrier: string;
+            trackingNumber: string;
+        };
+        AdminOrderView: {
+            order: components["schemas"]["OrderDetailView"];
+            /** Format: uuid */
+            customerId: string | null;
+            customerEmail: string;
+            customerLocale: string;
+            /** Format: date-time */
+            paidAt: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            cancellationReason: string | null;
+            history: components["schemas"]["OrderHistoryEntry"][];
+            notes: components["schemas"]["InternalNote"][];
+            payment: components["schemas"]["PaymentSummaryView"] | null;
+            carriers: string[];
+            actions: components["schemas"]["OrderActions"];
+        };
+        InternalNote: {
+            /** Format: uuid */
+            id: string;
+            body: string;
+            /** Format: date-time */
+            at: string;
+            author: string | null;
+        };
+        OrderActions: {
+            markPaid: boolean;
+            startProcessing: boolean;
+            ship: boolean;
+            markDelivered: boolean;
+            cancel: boolean;
+            removeShipment: boolean;
+        };
+        OrderAddressView: {
+            firstName: string;
+            lastName: string;
+            company: string | null;
+            street: string;
+            houseNumber: string;
+            addressLine2: string | null;
+            postalCode: string;
+            city: string;
+            countryCode: string;
+            phone: string | null;
+        };
+        OrderDetailView: {
+            orderNumber: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+            /** @enum {string} */
+            paymentMethod: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
+            /** Format: date-time */
+            placedAt: string;
+            /** Format: date-time */
+            paymentDueAt: string | null;
+            /** Format: date */
+            plannedDispatchDate: string | null;
+            items: components["schemas"]["OrderItemView"][];
+            totals: components["schemas"]["OrderTotalsView"];
+            shippingMethodName: string;
+            shippingCarrier: string | null;
+            shippingAddress: components["schemas"]["OrderAddressView"];
+            billingAddress: components["schemas"]["OrderAddressView"];
+            customerNote: string | null;
+            containsLiveAnimals: boolean;
+            statusTimeline: components["schemas"]["OrderStatusEntryView"][];
+            paymentInstructions: components["schemas"]["PaymentInstructionsView"] | null;
+            cancellable: boolean;
+            payableByCard: boolean;
+            shipments: components["schemas"]["ShipmentView"][];
+        };
+        OrderHistoryEntry: {
+            /** @enum {string|null} */
+            from: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | null;
+            /** @enum {string} */
+            to: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** Format: date-time */
+            at: string;
+            note: string | null;
+            customerMessage: string | null;
+            changedBy: string | null;
+        };
+        OrderItemView: {
+            sku: string;
+            productName: string;
+            variantName: string;
+            speciesName: string | null;
+            gradeName: string | null;
+            /** Format: int32 */
+            quantity: number;
+            unitPrice: components["schemas"]["Money"];
+            lineTotal: components["schemas"]["Money"];
+        };
+        OrderStatusEntryView: {
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** Format: date-time */
+            at: string;
+            message: string | null;
+        };
+        OrderTotalsView: {
+            subtotal: components["schemas"]["Money"];
+            shipping: components["schemas"]["Money"];
+            total: components["schemas"]["Money"];
+            includedTax: components["schemas"]["Money"];
+        };
+        PaymentInstructionsView: {
+            /** @enum {string} */
+            type: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
+            accountHolder: string;
+            iban: string;
+            bic: string | null;
+            bankName: string | null;
+            reference: string;
+            amount: components["schemas"]["Money"];
+        };
+        PaymentSummaryView: {
+            /** @enum {string} */
+            provider: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
+            reference: string;
+            /** @enum {string} */
+            status: "CREATED" | "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "REFUNDED" | "PARTIALLY_REFUNDED";
+            amount: components["schemas"]["Money"];
+            refunded: components["schemas"]["Money"];
+            methodDetail: string | null;
+            failureCode: string | null;
+            dashboardUrl: string;
+        };
+        ShipmentView: {
+            /** Format: uuid */
+            id: string;
+            carrier: string;
+            trackingNumber: string;
+            trackingUrl: string | null;
+            /** Format: date-time */
+            shippedAt: string;
+            /** Format: date-time */
+            deliveredAt: string | null;
         };
         CountRequest: {
             /** Format: int32 */
@@ -1307,6 +1905,38 @@ export interface components {
             sortOrder: number;
             /** Format: int64 */
             productCount: number;
+        };
+        GalleryImageRequest: {
+            title?: string;
+            caption?: string;
+            altText: string;
+            published?: boolean;
+            /** Format: int64 */
+            version?: number;
+        };
+        AdminGalleryImageView: {
+            /** Format: uuid */
+            id: string;
+            title: string | null;
+            caption: string | null;
+            altText: string;
+            published: boolean;
+            /** Format: int32 */
+            sortOrder: number;
+            image: components["schemas"]["ImageView"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ImageView: {
+            url: string;
+            srcSet: string;
+            alt: string;
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            height: number;
         };
         ColourRequest: {
             name: string;
@@ -1419,21 +2049,6 @@ export interface components {
             shippingAddressId: string;
             shippingMethodCode: string;
         };
-        ImageView: {
-            url: string;
-            srcSet: string;
-            alt: string;
-            /** Format: int32 */
-            width: number;
-            /** Format: int32 */
-            height: number;
-        };
-        OrderTotalsView: {
-            subtotal: components["schemas"]["Money"];
-            shipping: components["schemas"]["Money"];
-            total: components["schemas"]["Money"];
-            includedTax: components["schemas"]["Money"];
-        };
         QuoteLineView: {
             /** Format: uuid */
             variantId: string;
@@ -1488,16 +2103,6 @@ export interface components {
             acceptedTerms?: boolean;
             acceptedLiveAnimalConditions?: boolean;
             expectedTotal: components["schemas"]["ExpectedTotal"];
-        };
-        PaymentInstructionsView: {
-            /** @enum {string} */
-            type: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
-            accountHolder: string;
-            iban: string;
-            bic: string | null;
-            bankName: string | null;
-            reference: string;
-            amount: components["schemas"]["Money"];
         };
         PlacedOrderView: {
             orderNumber: string;
@@ -1595,6 +2200,36 @@ export interface components {
             authenticated: boolean;
             user: components["schemas"]["CurrentUserView"] | null;
         };
+        OrderStatusRequest: {
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            note?: string;
+            customerMessage?: string;
+            notifyCustomer?: boolean;
+        };
+        ShipmentRequest: {
+            carrier: string;
+            trackingNumber: string;
+            /** Format: date */
+            shippedOn?: string;
+            customerMessage?: string;
+            notifyCustomer?: boolean;
+        };
+        NoteRequest: {
+            body: string;
+        };
+        MarkPaidRequest: {
+            /** Format: date */
+            paidOn?: string;
+            note?: string;
+            notifyCustomer?: boolean;
+        };
+        CancelRequest: {
+            reason: string;
+            customerMessage?: string;
+            restock?: boolean;
+            notifyCustomer?: boolean;
+        };
         MarkdownPreviewRequest: {
             markdown?: string;
         };
@@ -1608,7 +2243,10 @@ export interface components {
             reason: "INITIAL" | "RESTOCK" | "ORDER_PLACED" | "ORDER_CANCELLED" | "MANUAL_ADJUSTMENT" | "LOSS" | "RETURN";
             note?: string;
         };
-        OrderAddressView: {
+        CustomerAddress: {
+            /** Format: uuid */
+            id: string;
+            label: string | null;
             firstName: string;
             lastName: string;
             company: string | null;
@@ -1619,51 +2257,49 @@ export interface components {
             city: string;
             countryCode: string;
             phone: string | null;
+            defaultShipping: boolean;
+            defaultBilling: boolean;
         };
-        OrderDetailView: {
+        CustomerDetailView: {
+            /** Format: uuid */
+            id: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+            phone: string | null;
+            locale: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "LOCKED" | "ANONYMISED";
+            lockable: boolean;
+            emailVerified: boolean;
+            marketingOptIn: boolean;
+            /** Format: date-time */
+            registeredAt: string;
+            /** Format: date-time */
+            lastLoginAt: string | null;
+            /** Format: int32 */
+            orderCount: number;
+            /** Format: int32 */
+            paidOrderCount: number;
+            lifetimeValue: components["schemas"]["Money"];
+            averageOrderValue: components["schemas"]["Money"] | null;
+            addresses: components["schemas"]["CustomerAddress"][];
+            orders: components["schemas"]["CustomerOrder"][];
+        };
+        CustomerOrder: {
             orderNumber: string;
+            /** Format: date-time */
+            placedAt: string;
             /** @enum {string} */
             status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
             /** @enum {string} */
             paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
-            /** @enum {string} */
-            paymentMethod: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
-            /** Format: date-time */
-            placedAt: string;
-            /** Format: date-time */
-            paymentDueAt: string | null;
-            /** Format: date */
-            plannedDispatchDate: string | null;
-            items: components["schemas"]["OrderItemView"][];
-            totals: components["schemas"]["OrderTotalsView"];
-            shippingMethodName: string;
-            shippingCarrier: string | null;
-            shippingAddress: components["schemas"]["OrderAddressView"];
-            billingAddress: components["schemas"]["OrderAddressView"];
-            customerNote: string | null;
-            containsLiveAnimals: boolean;
-            statusTimeline: components["schemas"]["OrderStatusEntryView"][];
-            paymentInstructions: components["schemas"]["PaymentInstructionsView"] | null;
-            cancellable: boolean;
-            payableByCard: boolean;
-        };
-        OrderItemView: {
-            sku: string;
-            productName: string;
-            variantName: string;
-            speciesName: string | null;
-            gradeName: string | null;
+            total: components["schemas"]["Money"];
             /** Format: int32 */
-            quantity: number;
-            unitPrice: components["schemas"]["Money"];
-            lineTotal: components["schemas"]["Money"];
+            itemCount: number;
         };
-        OrderStatusEntryView: {
-            /** @enum {string} */
-            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
-            /** Format: date-time */
-            at: string;
-            message: string | null;
+        LockRequest: {
+            reason?: string;
         };
         UpdateCartItemRequest: {
             /** Format: int32 */
@@ -1674,6 +2310,26 @@ export interface components {
         };
         ImageOrderRequest: {
             imageIds: string[];
+        };
+        GalleryOrderRequest: {
+            imageIds: string[];
+        };
+        ContactStatusRequest: {
+            /** @enum {string} */
+            status: "NEW" | "READ" | "ANSWERED" | "SPAM";
+        };
+        ContactMessageView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email: string;
+            subject: string;
+            message: string;
+            orderNumber: string | null;
+            /** @enum {string} */
+            status: "NEW" | "READ" | "ANSWERED" | "SPAM";
+            /** Format: date-time */
+            createdAt: string;
         };
         UpdateProfileRequest: {
             firstName: string;
@@ -1730,6 +2386,14 @@ export interface components {
             origin: string | null;
             descriptionHtml: string | null;
             care: components["schemas"]["CareView"];
+        };
+        ShippingPauseNotice: {
+            message: string | null;
+            /** Format: date */
+            until: string | null;
+        };
+        ShopInfoView: {
+            shippingPause: components["schemas"]["ShippingPauseNotice"] | null;
         };
         CategoryRef: {
             slug: string;
@@ -1848,6 +2512,24 @@ export interface components {
             /** Format: int32 */
             rank: number;
             description: string | null;
+        };
+        GalleryImageView: {
+            /** Format: uuid */
+            id: string;
+            title: string | null;
+            caption: string | null;
+            image: components["schemas"]["ImageView"];
+        };
+        PageResponseGalleryImageView: {
+            items: components["schemas"]["GalleryImageView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
         };
         ShippingOptions: {
             methods: components["schemas"]["ShippingOption"][];
@@ -2028,6 +2710,39 @@ export interface components {
             /** Format: int32 */
             totalPages: number;
         };
+        AdminOrderSummaryView: {
+            orderNumber: string;
+            /** Format: date-time */
+            placedAt: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+            /** @enum {string} */
+            paymentMethod: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
+            total: components["schemas"]["Money"];
+            customerName: string;
+            customerEmail: string;
+            countryCode: string;
+            /** Format: int32 */
+            itemCount: number;
+            containsLiveAnimals: boolean;
+            /** Format: date */
+            plannedDispatchDate: string | null;
+            /** Format: date-time */
+            paymentDueAt: string | null;
+        };
+        PageResponseAdminOrderSummaryView: {
+            items: components["schemas"]["AdminOrderSummaryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
         PageResponseStockMovementView: {
             items: components["schemas"]["StockMovementView"][];
             /** Format: int32 */
@@ -2092,6 +2807,46 @@ export interface components {
             countryCode: string | null;
             /** Format: int64 */
             animals: number;
+        };
+        CustomerSummaryView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "LOCKED" | "ANONYMISED";
+            emailVerified: boolean;
+            /** Format: date-time */
+            registeredAt: string;
+            /** Format: date-time */
+            lastLoginAt: string | null;
+            /** Format: int32 */
+            orderCount: number;
+            lifetimeValue: components["schemas"]["Money"];
+            /** Format: date-time */
+            lastOrderAt: string | null;
+        };
+        PageResponseCustomerSummaryView: {
+            items: components["schemas"]["CustomerSummaryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PageResponseContactMessageView: {
+            items: components["schemas"]["ContactMessageView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
         };
         OrderSummaryView: {
             orderNumber: string;
@@ -2197,6 +2952,76 @@ export interface operations {
             };
         };
     };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShippingMethodRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShippingMethodView"];
+                };
+            };
+        };
+    };
+    pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShippingPauseView"];
+                };
+            };
+        };
+    };
+    updatePause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShippingPauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShippingPauseView"];
+                };
+            };
+        };
+    };
     get: {
         parameters: {
             query?: never;
@@ -2219,7 +3044,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2268,6 +3093,56 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminProductView"];
+                };
+            };
+        };
+    };
+    correctShipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+                shipmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShipmentCorrection"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
+    removeShipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+                shipmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
                 };
             };
         };
@@ -2325,6 +3200,52 @@ export interface operations {
         };
     };
     deleteGrade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GalleryImageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminGalleryImageView"];
+                };
+            };
+        };
+    };
+    delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -2480,7 +3401,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -2506,7 +3427,7 @@ export interface operations {
             };
         };
     };
-    delete: {
+    delete_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2872,6 +3793,50 @@ export interface operations {
     };
     list: {
         parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShippingMethodView"][];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShippingMethodRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShippingMethodView"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
             query?: {
                 q?: string;
                 status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
@@ -2898,7 +3863,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    create_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3045,6 +4010,136 @@ export interface operations {
             };
         };
     };
+    changeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
+    addShipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
+    addNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
+    markPaid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkPaidRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
     previewMarkdown: {
         parameters: {
             query?: never;
@@ -3139,6 +4234,105 @@ export interface operations {
             };
         };
     };
+    list_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminGalleryImageView"][];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query: {
+                altText: string;
+                title?: string;
+                caption?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminGalleryImageView"];
+                };
+            };
+        };
+    };
+    unlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CustomerDetailView"];
+                };
+            };
+        };
+    };
+    lock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LockRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CustomerDetailView"];
+                };
+            };
+        };
+    };
     colours: {
         parameters: {
             query?: never;
@@ -3227,7 +4421,7 @@ export interface operations {
             };
         };
     };
-    cancel: {
+    cancel_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3249,7 +4443,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -3269,7 +4463,7 @@ export interface operations {
             };
         };
     };
-    create_1: {
+    create_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -3421,6 +4615,56 @@ export interface operations {
             };
         };
     };
+    reorder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GalleryOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminGalleryImageView"][];
+                };
+            };
+        };
+    };
+    changeStatus_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ContactMessageView"];
+                };
+            };
+        };
+    };
     profile: {
         parameters: {
             query?: never;
@@ -3503,6 +4747,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SpeciesView"];
+                };
+            };
+        };
+    };
+    shopInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShopInfoView"];
                 };
             };
         };
@@ -3633,6 +4897,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["GradeView"][];
+                };
+            };
+        };
+    };
+    gallery: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseGalleryImageView"];
                 };
             };
         };
@@ -3876,6 +5163,57 @@ export interface operations {
             };
         };
     };
+    list_4: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: ("PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED")[];
+                paymentStatus?: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED";
+                from?: string;
+                to?: string;
+                oldestFirst?: boolean;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseAdminOrderSummaryView"];
+                };
+            };
+        };
+    };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
     movements: {
         parameters: {
             query?: {
@@ -3921,7 +5259,100 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_5: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: "ACTIVE" | "LOCKED" | "ANONYMISED";
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseCustomerSummaryView"];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CustomerDetailView"];
+                };
+            };
+        };
+    };
+    list_6: {
+        parameters: {
+            query?: {
+                status?: "NEW" | "READ" | "ANSWERED" | "SPAM";
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseContactMessageView"];
+                };
+            };
+        };
+    };
+    counts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: number;
+                    };
+                };
+            };
+        };
+    };
+    list_7: {
         parameters: {
             query?: {
                 page?: number;

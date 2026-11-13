@@ -18,6 +18,7 @@ import { OrderStatusBadge } from '../components/OrderStatusBadge';
 import { OrderStatusTimeline } from '../components/OrderStatusTimeline';
 import { OrderTotalsList } from '../components/OrderTotalsList';
 import { PaymentInstructionsCard } from '../components/PaymentInstructionsCard';
+import { ShipmentList } from '../components/ShipmentList';
 
 export function OrderDetailPage() {
   const { orderNumber = '' } = useParams();
@@ -179,6 +180,12 @@ function OrderDetail({ order }: { order: Order }) {
               </p>
             )}
           </section>
+          {order.shipments.length > 0 && (
+            <section>
+              <h2 className="font-sans eyebrow text-ink">{t('orders.tracking.title')}</h2>
+              <ShipmentList shipments={order.shipments} className="mt-4" />
+            </section>
+          )}
           <section>
             <h2 className="font-sans eyebrow text-ink">{t('orders.detail.shippingAddress')}</h2>
             <AddressBlock address={order.shippingAddress} className="mt-3" />

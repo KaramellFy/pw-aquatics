@@ -11,9 +11,21 @@ export interface GalleryItem {
   aspect: string;
 }
 
+const RATIOS: Record<string, number> = {
+  'aspect-[4/5]': 4 / 5,
+  'aspect-[4/3]': 4 / 3,
+  'aspect-[3/4]': 3 / 4,
+  'aspect-square': 1,
+};
+
+/** Width ÷ height of a placeholder, from its aspect class. */
+export function placeholderRatio(item: GalleryItem): number {
+  return RATIOS[item.aspect] ?? 1;
+}
+
 /**
- * TEMPORARY static gallery. In Phase 7 this is replaced by `GET /api/v1/gallery`
- * (managed in the admin panel) and the placeholders by real photography.
+ * Artwork placeholders: shown on the gallery page until the owner publishes photos in the
+ * admin area (`GET /api/v1/gallery`), and on the home page teaser.
  */
 export const galleryItems: GalleryItem[] = [
   { key: 'blueDream', tone: 'lagoon', motif: 'shrimp', aspect: 'aspect-[4/5]' },

@@ -8,10 +8,12 @@ import com.pwaquatics.shop.order.application.view.OrderStatusEntryView;
 import com.pwaquatics.shop.order.application.view.OrderSummaryView;
 import com.pwaquatics.shop.order.application.view.OrderTotalsView;
 import com.pwaquatics.shop.order.application.view.PlacedOrderView;
+import com.pwaquatics.shop.order.application.view.ShipmentView;
 import com.pwaquatics.shop.order.domain.Order;
 import com.pwaquatics.shop.order.domain.OrderAddress;
 import com.pwaquatics.shop.order.domain.OrderItem;
 import com.pwaquatics.shop.order.domain.OrderStatus;
+import com.pwaquatics.shop.order.domain.Shipment;
 import com.pwaquatics.shop.payment.application.BankTransferPayments;
 import com.pwaquatics.shop.payment.application.StripePayments;
 import com.pwaquatics.shop.payment.application.view.PaymentInstructionsView;
@@ -78,7 +80,18 @@ class OrderViews {
                         .toList(),
                 paymentInstructions(order),
                 order.isCancellableByCustomer(),
-                isPayableByCard(order));
+                isPayableByCard(order),
+                order.getShipments().stream().map(OrderViews::shipment).toList());
+    }
+
+    static ShipmentView shipment(Shipment shipment) {
+        return new ShipmentView(
+                shipment.getId(),
+                shipment.getCarrier(),
+                shipment.getTrackingNumber(),
+                shipment.getTrackingUrl(),
+                shipment.getShippedAt(),
+                shipment.getDeliveredAt());
     }
 
     /** A card order can be paid until its payment deadline, while Stripe is set up. */

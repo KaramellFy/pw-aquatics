@@ -38,6 +38,7 @@ const awaitingCard: Order = {
   paymentInstructions: null,
   cancellable: true,
   payableByCard: true,
+  shipments: [],
 };
 const paid: Order = {
   ...awaitingCard,

@@ -1,11 +1,15 @@
 package com.pwaquatics.shop;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import jakarta.persistence.Entity;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -55,5 +59,22 @@ class ArchitectureTest {
                 .should().dependOnClassesThat().areAnnotatedWith(Entity.class)
                 .because("API responses use DTO records, never entities")
                 .check(CLASSES);
+    }
+
+    /**
+     * springdoc names OpenAPI schemas after the simple class name, so two request or response
+     * records with the same name would silently share one schema (and one generated type).
+     */
+    @Test
+    void apiRecordsHaveUniqueSimpleNames() {
+        Map<String, List<String>> byName = CLASSES.stream()
+                .filter(JavaClass::isRecord)
+                .filter(javaClass -> javaClass.getPackageName().contains(".api")
+                        || javaClass.getPackageName().endsWith(".view"))
+                .collect(Collectors.groupingBy(JavaClass::getSimpleName,
+                        Collectors.mapping(JavaClass::getName, Collectors.toList())));
+        assertThat(byName.entrySet().stream().filter(entry -> entry.getValue().size() > 1).toList())
+                .as("records in api and view packages that share a simple name")
+                .isEmpty();
     }
 }

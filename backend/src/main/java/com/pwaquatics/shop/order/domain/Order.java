@@ -1,6 +1,8 @@
 package com.pwaquatics.shop.order.domain;
 
+import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.error.ConflictException;
+import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.common.persistence.AbstractEntity;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
@@ -35,8 +37,8 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * A placed order. Items, prices and addresses are snapshots; the only things that change
- * afterwards are the status (through {@link #transitionTo}), the payment status and the
- * history, which records every status change.
+ * afterwards are the status (through {@link #transitionTo}), the payment status, the
+ * shipments and the history, which records every status change.
  */
 @Entity
 @Table(name = "orders")
@@ -144,6 +146,10 @@ public class Order extends AbstractEntity {
     @OrderBy("createdAt ASC, id ASC")
     private List<OrderStatusChange> history = new ArrayList<>();
 
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("shippedAt ASC, createdAt ASC")
+    private List<Shipment> shipments = new ArrayList<>();
+
     protected Order() {}
 
     // ---------------------------------------------------------------- creation
@@ -217,10 +223,89 @@ public class Order extends AbstractEntity {
 
     /** Records that the full amount has arrived and moves the order to {@code PAID}. */
     public void markPaid(UUID changedBy, String note, Instant now) {
+        markPaid(changedBy, note, now, now);
+    }
+
+    /**
+     * Records that the full amount arrived at {@code paidAt} (e.g. the value date of a bank
+     * transfer the shop owner found on the account) and moves the order to {@code PAID}.
+     *
+     * @throws BusinessRuleException {@code DATE_INVALID} if {@code paidAt} is in the future or more
+     *     than a day before the order
+     */
+    public void markPaid(UUID changedBy, String note, Instant paidAt, Instant now) {
+        if (paidAt.isAfter(now) || paidAt.isBefore(placedAt.minusSeconds(86_400))) {
+            throw new BusinessRuleException("DATE_INVALID", "The payment date must be between the order and today.");
+        }
         transitionTo(OrderStatus.PAID, changedBy, note, null, now);
         paymentStatus = PaymentStatus.PAID;
-        paidAt = now;
+        this.paidAt = paidAt;
         paymentDueAt = null;
+    }
+
+    /** The shop starts packing a paid order. */
+    public void startProcessing(UUID changedBy, String note, String customerMessage, Instant now) {
+        transitionTo(OrderStatus.PROCESSING, changedBy, note, customerMessage, now);
+    }
+
+    /**
+     * Records a parcel handed to the carrier. The first one moves the order to {@code SHIPPED}
+     * (through {@code PROCESSING} if packing was not recorded separately); further parcels of a
+     * split order are only added.
+     *
+     * @throws ConflictException {@code INVALID_STATUS_TRANSITION} unless the order is paid,
+     *     being prepared or already shipped
+     * @throws BusinessRuleException {@code DATE_INVALID} if the shipping date is before the order or
+     *     in the future
+     */
+    public Shipment ship(ShipmentData data, UUID changedBy, String customerMessage, Instant now) {
+        if (data.shippedAt() == null || data.shippedAt().isAfter(now.plusSeconds(3_600))
+                || data.shippedAt().isBefore(placedAt.minusSeconds(86_400))) {
+            throw new BusinessRuleException("DATE_INVALID", "The shipping date must be between the order and today.");
+        }
+        if (status == OrderStatus.PAID) {
+            transitionTo(OrderStatus.PROCESSING, changedBy, null, null, now);
+        }
+        if (status == OrderStatus.PROCESSING) {
+            transitionTo(OrderStatus.SHIPPED, changedBy, null, customerMessage, now);
+        } else if (status != OrderStatus.SHIPPED) {
+            throw new ConflictException(
+                    "INVALID_STATUS_TRANSITION", "An order cannot be shipped while it is " + status + ".");
+        }
+        Shipment shipment = new Shipment(this, data, changedBy, now);
+        shipments.add(shipment);
+        updatedAt = now;
+        return shipment;
+    }
+
+    /** Corrects a parcel's carrier or tracking number. */
+    public Shipment correctShipment(UUID shipmentId, ShipmentData data, Instant now) {
+        Shipment shipment = shipment(shipmentId);
+        shipment.correct(data, now);
+        updatedAt = now;
+        return shipment;
+    }
+
+    /**
+     * Removes a parcel that was entered by mistake. The last parcel of a shipped order stays
+     * (correct it instead): the order cannot go back to "being prepared".
+     *
+     * @throws BusinessRuleException {@code LAST_SHIPMENT}
+     */
+    public void removeShipment(UUID shipmentId, Instant now) {
+        Shipment shipment = shipment(shipmentId);
+        if (shipments.size() == 1) {
+            throw new BusinessRuleException(
+                    "LAST_SHIPMENT", "The only parcel of a shipped order cannot be removed. Correct it instead.");
+        }
+        shipments.remove(shipment);
+        updatedAt = now;
+    }
+
+    /** The parcels have arrived; every parcel without a delivery date gets this one. */
+    public void markDelivered(UUID changedBy, String note, String customerMessage, Instant now) {
+        transitionTo(OrderStatus.DELIVERED, changedBy, note, customerMessage, now);
+        shipments.forEach(shipment -> shipment.markDelivered(now));
     }
 
     /**
@@ -228,10 +313,24 @@ public class Order extends AbstractEntity {
      * (see {@link #stockUnitsByProduct()}).
      */
     public void cancel(String reason, UUID changedBy, Instant now) {
-        transitionTo(OrderStatus.CANCELLED, changedBy, reason, null, now);
+        cancel(reason, null, changedBy, now);
+    }
+
+    /**
+     * Cancels the order with a message for the customer (cancelled by the shop).
+     *
+     * @param reason internal reason
+     */
+    public void cancel(String reason, String customerMessage, UUID changedBy, Instant now) {
+        transitionTo(OrderStatus.CANCELLED, changedBy, reason, customerMessage, now);
         cancelledAt = now;
         cancellationReason = reason;
         paymentDueAt = null;
+    }
+
+    /** Money has arrived for this order (it may have been refunded since). */
+    public boolean hasBeenPaid() {
+        return paidAt != null;
     }
 
     /**
@@ -347,6 +446,29 @@ public class Order extends AbstractEntity {
 
     public Instant getCancelledAt() {
         return cancelledAt;
+    }
+
+    public Instant getPaidAt() {
+        return paidAt;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public String getShippingMethodCode() {
+        return shippingMethodCode;
+    }
+
+    public List<Shipment> getShipments() {
+        return shipments;
+    }
+
+    private Shipment shipment(UUID shipmentId) {
+        return shipments.stream()
+                .filter(shipment -> shipment.getId().equals(shipmentId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Shipment not found."));
     }
 
     public List<OrderItem> getItems() {

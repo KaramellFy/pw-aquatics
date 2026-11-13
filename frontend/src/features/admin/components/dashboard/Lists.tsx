@@ -12,7 +12,19 @@ export function RecentOrders({ orders }: { orders: Dashboard['recentOrders'] }) 
   const locale = i18n.resolvedLanguage ?? 'en';
   const names = new Intl.DisplayNames([locale], { type: 'region' });
   return (
-    <AdminCard id="recent-orders" title={t('admin.dashboard.recent.title')} className="min-w-0">
+    <AdminCard
+      id="recent-orders"
+      title={t('admin.dashboard.recent.title')}
+      className="min-w-0"
+      actions={
+        <Link
+          to="/admin/orders"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
+        >
+          {t('admin.dashboard.recent.all')}
+        </Link>
+      }
+    >
       {orders.length === 0 ? (
         <p className="text-sm text-muted">{t('admin.dashboard.noOrders')}</p>
       ) : (
@@ -22,7 +34,12 @@ export function RecentOrders({ orders }: { orders: Dashboard['recentOrders'] }) 
               key={order.orderNumber}
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-0.5 py-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto_9rem] sm:items-baseline"
             >
-              <p className="font-medium text-ink tabular-nums">{order.orderNumber}</p>
+              <Link
+                to={`/admin/orders/${order.orderNumber}`}
+                className="font-medium text-ink tabular-nums underline-offset-4 hover:underline"
+              >
+                {order.orderNumber}
+              </Link>
               <p className="col-start-1 row-start-2 truncate text-sm text-ink-soft sm:col-start-auto sm:row-start-auto">
                 {[
                   order.customerName,

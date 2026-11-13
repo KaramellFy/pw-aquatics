@@ -62,6 +62,7 @@ const order: Order = {
   },
   cancellable: true,
   payableByCard: false,
+  shipments: [],
 };
 const cancelled: Order = {
   ...order,
@@ -204,6 +205,45 @@ describe('OrderDetailPage', () => {
     renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
     await screen.findByRole('heading', { name: /PW-2026-000042/ });
     expect(screen.queryByRole('link', { name: 'Pay now' })).not.toBeInTheDocument();
+  });
+
+  it('shows each parcel with its tracking link once the shop has shipped the order', async () => {
+    const shipped: Order = {
+      ...order,
+      status: 'SHIPPED',
+      paymentStatus: 'PAID',
+      paymentDueAt: null,
+      paymentInstructions: null,
+      cancellable: false,
+      shipments: [
+        {
+          id: 'a1',
+          carrier: 'DHL',
+          trackingNumber: 'JJD000123456789',
+          trackingUrl:
+            'https://www.dhl.com/de-en/home/tracking/tracking-parcel.html?submit=1&tracking-id=JJD000123456789',
+          shippedAt: '2026-11-16T09:30:00Z',
+          deliveredAt: null,
+        },
+      ],
+    };
+    mockApi({ '/account/orders/PW-2026-000042': shipped });
+    renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
+
+    expect(await screen.findByRole('heading', { name: 'Tracking' })).toBeInTheDocument();
+    expect(screen.getByText(/JJD000123456789/)).toBeInTheDocument();
+    expect(screen.getByText('Shipped on 16 November 2026')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /Track parcel/ });
+    expect(link).toHaveAttribute('href', shipped.shipments[0]!.trackingUrl);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('shows no tracking section before anything has been shipped', async () => {
+    mockApi({ '/account/orders/PW-2026-000042': order });
+    renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
+    await screen.findByRole('heading', { name: /PW-2026-000042/ });
+    expect(screen.queryByRole('heading', { name: 'Tracking' })).not.toBeInTheDocument();
   });
 
   it('treats unknown and foreign orders alike', async () => {

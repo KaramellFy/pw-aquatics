@@ -34,8 +34,20 @@ public class ImageService {
      * @throws BusinessRuleException if the file is not a usable photo
      */
     public StoredImage storeProductImage(UUID productId, byte[] bytes) {
+        return store("products/" + productId + "/" + Ids.newId(), bytes);
+    }
+
+    /**
+     * Processes a gallery photo the same way as a product photo and stores its renditions.
+     *
+     * @throws BusinessRuleException if the file is not a usable photo
+     */
+    public StoredImage storeGalleryImage(byte[] bytes) {
+        return store("gallery/" + Ids.newId() + "/" + Ids.newId(), bytes);
+    }
+
+    private StoredImage store(String key, byte[] bytes) {
         ImageProcessor.Result result = processor.process(bytes);
-        String key = "products/" + productId + "/" + Ids.newId();
         storage.store(key, result.renditions());
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

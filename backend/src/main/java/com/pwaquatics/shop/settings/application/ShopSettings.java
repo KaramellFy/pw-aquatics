@@ -2,7 +2,10 @@ package com.pwaquatics.shop.settings.application;
 
 import com.pwaquatics.shop.settings.domain.ShopSetting;
 import com.pwaquatics.shop.settings.infrastructure.ShopSettingRepository;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -11,8 +14,9 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Read access to shop-wide settings for other modules. Settings are edited in the admin
- * area (a later phase); until then they can only be changed in the database.
+ * Shop-wide settings for other modules: they read them here and save the ones they own (the
+ * shipping module saves {@code shipping.pause}, for example). Who changed a setting is
+ * recorded in the row and, by the caller, in the audit log.
  */
 @Service
 public class ShopSettings {
@@ -22,9 +26,26 @@ public class ShopSettings {
     private final ShopSettingRepository repository;
     private final ObjectMapper json;
 
-    ShopSettings(ShopSettingRepository repository, ObjectMapper json) {
+    private final Clock clock;
+
+    ShopSettings(ShopSettingRepository repository, ObjectMapper json, Clock clock) {
         this.repository = repository;
         this.json = json;
+        this.clock = clock;
+    }
+
+    /**
+     * Stores {@code value} as JSON under {@code key}, replacing what was there.
+     *
+     * @param updatedBy the administrator making the change
+     */
+    @Transactional
+    public void save(String key, Object value, UUID updatedBy) {
+        String text = json.writeValueAsString(value);
+        Instant now = clock.instant();
+        repository.findById(key).ifPresentOrElse(
+                setting -> setting.change(text, updatedBy, now),
+                () -> repository.save(new ShopSetting(key, text, updatedBy, now)));
     }
 
     /**

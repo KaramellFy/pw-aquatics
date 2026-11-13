@@ -6,6 +6,7 @@ import com.pwaquatics.shop.notification.domain.EmailMessage;
 import com.pwaquatics.shop.order.domain.Order;
 import com.pwaquatics.shop.order.domain.OrderAddress;
 import com.pwaquatics.shop.order.domain.OrderItem;
+import com.pwaquatics.shop.order.domain.Shipment;
 import com.pwaquatics.shop.payment.application.view.PaymentInstructionsView;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.shipping.application.ShippingService;
@@ -187,6 +188,112 @@ class OrderEmails {
                 + (german ? "Bestellung ansehen: " : "View the order: ") + orderLink(order) + "\n";
         String subject = (german ? "Bestellung %s storniert" : "Order %s cancelled").formatted(order.getOrderNumber());
         return new EmailMessage(order.getCustomerEmail(), null, subject, body);
+    }
+
+    /** The shop has started packing the order. */
+    EmailMessage processing(Order order, String customerMessage) {
+        boolean german = german(order);
+        Locale locale = locale(order);
+        StringBuilder body = greeting(order);
+        body.append(german
+                ? "wir stellen deine Bestellung %s gerade zusammen.\n".formatted(order.getOrderNumber())
+                : "we are now preparing your order %s.\n".formatted(order.getOrderNumber()));
+        if (order.getPlannedDispatchDate() != null) {
+            body.append(german
+                    ? "Sie geht frühestens am %s auf die Reise; sobald das Paket unterwegs ist, bekommst du die Sendungsnummer.\n"
+                            .formatted(date(order.getPlannedDispatchDate(), locale))
+                    : "It leaves on %s at the earliest; you get the tracking number as soon as the parcel is on its way.\n"
+                            .formatted(date(order.getPlannedDispatchDate(), locale)));
+        }
+        appendShopMessage(body, customerMessage, german);
+        body.append('\n').append(german ? "Deine Bestellung im Überblick: " : "Follow your order: ")
+                .append(orderLink(order)).append('\n');
+        String subject = (german ? "Wir bereiten deine Bestellung %s vor" : "We are preparing your order %s")
+                .formatted(order.getOrderNumber());
+        return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
+    }
+
+    /** A parcel has been handed to the carrier, with its tracking link. */
+    EmailMessage shipped(Order order, Shipment shipment, String customerMessage) {
+        boolean german = german(order);
+        StringBuilder body = greeting(order);
+        body.append(german
+                ? "deine Bestellung %s ist unterwegs.\n\n".formatted(order.getOrderNumber())
+                : "your order %s is on its way.\n\n".formatted(order.getOrderNumber()));
+        body.append(german ? "Versand mit: " : "Carrier: ").append(shipment.getCarrier()).append('\n');
+        body.append(german ? "Sendungsnummer: " : "Tracking number: ").append(shipment.getTrackingNumber()).append('\n');
+        if (shipment.getTrackingUrl() != null) {
+            body.append(german ? "Sendung verfolgen: " : "Track the parcel: ").append(shipment.getTrackingUrl()).append('\n');
+        }
+        if (order.containsLiveAnimals()) {
+            body.append('\n').append(german
+                    ? "Im Paket sind lebende Tiere. Bitte sorge dafür, dass jemand das Paket annehmen kann, und packe es gleich aus.\n"
+                    : "The parcel contains live animals. Please make sure someone can accept it, and unpack it straight away.\n");
+        }
+        appendShopMessage(body, customerMessage, german);
+        body.append('\n').append(german ? "Deine Bestellung im Überblick: " : "Follow your order: ")
+                .append(orderLink(order)).append('\n');
+        String subject = (german ? "Deine Bestellung %s ist unterwegs" : "Your order %s is on its way")
+                .formatted(order.getOrderNumber());
+        return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
+    }
+
+    /** The parcels have arrived. */
+    EmailMessage delivered(Order order, String customerMessage) {
+        boolean german = german(order);
+        StringBuilder body = greeting(order);
+        body.append(german
+                ? "deine Bestellung %s wurde zugestellt. Wir hoffen, deine Tiere haben sich gut eingelebt.\n"
+                        .formatted(order.getOrderNumber())
+                : "your order %s has been delivered. We hope your animals have settled in well.\n"
+                        .formatted(order.getOrderNumber()));
+        body.append(german
+                ? "Ist etwas nicht in Ordnung, melde dich bitte bei uns.\n"
+                : "If anything is not as it should be, please get in touch.\n");
+        appendShopMessage(body, customerMessage, german);
+        body.append('\n').append(german ? "Deine Bestellung im Überblick: " : "Your order: ")
+                .append(orderLink(order)).append('\n');
+        String subject = (german ? "Deine Bestellung %s wurde zugestellt" : "Your order %s has been delivered")
+                .formatted(order.getOrderNumber());
+        return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
+    }
+
+    /** The shop had to cancel the order. */
+    EmailMessage cancelledByShop(Order order, String customerMessage) {
+        boolean german = german(order);
+        StringBuilder body = greeting(order);
+        body.append(german
+                ? "leider mussten wir deine Bestellung %s stornieren.\n".formatted(order.getOrderNumber())
+                : "we are sorry, but we had to cancel your order %s.\n".formatted(order.getOrderNumber()));
+        appendShopMessage(body, customerMessage, german);
+        body.append('\n');
+        if (order.hasBeenPaid()) {
+            body.append(german
+                    ? "Du hast bereits bezahlt: Wir erstatten dir den vollen Betrag von %s.\n"
+                            .formatted(money(order.total(), locale(order)))
+                    : "You have already paid: we will refund the full amount of %s.\n"
+                            .formatted(money(order.total(), locale(order))));
+        } else {
+            body.append(german ? "Es ist nichts zu bezahlen.\n" : "Nothing is due.\n");
+        }
+        body.append('\n').append(german ? "Bestellung ansehen: " : "View the order: ").append(orderLink(order))
+                .append('\n');
+        String subject = (german ? "Bestellung %s storniert" : "Order %s cancelled").formatted(order.getOrderNumber());
+        return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
+    }
+
+    private static StringBuilder greeting(Order order) {
+        return new StringBuilder(german(order) ? "Hallo " : "Hello ")
+                .append(order.billingAddress().getFirstName())
+                .append(",\n\n");
+    }
+
+    /** A personal message the shop owner typed for the customer, if any. */
+    private static void appendShopMessage(StringBuilder body, String message, boolean german) {
+        if (message != null && !message.isBlank()) {
+            body.append('\n').append(german ? "Nachricht von uns:\n" : "A message from us:\n")
+                    .append(message.strip()).append('\n');
+        }
     }
 
     private String orderLink(Order order) {

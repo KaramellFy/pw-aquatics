@@ -3,7 +3,9 @@ package com.pwaquatics.shop.order;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.error.ConflictException;
+import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.order.domain.NewOrder;
 import com.pwaquatics.shop.order.domain.NewOrderItem;
 import com.pwaquatics.shop.order.domain.Order;
@@ -11,6 +13,8 @@ import com.pwaquatics.shop.order.domain.OrderAddress;
 import com.pwaquatics.shop.order.domain.OrderNumber;
 import com.pwaquatics.shop.order.domain.OrderStatus;
 import com.pwaquatics.shop.order.domain.PaymentStatus;
+import com.pwaquatics.shop.order.domain.Shipment;
+import com.pwaquatics.shop.order.domain.ShipmentData;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -123,6 +127,95 @@ class OrderTest {
     }
 
     @Test
+    void theFirstParcelShipsAPaidOrderThroughPacking() {
+        Order order = newOrder();
+        order.markPaid(ADMIN, null, NOW.plusSeconds(60));
+
+        Shipment parcel = order.ship(parcel("JJD000111", NOW.plusSeconds(120)), ADMIN, "Two heat packs.",
+                NOW.plusSeconds(120));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.SHIPPED);
+        // Packing was not recorded separately, so the history passes through it.
+        assertThat(order.getHistory()).extracting("toStatus").containsExactly(
+                OrderStatus.PENDING_PAYMENT, OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED);
+        assertThat(order.getHistory().getLast().getCustomerMessage()).isEqualTo("Two heat packs.");
+        assertThat(order.getShipments()).containsExactly(parcel);
+        assertThat(parcel.getTrackingUrl()).endsWith("JJD000111");
+
+        // A second parcel of a split order is only added.
+        order.ship(parcel("JJD000222", NOW.plusSeconds(180)), ADMIN, null, NOW.plusSeconds(180));
+        assertThat(order.getShipments()).hasSize(2);
+        assertThat(order.getHistory()).hasSize(4);
+
+        order.markDelivered(ADMIN, null, null, NOW.plusSeconds(3600));
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
+        assertThat(order.getShipments()).extracting(Shipment::getDeliveredAt)
+                .containsOnly(NOW.plusSeconds(3600));
+        assertThatThrownBy(() -> order.ship(parcel("JJD000333", NOW.plusSeconds(3700)), ADMIN, null,
+                        NOW.plusSeconds(3700)))
+                .isInstanceOf(ConflictException.class)
+                .extracting("code").isEqualTo("INVALID_STATUS_TRANSITION");
+    }
+
+    @Test
+    void unpaidOrCancelledOrdersCannotBeShippedAndDatesMustMakeSense() {
+        Order unpaid = newOrder();
+        assertThatThrownBy(() -> unpaid.ship(parcel("JJD1", NOW), ADMIN, null, NOW))
+                .isInstanceOf(ConflictException.class)
+                .extracting("code").isEqualTo("INVALID_STATUS_TRANSITION");
+        assertThat(unpaid.getShipments()).isEmpty();
+        assertThat(unpaid.getHistory()).hasSize(1);
+
+        // Paid before the order existed, or in the future.
+        assertThatThrownBy(() -> unpaid.markPaid(ADMIN, null, NOW.minusSeconds(3 * 86_400), NOW))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("DATE_INVALID");
+        assertThatThrownBy(() -> unpaid.markPaid(ADMIN, null, NOW.plusSeconds(60), NOW))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("DATE_INVALID");
+        assertThat(unpaid.getStatus()).isEqualTo(OrderStatus.PENDING_PAYMENT);
+
+        // A transfer that arrived the evening before the order was placed is accepted.
+        unpaid.markPaid(ADMIN, null, NOW.minusSeconds(3600), NOW.plusSeconds(60));
+        assertThat(unpaid.getPaidAt()).isEqualTo(NOW.minusSeconds(3600));
+        assertThat(unpaid.hasBeenPaid()).isTrue();
+
+        assertThatThrownBy(() -> unpaid.ship(parcel("JJD1", NOW.plusSeconds(86_400 * 2)), ADMIN, null,
+                        NOW.plusSeconds(60)))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("DATE_INVALID");
+        assertThat(unpaid.getStatus()).isEqualTo(OrderStatus.PAID);
+
+        Order cancelled = newOrder();
+        cancelled.cancel("Out of stock", "Sorry, the animals are not ready.", ADMIN, NOW);
+        assertThat(cancelled.getCancellationReason()).isEqualTo("Out of stock");
+        assertThat(cancelled.getHistory().getLast().getCustomerMessage()).isEqualTo("Sorry, the animals are not ready.");
+        assertThatThrownBy(() -> cancelled.ship(parcel("JJD1", NOW), ADMIN, null, NOW))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void parcelsCanBeCorrectedAndRemovedButTheLastOneStays() {
+        Order order = newOrder();
+        order.markPaid(ADMIN, null, NOW);
+        Shipment first = order.ship(parcel("WRONG1", NOW), ADMIN, null, NOW);
+
+        assertThatThrownBy(() -> order.removeShipment(first.getId(), NOW))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("LAST_SHIPMENT");
+        order.correctShipment(first.getId(), parcel("JJD42", null), NOW.plusSeconds(60));
+        assertThat(first.getTrackingNumber()).isEqualTo("JJD42");
+        assertThat(first.getTrackingUrl()).endsWith("JJD42");
+        assertThat(first.getShippedAt()).isEqualTo(NOW);
+
+        Shipment second = order.ship(parcel("JJD43", NOW), ADMIN, null, NOW);
+        order.removeShipment(second.getId(), NOW);
+        assertThat(order.getShipments()).containsExactly(first);
+        assertThatThrownBy(() -> order.correctShipment(UUID.randomUUID(), parcel("X", null), NOW))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
     void orderNumbersCarryTheYearAndAPaddedSequence() {
         assertThat(OrderNumber.of(2027, 123)).isEqualTo("PW-2027-000123");
         assertThat(OrderNumber.of(2027, 1_234_567)).isEqualTo("PW-2027-1234567");
@@ -151,6 +244,10 @@ class OrderTest {
                 "PW-2026-000001", CUSTOMER, "anna@example.com", "en", PaymentMethod.BANK_TRANSFER, items, 990,
                 "DHL_LIVE_DE", "DHL Express", "DHL", LocalDate.of(2026, 11, 16), address, address, null, "key-1",
                 NOW.plusSeconds(7 * 24 * 3600));
+    }
+
+    private static ShipmentData parcel(String trackingNumber, Instant shippedAt) {
+        return new ShipmentData("DHL", trackingNumber, "https://tracking.example/?id=" + trackingNumber, shippedAt);
     }
 
     private static NewOrderItem item(UUID productId, String sku, int packSize, long price, int quantity, boolean live) {

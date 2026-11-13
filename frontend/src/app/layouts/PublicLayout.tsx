@@ -3,6 +3,7 @@ import { Outlet, ScrollRestoration, useNavigation } from 'react-router';
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { CartDrawerProvider } from '@/features/cart';
+import { ShippingPauseBanner } from '@/features/content';
 import { cn } from '@/lib/cn';
 
 export function PublicLayout() {
@@ -27,6 +28,7 @@ export function PublicLayout() {
             navigating ? 'scale-x-75' : 'scale-x-0',
           )}
         />
+        <ShippingPauseBanner />
         <Header />
         <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
           <Outlet />

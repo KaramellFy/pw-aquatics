@@ -6,8 +6,13 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -49,10 +54,40 @@ public record AppProperties(
             @NotNull Duration verificationTokenTtl,
             @NotNull Duration passwordResetTokenTtl) {}
 
-    /** Days needed before a parcel can leave (0 = orders can ship the same day). */
-    public record Shipping(@Min(0) @Max(30) int handlingDays) {}
+    /**
+     * @param handlingDays days needed before a parcel can leave (0 = orders can ship the same day)
+     * @param carriers the carriers the shop hands parcels to, offered when a shipment is entered
+     */
+    public record Shipping(@Min(0) @Max(30) int handlingDays, @NotNull List<@Valid Carrier> carriers) {
 
-    /** How long a bank-transfer order waits for its payment before it is cancelled and its stock returned. */
+        /** The carrier with this name, ignoring case. */
+        public Optional<Carrier> carrier(String name) {
+            return carriers.stream().filter(carrier -> carrier.name().equalsIgnoreCase(name)).findFirst();
+        }
+    }
+
+    /**
+     * @param trackingUrl the carrier's tracking page; {@code {trackingNumber}} is replaced by the
+     *     parcel's number. Empty if the carrier has none.
+     */
+    public record Carrier(@NotBlank @Size(max = 50) String name, String trackingUrl) {
+
+        @AssertTrue(message = "A tracking URL must start with https:// and contain {trackingNumber}")
+        public boolean isTrackingUrlValid() {
+            return trackingUrl == null || trackingUrl.isBlank()
+                    || (trackingUrl.startsWith("https://") && trackingUrl.contains("{trackingNumber}"));
+        }
+
+        /** The tracking page of one parcel, or null if the carrier has none. */
+        public String trackingUrlFor(String trackingNumber) {
+            if (trackingUrl == null || trackingUrl.isBlank()) {
+                return null;
+            }
+            return trackingUrl.replace(
+                    "{trackingNumber}", URLEncoder.encode(trackingNumber, StandardCharsets.UTF_8));
+        }
+    }
+
     /**
      * Payment deadlines of unpaid orders; when they pass, the order is cancelled and its
      * animals go back on sale.
@@ -84,6 +119,11 @@ public record AppProperties(
 
         public boolean isConfigured() {
             return !blank(secretKey) && !blank(publishableKey) && !blank(webhookSecret);
+        }
+
+        /** Test keys: payments are simulated and the Dashboard links point to test data. */
+        public boolean isTestMode() {
+            return !blank(secretKey) && (secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_"));
         }
 
         /** All three or none: a half-configured account would take payments it never hears back about. */

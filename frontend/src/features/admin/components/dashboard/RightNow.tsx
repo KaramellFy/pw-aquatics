@@ -17,12 +17,17 @@ export function RightNow({ dashboard }: { dashboard: Dashboard }) {
         label={t('admin.dashboard.now.awaitingPayment')}
         value={formatMoney(dashboard.awaitingPayment, locale)}
         detail={t('admin.dashboard.now.orders', { count: dashboard.awaitingPaymentOrders })}
+        to="/admin/orders?view=awaitingPayment"
+        linkLabel={t('admin.dashboard.now.viewAwaitingPayment')}
       />
       <Tile
         icon={<PackageCheck aria-hidden className="size-5" />}
         label={t('admin.dashboard.now.toShip')}
         value={formatCount(dashboard.ordersToShip, locale)}
         detail={t('admin.dashboard.now.toShipDetail')}
+        to="/admin/orders?view=toShip"
+        linkLabel={t('admin.dashboard.now.viewToShip')}
+        attention={dashboard.ordersToShip > 0}
       />
       <Tile
         icon={<AlertTriangle aria-hidden className="size-5" />}

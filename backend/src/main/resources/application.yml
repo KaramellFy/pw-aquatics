@@ -101,6 +101,13 @@ app:
     # Days needed before a parcel can leave: an order placed today ships on the
     # first dispatch weekday that is at least this many days away.
     handling-days: ${SHIPPING_HANDLING_DAYS:1}
+    # Carriers offered when the shop enters a shipment; {trackingNumber} is replaced in the
+    # tracking link sent to the customer.
+    carriers:
+      - name: DHL
+        tracking-url: https://www.dhl.com/de-en/home/tracking/tracking-parcel.html?submit=1&tracking-id={trackingNumber}
+      - name: DHL Express
+        tracking-url: https://www.dhl.com/de-en/home/tracking/tracking-express.html?submit=1&tracking-id={trackingNumber}
   orders:
     # Unpaid bank-transfer orders are cancelled after this many days and their stock is returned.
     bank-transfer-payment-days: ${ORDER_BANK_TRANSFER_PAYMENT_DAYS:7}

@@ -5,6 +5,7 @@ import com.pwaquatics.shop.common.error.ConflictException;
 import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.payment.application.StripeGateway.PaymentIntentData;
 import com.pwaquatics.shop.payment.application.view.CardPaymentSession;
+import com.pwaquatics.shop.payment.application.view.PaymentSummaryView;
 import com.pwaquatics.shop.payment.domain.Payment;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.payment.infrastructure.PaymentRepository;
@@ -35,6 +36,21 @@ public class StripePayments {
         this.payments = payments;
         this.account = properties.stripe();
         this.clock = clock;
+    }
+
+    /** The order's card payment, if one was started; for the admin order view. */
+    @Transactional(readOnly = true)
+    public Optional<PaymentSummaryView> summary(UUID orderId) {
+        return payments.findByOrderIdAndProvider(orderId, PaymentMethod.STRIPE).map(payment -> new PaymentSummaryView(
+                payment.getProvider(),
+                payment.getProviderReference(),
+                payment.getStatus(),
+                payment.amount(),
+                payment.refunded(),
+                payment.getMethodDetail(),
+                payment.getFailureCode(),
+                "https://dashboard.stripe.com/" + (account.isTestMode() ? "test/" : "") + "payments/"
+                        + payment.getProviderReference()));
     }
 
     /** Offered only when the Stripe account is configured. */

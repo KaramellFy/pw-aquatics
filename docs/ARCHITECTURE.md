@@ -169,14 +169,14 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `pricing` | Price, VAT, coupon and shipping calculation (pure domain logic) |
 | `coupon` | Coupon definitions, validation, redemptions |
 | `shipping` | Shipping methods, countries, dispatch-day rules, shipping pause |
-| `settings` | Shop-wide key/value settings (e.g. the shipping pause), read by other modules |
+| `settings` | Shop-wide key/value settings (e.g. the shipping pause), read and written through `ShopSettings` |
 | `order` | Checkout, order placement, order lifecycle, status history |
-| `fulfilment` | Shipments and tracking numbers |
+| `fulfilment` | (folded into `order`: shipments and notes are part of the order aggregate, see §5.4 Admin II) |
 | `payment` | Payment abstraction; bank transfer now, Stripe/PayPal later; webhooks |
 | `notification` | Transactional email via an outbox |
 | `media` | Image upload, processing, storage abstraction |
 | `content` | Gallery, contact messages |
-| `admin` | Dashboard and sales statistics (read models); admin controllers live in their feature modules |
+| `admin` | Dashboard, sales statistics and the customer view (read models); other admin controllers live in their feature modules |
 | `audit` | Audit log of admin and security-relevant actions |
 
 ### 5.2 Layering inside a module
@@ -348,6 +348,36 @@ not shipped returns stock.
 - The frontend admin is a separate route tree with its own layout (`/admin/**`,
   `RequireAdmin`); every page is its own lazy chunk, so shop visitors never download it.
 
+#### Admin II: orders, fulfilment and back office (Phase 7)
+
+- **Orders** are run from `order` (`AdminOrderService`, `AdminOrderController`). Every action
+  locks the order, goes through the domain methods (`markPaid`, `transitionTo`, `ship`,
+  `markDelivered`, `cancel`) and is recorded in the audit log. The server decides which
+  steps are possible right now and sends them as `actions`; the admin page only shows those.
+  The list is a JDBC read model (`AdminOrderQueries`), so the search never loads entities.
+- **Marking paid** is for bank transfers only; card orders are paid by Stripe's webhook alone
+  (`PAID_BY_PROVIDER`). Cancelling by the shop reuses `OrderCancellation` (PaymentIntent
+  first, then stock back unless the animals are lost); refunds stay manual until Phase 9.
+- **Shipments** belong to the order aggregate (no separate `fulfilment` module: a parcel
+  has no life of its own). The first parcel moves a paid order on to `SHIPPED` and emails
+  the tracking link through the outbox; carriers and their tracking URL templates are
+  configuration (`app.shipping.carriers`). The customer sees parcels and links on the order
+  page.
+- **Packing slip:** a print page in the admin app built from the admin order view, without
+  prices. A PDF follows with invoices (Phase 10).
+- **Customers** are shown by a read model in `admin` (`CustomerQueries`, read-only SQL that
+  reuses the sales definition of `StatisticsQueries`). Locking goes through
+  `identity.AccountLocking` (administrators cannot be locked) and ends the customer's
+  sessions through `SessionManager`.
+- **Gallery and inbox** live in `content`: gallery photos go through `media.ImageService`
+  (key `gallery/<id>`), are ordered by `sort_order` and edited with optimistic locking; the
+  public gallery (`GET /gallery`) shows published photos and the frontend falls back to its
+  placeholders while there are none. The inbox only changes a message's status.
+- **Shipping settings** live in `shipping` (`AdminShippingService`): methods are created and
+  edited (never deleted, code fixed), the pause is stored with `settings.ShopSettings.save`.
+  `GET /shop-info` tells every page whether a pause is in force; the public layout shows it
+  as a banner.
+
 #### Dashboard and statistics (built ahead of Phase 8)
 
 - The `admin` module holds the read model for the dashboard: `StatisticsQueries` runs
@@ -505,18 +535,19 @@ frontend/src/
 │   ├── cart/        api/, components/{CartDrawer, CartLine, CartSummary, CouponForm}, pages/CartPage
 │   ├── checkout/    api/, pages/{CheckoutPage, OrderConfirmationPage}, components/{AddressStep, ShippingStep, ReviewStep, OrderSummary}
 │   ├── auth/        api/, pages/{Login, Register, ForgotPassword, ResetPassword, VerifyEmail}
-│   ├── account/     api/, pages/{Overview, Orders, OrderDetail, Addresses, Profile}, components/{OrderStatusTimeline, TrackingCard, AddressForm}
-│   ├── content/     pages/{AboutPage, GalleryPage, ContactPage, LegalPage}, components/{GalleryMasonry, Lightbox, ContactForm}
+│   ├── account/     api/, pages/{Overview, Orders, OrderDetail, Addresses, Profile}, components/{OrderStatusTimeline, ShipmentList, AddressForm}
+│   ├── content/     api/{gallery, shopInfo}, pages/{AboutPage, GalleryPage, ContactPage, LegalPage}, components/{GalleryGrid, Lightbox, ContactForm, ShippingPauseBanner}
 │   └── admin/
 │       ├── components/{charts, dashboard}/   KPI tiles, column chart, ranked bars; dashboard sections
 │       ├── products/    list, editor, variant table, image manager
 │       ├── taxonomy/    species, categories, colours, grades
 │       ├── inventory/   stock table, adjustment dialog, movement history
-│       ├── orders/      list with filters, detail, status actions, shipment form
-│       ├── coupons/     list, editor, redemptions
-│       ├── customers/   list, detail
-│       ├── content/     gallery manager, contact inbox
-│       └── settings/    shipping methods, shipping pause
+│       ├── pages/Admin{Orders,OrderDetail,PackingSlip}Page   list with filters, detail, actions, print
+│       ├── components/orders/   action dialogs (mark paid, ship, cancel, status, notes)
+│       ├── pages/Admin{Customers,CustomerDetail}Page        list, detail, lock/unlock
+│       ├── pages/Admin{Gallery,Inbox}Page                   gallery manager, contact inbox
+│       ├── pages/AdminShippingPage                          shipping methods, shipping pause
+│       └── coupons/     list, editor, redemptions (Phase 8)
 ├── hooks/                       # Generic hooks (useMediaQuery, useReturnFocus)
 └── styles/
     └── index.css                # Tailwind entry + @theme design tokens
