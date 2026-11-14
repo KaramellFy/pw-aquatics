@@ -99,6 +99,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | API docs | springdoc-openapi | OpenAPI spec is the contract for the frontend |
 | Mapping | MapStruct | DTO ↔ entity mapping, no entities in API responses |
 | Rate limiting | Bucket4j | Login, registration, contact, coupon checks |
+| Payments | `stripe-java` (backend), `@stripe/stripe-js` + `@stripe/react-stripe-js` (payment page only) | PaymentIntents, webhook signatures, Payment Element (ADR-010) |
 | Images | Thumbnailator (resize, EXIF orientation) + webp-imageio (libwebp, bundled for Linux/macOS/Windows) | Re-encode uploads to WebP renditions; drops all metadata. The JVM runs with `--enable-native-access=ALL-UNNAMED` for libwebp |
 | Build (BE) | Gradle (Kotlin DSL) | Maven is equally fine; one choice, consistently |
 | Language (FE) | TypeScript 6 (strict) | Stays on 6.x until typescript-eslint supports TypeScript 7 |
@@ -168,14 +169,14 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `pricing` | Price, VAT, coupon and shipping calculation (pure domain logic) |
 | `coupon` | Coupon definitions, validation, redemptions |
 | `shipping` | Shipping methods, countries, dispatch-day rules, shipping pause |
-| `settings` | Shop-wide key/value settings (e.g. the shipping pause), read by other modules |
+| `settings` | Shop-wide key/value settings (e.g. the shipping pause), read and written through `ShopSettings` |
 | `order` | Checkout, order placement, order lifecycle, status history |
-| `fulfilment` | Shipments and tracking numbers |
+| `fulfilment` | (folded into `order`: shipments and notes are part of the order aggregate, see §5.4 Admin II) |
 | `payment` | Payment abstraction; bank transfer now, Stripe/PayPal later; webhooks |
 | `notification` | Transactional email via an outbox |
 | `media` | Image upload, processing, storage abstraction |
 | `content` | Gallery, contact messages |
-| `admin` | Dashboard and sales statistics (read models); admin controllers live in their feature modules |
+| `admin` | Dashboard, sales statistics and the customer view (read models); other admin controllers live in their feature modules |
 | `audit` | Audit log of admin and security-relevant actions |
 
 ### 5.2 Layering inside a module
@@ -347,6 +348,36 @@ not shipped returns stock.
 - The frontend admin is a separate route tree with its own layout (`/admin/**`,
   `RequireAdmin`); every page is its own lazy chunk, so shop visitors never download it.
 
+#### Admin II: orders, fulfilment and back office (Phase 7)
+
+- **Orders** are run from `order` (`AdminOrderService`, `AdminOrderController`). Every action
+  locks the order, goes through the domain methods (`markPaid`, `transitionTo`, `ship`,
+  `markDelivered`, `cancel`) and is recorded in the audit log. The server decides which
+  steps are possible right now and sends them as `actions`; the admin page only shows those.
+  The list is a JDBC read model (`AdminOrderQueries`), so the search never loads entities.
+- **Marking paid** is for bank transfers only; card orders are paid by Stripe's webhook alone
+  (`PAID_BY_PROVIDER`). Cancelling by the shop reuses `OrderCancellation` (PaymentIntent
+  first, then stock back unless the animals are lost); refunds stay manual until Phase 9.
+- **Shipments** belong to the order aggregate (no separate `fulfilment` module: a parcel
+  has no life of its own). The first parcel moves a paid order on to `SHIPPED` and emails
+  the tracking link through the outbox; carriers and their tracking URL templates are
+  configuration (`app.shipping.carriers`). The customer sees parcels and links on the order
+  page.
+- **Packing slip:** a print page in the admin app built from the admin order view, without
+  prices. A PDF follows with invoices (Phase 10).
+- **Customers** are shown by a read model in `admin` (`CustomerQueries`, read-only SQL that
+  reuses the sales definition of `StatisticsQueries`). Locking goes through
+  `identity.AccountLocking` (administrators cannot be locked) and ends the customer's
+  sessions through `SessionManager`.
+- **Gallery and inbox** live in `content`: gallery photos go through `media.ImageService`
+  (key `gallery/<id>`), are ordered by `sort_order` and edited with optimistic locking; the
+  public gallery (`GET /gallery`) shows published photos and the frontend falls back to its
+  placeholders while there are none. The inbox only changes a message's status.
+- **Shipping settings** live in `shipping` (`AdminShippingService`): methods are created and
+  edited (never deleted, code fixed), the pause is stored with `settings.ShopSettings.save`.
+  `GET /shop-info` tells every page whether a pause is in force; the public layout shows it
+  as a banner.
+
 #### Dashboard and statistics (built ahead of Phase 8)
 
 - The `admin` module holds the read model for the dashboard: `StatisticsQueries` runs
@@ -379,25 +410,43 @@ not shipped returns stock.
 - Availability is derived: `IN_STOCK`, `LOW_STOCK`, `COMING_SOON`
   (`available_from` set and no stock), `OUT_OF_STOCK`.
 
-### 5.5 Payment architecture (implemented later, designed now)
+### 5.5 Payment architecture
+
+Bank transfer (Phase 5) and card payment through Stripe (Phase 9) are built; PayPal follows
+the same pattern. See ADR-010.
 
 ```
-PaymentProvider (interface)
-├── BankTransferProvider   # MVP: shows bank details, admin marks paid
-├── StripeProvider         # Payment Element: cards, Apple Pay, Google Pay
-└── PayPalProvider         # PayPal Orders API
+payment module                                 order module
+├── BankTransferPayments  (bank details)       ├── CheckoutService   offers STRIPE / BANK_TRANSFER,
+├── StripePayments        (one PaymentIntent   │                     card orders due after 60 min
+│                          per order)          ├── OrderPayments     startCardPayment(); implements
+├── StripeWebhooks        (verify, store,      │                     PayableOrders (lock, paid, refunded)
+│                          process)            ├── OrderCancellation cancels the PaymentIntent first
+├── PayableOrders ◄─────── implemented by ─────┘
+└── StripeGateway → StripeApiClient (stripe-java; replaced by a fake in tests)
 ```
 
-- The browser talks to Stripe/PayPal directly through their hosted
-  components (Stripe Elements / PayPal JS SDK). **Card data never touches our
-  servers**, which keeps us in the lightest PCI DSS scope (SAQ A).
-- We create the PaymentIntent / PayPal order server-side **from the stored
-  order total**, never from a client amount.
-- Payment is confirmed **only through verified webhooks** (signature check),
-  never through a browser redirect. Webhook events are stored with a unique
-  `(provider, event_id)` to make processing idempotent.
-- Apple Pay and Google Pay come "for free" via the Stripe Payment Element
-  (Apple Pay needs domain verification).
+- The browser talks to Stripe directly through Stripe's Payment Element on the payment
+  page (`/checkout/pay/:orderNumber`). **Card data never touches our servers**, which keeps
+  us in the lightest PCI DSS scope (SAQ A). Stripe.js is loaded only on that page.
+- The PaymentIntent is created server-side **from the stored order total**, never from a
+  client amount; one per order (Stripe idempotency key `order-<id>-intent`), reused for
+  another attempt. Only `card` is allowed; Apple Pay and Google Pay are card wallets.
+  Stripe's Link is switched off in the form (data minimisation).
+- An order is marked paid **only through Stripe's signed webhook**, never because the
+  browser reports success. Each event is stored once per `(provider, event_id)`, reduced to
+  ids, amounts and statuses, then processed in one transaction with its effect on the order.
+- The payment module never depends on the order module: it calls `PayableOrders`, which
+  the order module implements. Locks are always taken order first, then payment (checkout,
+  expiry, webhook), so concurrent paths cannot deadlock.
+- Unpaid card orders expire after `ORDER_CARD_PAYMENT_MINUTES` (default 60). Expiry and
+  customer cancellation first cancel the PaymentIntent at Stripe; if Stripe already has the
+  money or is processing it, the order stays and the webhook marks it paid.
+- Refunds are made in the Stripe Dashboard; `charge.refunded` updates `paymentStatus`.
+- Apple Pay needs the shop's domain verified in the Stripe Dashboard; Google Pay needs HTTPS.
+- **CSP for Stripe** (when Caddy sets one): `script-src https://js.stripe.com`,
+  `frame-src https://js.stripe.com https://hooks.stripe.com`,
+  `connect-src https://api.stripe.com` (Stripe's CSP guide lists the current set).
 
 ### 5.6 Security architecture
 
@@ -414,7 +463,7 @@ PaymentProvider (interface)
 | Uploads | Admin only; size limit; MIME type detected from content, not the filename; images re-encoded (strips EXIF and payloads); random storage keys. |
 | Headers | HSTS, CSP (no inline scripts), `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`. Set by Caddy and Spring Security. |
 | Secrets | Environment variables only; `.env` git-ignored; `.env.example` documents them. |
-| Payment data | Never stored. We keep only provider references and status. |
+| Payment data | Never stored. We keep only provider references, amounts and status; webhook payloads are reduced before storing. Webhooks are verified by signature (`Stripe-Signature`, 5 min tolerance) and are the only way an order becomes paid. |
 | Admin hardening | Audit log of every admin write; TOTP two-factor auth for admins (Phase 10). |
 | Dependencies | Dependabot, OWASP dependency check / `npm audit` in CI. |
 | Privacy | Minimal personal data; self-hosted fonts (no Google Fonts CDN); no tracking without consent; only strictly necessary cookies; account deletion anonymises the user while keeping legally required order records. Scheduled jobs remove data without a retention duty: email text right after sending, outbox rows after 30 days, audit IP addresses after 90 days, contact messages after a year (`app.retention.*`). Newsletter consent changes are recorded in the audit log. Inventory, legal bases and periods: docs/DATABASE.md §6. |
@@ -486,18 +535,19 @@ frontend/src/
 │   ├── cart/        api/, components/{CartDrawer, CartLine, CartSummary, CouponForm}, pages/CartPage
 │   ├── checkout/    api/, pages/{CheckoutPage, OrderConfirmationPage}, components/{AddressStep, ShippingStep, ReviewStep, OrderSummary}
 │   ├── auth/        api/, pages/{Login, Register, ForgotPassword, ResetPassword, VerifyEmail}
-│   ├── account/     api/, pages/{Overview, Orders, OrderDetail, Addresses, Profile}, components/{OrderStatusTimeline, TrackingCard, AddressForm}
-│   ├── content/     pages/{AboutPage, GalleryPage, ContactPage, LegalPage}, components/{GalleryMasonry, Lightbox, ContactForm}
+│   ├── account/     api/, pages/{Overview, Orders, OrderDetail, Addresses, Profile}, components/{OrderStatusTimeline, ShipmentList, AddressForm}
+│   ├── content/     api/{gallery, shopInfo}, pages/{AboutPage, GalleryPage, ContactPage, LegalPage}, components/{GalleryGrid, Lightbox, ContactForm, ShippingPauseBanner}
 │   └── admin/
 │       ├── components/{charts, dashboard}/   KPI tiles, column chart, ranked bars; dashboard sections
 │       ├── products/    list, editor, variant table, image manager
 │       ├── taxonomy/    species, categories, colours, grades
 │       ├── inventory/   stock table, adjustment dialog, movement history
-│       ├── orders/      list with filters, detail, status actions, shipment form
-│       ├── coupons/     list, editor, redemptions
-│       ├── customers/   list, detail
-│       ├── content/     gallery manager, contact inbox
-│       └── settings/    shipping methods, shipping pause
+│       ├── pages/Admin{Orders,OrderDetail,PackingSlip}Page   list with filters, detail, actions, print
+│       ├── components/orders/   action dialogs (mark paid, ship, cancel, status, notes)
+│       ├── pages/Admin{Customers,CustomerDetail}Page        list, detail, lock/unlock
+│       ├── pages/Admin{Gallery,Inbox}Page                   gallery manager, contact inbox
+│       ├── pages/AdminShippingPage                          shipping methods, shipping pause
+│       └── coupons/     list, editor, redemptions (Phase 8)
 ├── hooks/                       # Generic hooks (useMediaQuery, useReturnFocus)
 └── styles/
     └── index.css                # Tailwind entry + @theme design tokens
@@ -632,8 +682,10 @@ APP_ADMIN_BOOTSTRAP_EMAIL, APP_ADMIN_BOOTSTRAP_PASSWORD   # first admin, used on
 SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM
 # Media
 MEDIA_STORAGE=local|s3, MEDIA_LOCAL_PATH, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
-# Payments (later)
-STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, VITE_STRIPE_PUBLISHABLE_KEY
+# Card payments (all three or none; test and live keys must not be mixed)
+STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, ORDER_CARD_PAYMENT_MINUTES=60
+# The publishable key reaches the browser through the API, so the frontend build needs no Stripe variable.
+# PayPal (later)
 PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
 ```
 
@@ -711,7 +763,7 @@ endpoint (403).
 | ADR-010 | Hosted payment components; webhook-confirmed payments | Handling card data ourselves |
 | ADR-011 | Motion for React (`motion`) behind `LazyMotion`, CSS for simple effects | CSS only (no exit, shared-layout or drag animations), React Spring, GSAP |
 
-Each ADR gets its own file under `docs/adr/` when implemented.
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 and ADR-011).
 
 ---
 

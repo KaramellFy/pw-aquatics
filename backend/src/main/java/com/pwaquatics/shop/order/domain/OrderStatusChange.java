@@ -62,8 +62,22 @@ public class OrderStatusChange extends AbstractEntity {
         this.createdAt = now;
     }
 
+    public OrderStatus getFromStatus() {
+        return fromStatus;
+    }
+
     public OrderStatus getToStatus() {
         return toStatus;
+    }
+
+    /** Internal note (admin only). */
+    public String getNote() {
+        return note;
+    }
+
+    /** Who made the change; null for the system. */
+    public UUID getChangedBy() {
+        return changedBy;
     }
 
     public String getCustomerMessage() {

@@ -6,6 +6,7 @@ import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.settings.application.ShopSettings;
 import com.pwaquatics.shop.shipping.application.view.ShippingOption;
 import com.pwaquatics.shop.shipping.application.view.ShippingOptions;
+import com.pwaquatics.shop.shipping.application.view.ShopInfoView;
 import com.pwaquatics.shop.shipping.domain.DispatchCalendar;
 import com.pwaquatics.shop.shipping.domain.ShippingMethod;
 import com.pwaquatics.shop.shipping.domain.ShippingPause;
@@ -76,6 +77,14 @@ public class ShippingService {
                 .findFirst()
                 .orElseThrow(() -> new ConflictException(
                         "SHIPPING_METHOD_UNAVAILABLE", "This shipping method is not available for your order."));
+    }
+
+    /** Public shop information: today the shipping pause banner. */
+    public ShopInfoView shopInfo() {
+        ShippingPause pause = currentPause(LocalDate.now(clock.withZone(SHOP_ZONE)));
+        return new ShopInfoView(pause.active()
+                ? new ShopInfoView.ShippingPauseNotice(pause.message(), pause.until())
+                : null);
     }
 
     private ShippingPause currentPause(LocalDate today) {

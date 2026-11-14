@@ -14,6 +14,13 @@ const groups = [
     items: [{ to: '/admin', labelKey: 'admin.nav.dashboard', end: true }],
   },
   {
+    labelKey: 'admin.nav.sales',
+    items: [
+      { to: '/admin/orders', labelKey: 'admin.nav.orders', end: false },
+      { to: '/admin/customers', labelKey: 'admin.nav.customers', end: false },
+    ],
+  },
+  {
     labelKey: 'admin.nav.catalog',
     items: [
       { to: '/admin/products', labelKey: 'admin.nav.products', end: false },
@@ -28,6 +35,17 @@ const groups = [
       { to: '/admin/colours', labelKey: 'admin.nav.colours', end: false },
       { to: '/admin/grades', labelKey: 'admin.nav.grades', end: false },
     ],
+  },
+  {
+    labelKey: 'admin.nav.content',
+    items: [
+      { to: '/admin/inbox', labelKey: 'admin.nav.inbox', end: false },
+      { to: '/admin/gallery', labelKey: 'admin.nav.gallery', end: false },
+    ],
+  },
+  {
+    labelKey: 'admin.nav.settings',
+    items: [{ to: '/admin/shipping', labelKey: 'admin.nav.shipping', end: false }],
   },
 ] as const;
 

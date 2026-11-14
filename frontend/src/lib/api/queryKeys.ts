@@ -15,6 +15,8 @@ export const queryKeys = {
   shippingMethods: (country: string) => ['account', 'checkout', 'shipping', country] as const,
   quote: (addressId: string, methodCode: string) =>
     ['account', 'checkout', 'quote', addressId, methodCode] as const,
+  /** The Stripe payment form of an order (client secret and publishable key). */
+  cardPayment: (orderNumber: string) => ['account', 'payments', 'card', orderNumber] as const,
   /** Prefix of everything in the admin area. */
   admin: ['admin'] as const,
   adminProducts: (query: Record<string, string>) => ['admin', 'products', 'list', query] as const,
@@ -25,6 +27,16 @@ export const queryKeys = {
   adminGrades: ['admin', 'grades'] as const,
   adminMovements: (productId: string, page: number) => ['admin', 'movements', productId, page] as const,
   adminDashboard: ['admin', 'dashboard'] as const,
+  /** @param query the list's URL query string (statuses repeat, so it is not a record) */
+  adminOrders: (query: string) => ['admin', 'orders', 'list', query] as const,
+  adminOrder: (orderNumber: string) => ['admin', 'orders', 'detail', orderNumber] as const,
+  adminCustomers: (query: Record<string, string>) => ['admin', 'customers', 'list', query] as const,
+  adminCustomer: (id: string) => ['admin', 'customers', 'detail', id] as const,
+  adminInbox: (status: string, page: number) => ['admin', 'inbox', 'list', status, page] as const,
+  adminInboxCounts: ['admin', 'inbox', 'counts'] as const,
+  adminGallery: ['admin', 'gallery'] as const,
+  adminShippingMethods: ['admin', 'shipping', 'methods'] as const,
+  adminShippingPause: ['admin', 'shipping', 'pause'] as const,
   adminStats: (kind: 'sales' | 'products' | 'stock', from: string, to: string) =>
     ['admin', 'stats', kind, from, to] as const,
   products: (query: Record<string, string>) => ['catalog', 'products', query] as const,
@@ -36,4 +48,6 @@ export const queryKeys = {
   species: (slug: string) => ['catalog', 'species', slug] as const,
   colours: ['catalog', 'colours'] as const,
   grades: ['catalog', 'grades'] as const,
+  gallery: (pageSize: number) => ['content', 'gallery', pageSize] as const,
+  shopInfo: ['content', 'shop-info'] as const,
 };

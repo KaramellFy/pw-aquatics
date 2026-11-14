@@ -12,6 +12,12 @@ app:
     iban: DE00 0000 0000 0000 0000 00
     bic: TESTDEFFXXX
     bank-name: Test Bank
+  # Fake test-mode keys: tests never talk to Stripe (FakeStripeGateway), but the webhook
+  # signature check runs for real with this secret.
+  stripe:
+    secret-key: sk_test_fake_for_tests
+    publishable-key: pk_test_fake_for_tests
+    webhook-secret: whsec_test_secret_for_tests
 
 springdoc:
   api-docs:

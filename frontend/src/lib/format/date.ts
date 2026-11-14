@@ -37,3 +37,11 @@ export function formatCalendarDateWith(
 ): string {
   return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(new Date(isoDate));
 }
+
+/**
+ * The time of a point in the next few hours (the deadline of a card payment), in the
+ * visitor's own time zone: "11:30" means 11:30 on the clock in front of them.
+ */
+export function formatLocalTime(instant: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(new Date(instant));
+}

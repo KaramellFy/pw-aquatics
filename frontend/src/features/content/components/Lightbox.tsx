@@ -3,13 +3,13 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Artwork } from '@/components/ui/Artwork';
 import { useReturnFocus } from '@/hooks/useReturnFocus';
 import { duration, ease, exitDuration } from '@/lib/motion/tokens';
-import type { GalleryItem } from '../data/gallery';
+import type { GalleryEntry } from '../data/galleryEntry';
+import { GalleryVisual } from './GalleryVisual';
 
 interface LightboxProps {
-  items: GalleryItem[];
+  entries: GalleryEntry[];
   index: number | null;
   onIndexChange: (index: number | null) => void;
 }
@@ -27,11 +27,11 @@ const fadeOut = { duration: exitDuration(duration.fast), ease: ease.out };
  * picture crossfades in place (old and new overlap) instead of flying in from the grid, and
  * focus returns to the thumbnail when the viewer closes.
  */
-export function Lightbox({ items, index, onIndexChange }: LightboxProps) {
+export function Lightbox({ entries, index, onIndexChange }: LightboxProps) {
   const { t } = useTranslation();
   const returnFocus = useReturnFocus();
-  const item = index === null ? undefined : items[index];
-  const count = items.length;
+  const item = index === null ? undefined : entries[index];
+  const count = entries.length;
 
   // Only the picture the viewer was opened with is linked to its thumbnail.
   const [opened, setOpened] = useState<{ open: boolean; morphKey: string | null }>({
@@ -104,27 +104,24 @@ export function Lightbox({ items, index, onIndexChange }: LightboxProps) {
                         transition: { duration: exitDuration(duration.base), ease: ease.out },
                       }}
                       transition={{ layout: { duration: 0.4, ease: ease.inOut } }}
-                      className={`${item.aspect} [height:min(70vh,56rem)] max-h-full w-auto max-w-full overflow-hidden rounded-card [grid-area:1/1]`}
+                      style={{ aspectRatio: item.aspectRatio }}
+                      className="[height:min(70vh,56rem)] max-h-full w-auto max-w-full overflow-hidden rounded-card bg-mist [grid-area:1/1]"
                     >
-                      <Artwork
-                        tone={item.tone}
-                        motif={item.motif}
-                        label={t(`gallery.items.${item.key}`)}
-                        className="size-full"
-                      />
+                      <GalleryVisual entry={item} sizes="(min-width: 1024px) 70vw, 100vw" labelled />
                     </m.div>
                   </AnimatePresence>
                 </div>
-                <Dialog.Title asChild>
-                  <m.figcaption
-                    className="font-display text-xl"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, transition: fadeIn }}
-                    exit={{ opacity: 0, transition: fadeOut }}
-                  >
-                    {t(`gallery.items.${item.key}`)}
-                  </m.figcaption>
-                </Dialog.Title>
+                <m.figcaption
+                  className="max-w-2xl text-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1, transition: fadeIn }}
+                  exit={{ opacity: 0, transition: fadeOut }}
+                >
+                  <Dialog.Title className={item.title ? 'font-display text-xl' : 'sr-only'}>
+                    {item.title ?? item.alt}
+                  </Dialog.Title>
+                  {item.caption && <p className="mt-2 text-ink-soft">{item.caption}</p>}
+                </m.figcaption>
               </figure>
               <Dialog.Description className="sr-only">{t('gallery.lead')}</Dialog.Description>
               <m.div

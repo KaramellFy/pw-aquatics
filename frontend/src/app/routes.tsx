@@ -129,7 +129,7 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/cart/pages/CartPage')).CartPage }),
       },
 
-      // Checkout (Phase 5): signed-in customers only
+      // Checkout (Phase 5, card payment from Phase 9): signed-in customers only
       {
         path: 'checkout',
         element: <RequireAuth />,
@@ -138,6 +138,12 @@ export const routes: RouteObject[] = [
             index: true,
             lazy: async () => ({
               Component: (await import('@/features/checkout/pages/CheckoutPage')).CheckoutPage,
+            }),
+          },
+          {
+            path: 'pay/:orderNumber',
+            lazy: async () => ({
+              Component: (await import('@/features/checkout/pages/CardPaymentPage')).CardPaymentPage,
             }),
           },
           {
@@ -154,7 +160,7 @@ export const routes: RouteObject[] = [
     ],
   },
 
-  // Admin panel (Phase 6, dashboard from Phase 8): administrators only, own layout, own chunks
+  // Admin panel (Phase 6/7, dashboard from Phase 8): administrators only, own layout, own chunks
   {
     path: 'admin',
     element: <RequireAdmin />,
@@ -229,8 +235,58 @@ export const routes: RouteObject[] = [
               Component: (await import('@/features/admin/pages/AdminTaxonomyPages')).AdminGradesPage,
             }),
           },
+          {
+            path: 'orders',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminOrdersPage')).AdminOrdersPage,
+            }),
+          },
+          {
+            path: 'orders/:orderNumber',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminOrderDetailPage')).AdminOrderDetailPage,
+            }),
+          },
+          {
+            path: 'customers',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminCustomersPage')).AdminCustomersPage,
+            }),
+          },
+          {
+            path: 'customers/:id',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminCustomerDetailPage'))
+                .AdminCustomerDetailPage,
+            }),
+          },
+          {
+            path: 'inbox',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminInboxPage')).AdminInboxPage,
+            }),
+          },
+          {
+            path: 'gallery',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminGalleryPage')).AdminGalleryPage,
+            }),
+          },
+          {
+            path: 'shipping',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminShippingPage')).AdminShippingPage,
+            }),
+          },
           { path: '*', element: <Navigate to="/admin" replace /> },
         ],
+      },
+      // Printable, without the admin chrome (Phase 7).
+      {
+        path: 'orders/:orderNumber/packing-slip',
+        lazy: async () => ({
+          Component: (await import('@/features/admin/pages/AdminPackingSlipPage')).AdminPackingSlipPage,
+        }),
       },
     ],
   },

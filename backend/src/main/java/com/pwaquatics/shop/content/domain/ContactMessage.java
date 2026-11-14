@@ -47,6 +47,11 @@ public class ContactMessage extends AbstractEntity {
         this.createdAt = createdAt;
     }
 
+    /** The owner has read, answered or dismissed the message (or put it back to new). */
+    public void changeStatus(ContactMessageStatus status) {
+        this.status = status;
+    }
+
     public String getName() {
         return name;
     }

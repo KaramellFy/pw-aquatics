@@ -8,10 +8,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -70,7 +73,47 @@ public class ShippingMethod extends AbstractEntity {
     @Column(name = "country_code", nullable = false, length = 2)
     private Set<String> countries = new HashSet<>();
 
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    private long version;
+
     protected ShippingMethod() {}
+
+    /** A new method; {@code code} identifies it in orders and cannot be changed later. */
+    public static ShippingMethod create(String code, ShippingMethodData data, Instant now) {
+        ShippingMethod method = new ShippingMethod();
+        method.code = code;
+        method.apply(data, now);
+        return method;
+    }
+
+    /** Changes everything but the code. Orders keep the name and price they were placed with. */
+    public void update(ShippingMethodData data, Instant now) {
+        apply(data, now);
+    }
+
+    private void apply(ShippingMethodData data, Instant now) {
+        name = data.name();
+        description = data.description();
+        carrier = data.carrier();
+        priceCents = data.priceCents();
+        freeShippingThresholdCents = data.freeShippingThresholdCents();
+        liveAnimalsAllowed = data.liveAnimalsAllowed();
+        dispatchWeekdays = new short[data.dispatchDays().size()];
+        int i = 0;
+        for (DayOfWeek day : new TreeSet<>(data.dispatchDays())) {
+            dispatchWeekdays[i++] = (short) day.getValue();
+        }
+        estimatedDaysMin = data.estimatedDaysMin();
+        estimatedDaysMax = data.estimatedDaysMax();
+        active = data.active();
+        sortOrder = data.sortOrder();
+        countries.clear();
+        countries.addAll(data.countries());
+        updatedAt = now;
+    }
 
     // ---------------------------------------------------------------- rules
 
@@ -121,5 +164,30 @@ public class ShippingMethod extends AbstractEntity {
 
     public Integer getEstimatedDaysMax() {
         return estimatedDaysMax;
+    }
+
+    public long getPriceCents() {
+        return priceCents;
+    }
+
+    public boolean isLiveAnimalsAllowed() {
+        return liveAnimalsAllowed;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public int getSortOrder() {
+        return sortOrder;
+    }
+
+    /** Destination countries, alphabetically. */
+    public Set<String> getCountries() {
+        return new TreeSet<>(countries);
+    }
+
+    public long getVersion() {
+        return version;
     }
 }

@@ -101,9 +101,18 @@ app:
     # Days needed before a parcel can leave: an order placed today ships on the
     # first dispatch weekday that is at least this many days away.
     handling-days: ${SHIPPING_HANDLING_DAYS:1}
+    # Carriers offered when the shop enters a shipment; {trackingNumber} is replaced in the
+    # tracking link sent to the customer.
+    carriers:
+      - name: DHL
+        tracking-url: https://www.dhl.com/de-en/home/tracking/tracking-parcel.html?submit=1&tracking-id={trackingNumber}
+      - name: DHL Express
+        tracking-url: https://www.dhl.com/de-en/home/tracking/tracking-express.html?submit=1&tracking-id={trackingNumber}
   orders:
     # Unpaid bank-transfer orders are cancelled after this many days and their stock is returned.
     bank-transfer-payment-days: ${ORDER_BANK_TRANSFER_PAYMENT_DAYS:7}
+    # Unpaid card orders are cancelled this many minutes after they were placed.
+    card-payment-minutes: ${ORDER_CARD_PAYMENT_MINUTES:60}
   # Bank account shown to customers who pay by bank transfer. Without an IBAN the
   # payment method is not offered and no orders can be placed.
   bank-transfer:
@@ -111,6 +120,12 @@ app:
     iban: ${BANK_IBAN:}
     bic: ${BANK_BIC:}
     bank-name: ${BANK_NAME:}
+  # Online payments through Stripe (cards, Apple Pay, Google Pay). Offered only when all three
+  # are set. The webhook secret belongs to the endpoint /api/v1/webhooks/stripe.
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
   # How long personal data is kept where no law requires longer (docs/DATABASE.md §6).
   # Orders are not listed here: they are business records with statutory retention.
   retention:
@@ -120,6 +135,8 @@ app:
     # IP addresses in the audit log (security records); the entries themselves stay.
     audit-ip-addresses: 90d
     contact-messages: 365d
+    # Processed payment webhook deliveries (ids, amounts and statuses only).
+    payment-webhook-events: 90d
   # Optional first administrator, created at startup if no admin exists yet.
   admin-bootstrap:
     email: ${APP_ADMIN_BOOTSTRAP_EMAIL:}
@@ -150,6 +167,14 @@ app:
     # Order cancellations per customer.
     order-cancel:
       capacity: 10
+      period: PT1M
+    # Opening the card payment form per customer (each call asks Stripe).
+    card-payment:
+      capacity: 20
+      period: PT1M
+    # Webhook deliveries per client IP, before the signature check.
+    payment-webhook:
+      capacity: 300
       period: PT1M
     # Password confirmations inside a session (change password/email, delete account).
     password-check:

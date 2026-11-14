@@ -31,6 +31,20 @@ public class ShopSetting {
 
     protected ShopSetting() {}
 
+    public ShopSetting(String key, String value, UUID updatedBy, Instant now) {
+        this.key = key;
+        this.value = value;
+        this.updatedBy = updatedBy;
+        this.updatedAt = now;
+    }
+
+    /** Replaces the value (raw JSON text). */
+    public void change(String value, UUID updatedBy, Instant now) {
+        this.value = value;
+        this.updatedBy = updatedBy;
+        this.updatedAt = now;
+    }
+
     public String getKey() {
         return key;
     }

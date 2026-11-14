@@ -29,6 +29,19 @@ npm run dev
 Open http://localhost:5173. Emails sent by the shop appear in Mailpit at http://localhost:8025.
 See [AGENTS.md](AGENTS.md#5-commands) for test, lint and build commands.
 
+**Card payments (optional):** put Stripe **test** keys into `.env` (`STRIPE_SECRET_KEY`,
+`STRIPE_PUBLISHABLE_KEY`) and forward Stripe's events to the local API with the
+[Stripe CLI](https://docs.stripe.com/stripe-cli):
+
+```bash
+stripe listen --forward-to localhost:8080/api/v1/webhooks/stripe
+```
+
+Put the `whsec_…` it prints into `.env` as `STRIPE_WEBHOOK_SECRET` and restart the API. Pay
+with Stripe's test cards, e.g. `4242 4242 4242 4242` (success), `4000 0000 0000 0002`
+(declined) or `4000 0025 0000 3155` (3-D Secure), any future date and any CVC. Without the
+keys, the shop offers bank transfer only.
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — system design, modules, frontend structure, security, risks, open questions

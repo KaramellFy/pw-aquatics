@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { TFunction } from 'i18next';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/api/client';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
 import { applyServerFieldErrors } from '@/lib/forms/serverErrors';
 import { usePlaceOrder, type Quote } from '../api/checkout';
+import { OptionCard } from './OptionCard';
 import { ShippingDates } from './ShippingStep';
 
 /** Errors after which the customer has to look at the cart again. */
@@ -42,9 +43,12 @@ interface ReviewStepProps {
   onRetry: () => void;
 }
 
+type PaymentMethod = Quote['paymentMethods'][number];
+
 /**
- * Step 3: everything at a glance, the mandatory confirmations and the order button.
- * The order sends ids, the shipping method and the total the customer has seen — no prices.
+ * Step 3: everything at a glance, the payment method, the mandatory confirmations and the
+ * order button. The order sends ids, the shipping method, the payment method and the total
+ * the customer has seen — no prices. Which payment methods exist is the server's decision.
  */
 export function ReviewStep({
   quote,
@@ -56,6 +60,7 @@ export function ReviewStep({
 }: ReviewStepProps) {
   const { t, i18n } = useTranslation();
   const place = usePlaceOrder();
+  const [chosenMethod, setChosenMethod] = useState<PaymentMethod>();
   const errorMessage = useApiErrorMessage();
   const liveAnimals = quote?.containsLiveAnimals ?? false;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,7 +98,8 @@ export function ReviewStep({
     );
   }
 
-  const paymentMethod = quote.paymentMethods[0];
+  const paymentMethod =
+    chosenMethod && quote.paymentMethods.includes(chosenMethod) ? chosenMethod : quote.paymentMethods[0];
   const onSubmit = handleSubmit((values) => {
     if (!paymentMethod) return;
     place.mutate(
@@ -139,22 +145,31 @@ export function ReviewStep({
             <ShippingDates method={quote.shippingMethod} className="mt-1 block text-ink-soft" />
           </dd>
         </div>
-        <div>
-          <dt className="font-sans eyebrow text-ink">{t('checkout.review.payment')}</dt>
-          <dd className="mt-3 text-sm">
-            {paymentMethod ? (
-              <>
-                <span className="block text-ink">{t(`orders.detail.paymentMethod.${paymentMethod}`)}</span>
-                {paymentMethod === 'BANK_TRANSFER' && (
-                  <span className="mt-1 block text-ink-soft">{t('checkout.review.bankTransferText')}</span>
-                )}
-              </>
-            ) : (
-              <span className="text-danger">{t('checkout.review.noPayment')}</span>
-            )}
-          </dd>
-        </div>
       </dl>
+
+      <fieldset className="mt-10">
+        <legend className="font-sans eyebrow text-ink">{t('checkout.review.payment')}</legend>
+        {quote.paymentMethods.length === 0 ? (
+          <p className="mt-3 text-sm text-danger">{t('checkout.review.noPayment')}</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {quote.paymentMethods.map((method) => (
+              <OptionCard
+                key={method}
+                name="payment-method"
+                value={method}
+                checked={method === paymentMethod}
+                onChange={() => setChosenMethod(method)}
+              >
+                <span className="block font-medium text-ink">{t(`checkout.review.method.${method}`)}</span>
+                <span className="mt-1 block text-sm text-ink-soft">
+                  {t(`checkout.review.methodText.${method}`)}
+                </span>
+              </OptionCard>
+            ))}
+          </div>
+        )}
+      </fieldset>
 
       <TextAreaField
         className="mt-8"

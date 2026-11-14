@@ -1,12 +1,18 @@
 package com.pwaquatics.shop.common.config;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -23,6 +29,7 @@ public record AppProperties(
         @Valid @NotNull Shipping shipping,
         @Valid @NotNull Orders orders,
         @Valid @NotNull BankTransfer bankTransfer,
+        @Valid @NotNull Stripe stripe,
         @Valid @NotNull Retention retention,
         AdminBootstrap adminBootstrap,
         Map<String, @Valid RateLimit> rateLimits) {
@@ -47,11 +54,49 @@ public record AppProperties(
             @NotNull Duration verificationTokenTtl,
             @NotNull Duration passwordResetTokenTtl) {}
 
-    /** Days needed before a parcel can leave (0 = orders can ship the same day). */
-    public record Shipping(@Min(0) @Max(30) int handlingDays) {}
+    /**
+     * @param handlingDays days needed before a parcel can leave (0 = orders can ship the same day)
+     * @param carriers the carriers the shop hands parcels to, offered when a shipment is entered
+     */
+    public record Shipping(@Min(0) @Max(30) int handlingDays, @NotNull List<@Valid Carrier> carriers) {
 
-    /** How long a bank-transfer order waits for its payment before it is cancelled and its stock returned. */
-    public record Orders(@Min(1) @Max(60) int bankTransferPaymentDays) {}
+        /** The carrier with this name, ignoring case. */
+        public Optional<Carrier> carrier(String name) {
+            return carriers.stream().filter(carrier -> carrier.name().equalsIgnoreCase(name)).findFirst();
+        }
+    }
+
+    /**
+     * @param trackingUrl the carrier's tracking page; {@code {trackingNumber}} is replaced by the
+     *     parcel's number. Empty if the carrier has none.
+     */
+    public record Carrier(@NotBlank @Size(max = 50) String name, String trackingUrl) {
+
+        @AssertTrue(message = "A tracking URL must start with https:// and contain {trackingNumber}")
+        public boolean isTrackingUrlValid() {
+            return trackingUrl == null || trackingUrl.isBlank()
+                    || (trackingUrl.startsWith("https://") && trackingUrl.contains("{trackingNumber}"));
+        }
+
+        /** The tracking page of one parcel, or null if the carrier has none. */
+        public String trackingUrlFor(String trackingNumber) {
+            if (trackingUrl == null || trackingUrl.isBlank()) {
+                return null;
+            }
+            return trackingUrl.replace(
+                    "{trackingNumber}", URLEncoder.encode(trackingNumber, StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
+     * Payment deadlines of unpaid orders; when they pass, the order is cancelled and its
+     * animals go back on sale.
+     *
+     * @param bankTransferPaymentDays days (until the end of the day) to transfer the money
+     * @param cardPaymentMinutes minutes to complete an online payment that was started
+     */
+    public record Orders(
+            @Min(1) @Max(60) int bankTransferPaymentDays, @Min(15) @Max(1440) int cardPaymentMinutes) {}
 
     /**
      * The shop's bank account, shown to customers who pay by bank transfer. Without an
@@ -65,6 +110,44 @@ public record AppProperties(
     }
 
     /**
+     * Stripe account for online payments (cards, Apple Pay, Google Pay). Offered only when
+     * all three values are set; the publishable key is the only one sent to browsers.
+     *
+     * @param webhookSecret signing secret of the webhook endpoint ({@code whsec_…})
+     */
+    public record Stripe(String secretKey, String publishableKey, String webhookSecret) {
+
+        public boolean isConfigured() {
+            return !blank(secretKey) && !blank(publishableKey) && !blank(webhookSecret);
+        }
+
+        /** Test keys: payments are simulated and the Dashboard links point to test data. */
+        public boolean isTestMode() {
+            return !blank(secretKey) && (secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_"));
+        }
+
+        /** All three or none: a half-configured account would take payments it never hears back about. */
+        @AssertTrue(message = "STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY and STRIPE_WEBHOOK_SECRET must be set together")
+        public boolean isCompleteOrEmpty() {
+            return isConfigured() || (blank(secretKey) && blank(publishableKey) && blank(webhookSecret));
+        }
+
+        /** Test keys and live keys must not be mixed. */
+        @AssertTrue(message = "Stripe keys must both be test keys or both be live keys")
+        public boolean isOneMode() {
+            if (!isConfigured()) {
+                return true;
+            }
+            boolean testSecret = secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_");
+            return testSecret == publishableKey.startsWith("pk_test_");
+        }
+
+        private static boolean blank(String value) {
+            return value == null || value.isBlank();
+        }
+    }
+
+    /**
      * How long personal data is kept where no law requires longer (docs/DATABASE.md §6).
      *
      * @param sentEmails delivered emails: the text is erased right after sending; recipient and
@@ -73,12 +156,15 @@ public record AppProperties(
      * @param auditIpAddresses IP addresses in the audit log are erased after this period; the
      *     entries themselves stay
      * @param contactMessages contact form messages are deleted after this period
+     * @param paymentWebhookEvents processed payment webhook deliveries (no personal data; kept
+     *     to recognise repeated deliveries and to trace payment problems)
      */
     public record Retention(
             @NotNull Duration sentEmails,
             @NotNull Duration failedEmails,
             @NotNull Duration auditIpAddresses,
-            @NotNull Duration contactMessages) {}
+            @NotNull Duration contactMessages,
+            @NotNull Duration paymentWebhookEvents) {}
 
     /** Optional first administrator, created at startup when no admin exists yet. */
     public record AdminBootstrap(String email, String password) {

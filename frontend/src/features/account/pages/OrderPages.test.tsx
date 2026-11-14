@@ -61,6 +61,8 @@ const order: Order = {
     amount: money(1770),
   },
   cancellable: true,
+  payableByCard: false,
+  shipments: [],
 };
 const cancelled: Order = {
   ...order,
@@ -173,6 +175,75 @@ describe('OrderDetailPage', () => {
 
     expect(await screen.findByText('Payment received')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel order' })).not.toBeInTheDocument();
+  });
+
+  it('offers to pay a card order while the server says it can still be paid', async () => {
+    const cardOrder: Order = {
+      ...order,
+      paymentMethod: 'STRIPE',
+      paymentDueAt: '2026-11-10T11:00:00Z',
+      paymentInstructions: null,
+      payableByCard: true,
+    };
+    mockApi({ '/account/orders/PW-2026-000042': cardOrder });
+    renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
+
+    const section = await screen.findByRole('region', { name: 'Payment outstanding' });
+    expect(within(section).getByRole('link', { name: 'Pay now' })).toHaveAttribute(
+      'href',
+      '/checkout/pay/PW-2026-000042',
+    );
+    expect(screen.queryByRole('region', { name: 'Pay by bank transfer' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel order' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('nothing is charged to your card');
+  });
+
+  it('does not offer card payment once the server says no', async () => {
+    mockApi({
+      '/account/orders/PW-2026-000042': { ...order, paymentMethod: 'STRIPE', paymentInstructions: null },
+    });
+    renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
+    await screen.findByRole('heading', { name: /PW-2026-000042/ });
+    expect(screen.queryByRole('link', { name: 'Pay now' })).not.toBeInTheDocument();
+  });
+
+  it('shows each parcel with its tracking link once the shop has shipped the order', async () => {
+    const shipped: Order = {
+      ...order,
+      status: 'SHIPPED',
+      paymentStatus: 'PAID',
+      paymentDueAt: null,
+      paymentInstructions: null,
+      cancellable: false,
+      shipments: [
+        {
+          id: 'a1',
+          carrier: 'DHL',
+          trackingNumber: 'JJD000123456789',
+          trackingUrl:
+            'https://www.dhl.com/de-en/home/tracking/tracking-parcel.html?submit=1&tracking-id=JJD000123456789',
+          shippedAt: '2026-11-16T09:30:00Z',
+          deliveredAt: null,
+        },
+      ],
+    };
+    mockApi({ '/account/orders/PW-2026-000042': shipped });
+    renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
+
+    expect(await screen.findByRole('heading', { name: 'Tracking' })).toBeInTheDocument();
+    expect(screen.getByText(/JJD000123456789/)).toBeInTheDocument();
+    expect(screen.getByText('Shipped on 16 November 2026')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /Track parcel/ });
+    expect(link).toHaveAttribute('href', shipped.shipments[0]!.trackingUrl);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('shows no tracking section before anything has been shipped', async () => {
+    mockApi({ '/account/orders/PW-2026-000042': order });
+    renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
+    await screen.findByRole('heading', { name: /PW-2026-000042/ });
+    expect(screen.queryByRole('heading', { name: 'Tracking' })).not.toBeInTheDocument();
   });
 
   it('treats unknown and foreign orders alike', async () => {

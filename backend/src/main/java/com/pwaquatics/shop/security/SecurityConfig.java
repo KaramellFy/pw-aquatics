@@ -30,6 +30,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  *   <li>Authentication: server-side sessions (Spring Session JDBC) with an HttpOnly cookie.
  *       Login itself is handled by {@code AuthController} + {@link SessionManager}.
  *   <li>CSRF: cookie-to-header pattern for the SPA ({@code XSRF-TOKEN} cookie → {@code X-XSRF-TOKEN} header).
+ *       Payment provider webhooks are exempt: they carry no cookies and prove their origin with a
+ *       signature instead.
  *   <li>Access: secure by default — every endpoint is denied unless explicitly opened below.
  *       Admin endpoints additionally use method security.
  *   <li>Errors: delegated to {@link com.pwaquatics.shop.common.api.ApiExceptionHandler} so 401/403
@@ -45,9 +47,13 @@ public class SecurityConfig {
         "/api/v1/products", "/api/v1/products/**",
         "/api/v1/categories", "/api/v1/species", "/api/v1/species/**",
         "/api/v1/colours", "/api/v1/grades",
+        "/api/v1/gallery", "/api/v1/shop-info",
         "/media/**",
         "/actuator/health", "/actuator/health/**",
     };
+
+    /** Called by Stripe's servers; the signature is checked in {@code StripeWebhooks}. */
+    static final String WEBHOOKS = "/api/v1/webhooks/stripe";
 
     /** Callable without a session. Each is rate limited in its service. */
     static final String[] PUBLIC_POST = {
@@ -55,6 +61,7 @@ public class SecurityConfig {
         "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/logout",
         "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",
         "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
+        WEBHOOKS,
     };
 
     /** Only reachable when springdoc is enabled (dev/staging); disabled in production. */
@@ -67,7 +74,9 @@ public class SecurityConfig {
             SecurityContextRepository securityContextRepository,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver)
             throws Exception {
-        http.csrf(csrf -> csrf.spa().csrfTokenRepository(csrfTokenRepository))
+        http.csrf(csrf -> csrf.spa()
+                        .csrfTokenRepository(csrfTokenRepository)
+                        .ignoringRequestMatchers(WEBHOOKS))
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
@@ -77,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/cart", "/api/v1/cart/**").permitAll()
                         .requestMatchers("/api/v1/account/**").authenticated()
                         .requestMatchers("/api/v1/checkout/**").authenticated()
+                        .requestMatchers("/api/v1/payments/**").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .httpBasic(AbstractHttpConfigurer::disable)

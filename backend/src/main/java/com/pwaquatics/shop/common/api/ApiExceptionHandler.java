@@ -1,11 +1,13 @@
 package com.pwaquatics.shop.common.api;
 
+import com.pwaquatics.shop.common.error.BadRequestException;
 import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.error.ConflictException;
 import com.pwaquatics.shop.common.error.ForbiddenException;
 import com.pwaquatics.shop.common.error.LockedException;
 import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.error.RateLimitedException;
+import com.pwaquatics.shop.common.error.ServiceUnavailableException;
 import com.pwaquatics.shop.common.error.ShopException;
 import com.pwaquatics.shop.common.error.UnauthorizedException;
 import com.pwaquatics.shop.common.web.RequestIdFilter;
@@ -52,6 +54,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             case UnauthorizedException ignored -> HttpStatus.UNAUTHORIZED;
             case ForbiddenException ignored -> HttpStatus.FORBIDDEN;
             case LockedException ignored -> HttpStatus.LOCKED;
+            case ServiceUnavailableException ignored -> HttpStatus.SERVICE_UNAVAILABLE;
+            case BadRequestException ignored -> HttpStatus.BAD_REQUEST;
             default -> HttpStatus.BAD_REQUEST;
         };
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, ex.getMessage());

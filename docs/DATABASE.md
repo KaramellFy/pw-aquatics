@@ -354,7 +354,8 @@ CREATE TABLE shipping_methods (
     active                        boolean      NOT NULL DEFAULT true,
     sort_order                    int          NOT NULL DEFAULT 0,
     created_at                    timestamptz  NOT NULL DEFAULT now(),
-    updated_at                    timestamptz  NOT NULL DEFAULT now()
+    updated_at                    timestamptz  NOT NULL DEFAULT now(),
+    version                       bigint       NOT NULL DEFAULT 0     -- Phase 7: edited in the admin area
 );
 
 CREATE TABLE shipping_method_countries (
@@ -379,7 +380,11 @@ Notes: the shop delivers to the EU and the United Kingdom with DHL and dispatche
 Monday to Wednesday; the real methods and prices are data in `shipping_methods`
 (the dev seed contains placeholders). `shipping.pause` applies to parcels with live
 animals: with `until` the dispatch date moves behind that day, without it such orders
-cannot be placed. A missing or unreadable setting counts as "no pause". Payment
+cannot be placed. A missing or unreadable setting counts as "no pause". Since Phase 7
+the owner edits methods and the pause in the admin area (`AdminShippingService`): a
+method's `code` never changes and methods are switched off rather than deleted, because
+orders keep a snapshot of the method; the pause is written with `ShopSettings.save`
+(switched off = `{"active": false}`). Payment
 deadline and handling time are configuration (`ORDER_BANK_TRANSFER_PAYMENT_DAYS`,
 `SHIPPING_HANDLING_DAYS`), not settings.
 
@@ -570,52 +575,60 @@ CREATE TABLE order_notes (
     body        varchar(2000) NOT NULL,
     created_at  timestamptz   NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_order_notes_order ON order_notes (order_id, created_at);
+CREATE INDEX idx_order_notes_order  ON order_notes (order_id, created_at);
+CREATE INDEX idx_order_notes_author ON order_notes (author_id);
 
--- Phase 7
+-- Phase 7: parcels handed to a carrier (usually one per order; more for a split parcel)
 CREATE TABLE shipments (
     id               uuid PRIMARY KEY,
     order_id         uuid         NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     carrier          varchar(50)  NOT NULL,
     tracking_number  varchar(100) NOT NULL,
-    tracking_url     varchar(500),          -- built from a per-carrier URL template
+    tracking_url     varchar(500),          -- built from the carrier's URL template
     shipped_at       timestamptz  NOT NULL,
     delivered_at     timestamptz,
     created_by       uuid         REFERENCES users(id) ON DELETE SET NULL,
     created_at       timestamptz  NOT NULL DEFAULT now(),
     updated_at       timestamptz  NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_shipments_order ON shipments (order_id);
-CREATE INDEX idx_shipments_tracking ON shipments (tracking_number);
+CREATE INDEX idx_shipments_order      ON shipments (order_id);
+CREATE INDEX idx_shipments_tracking   ON shipments (tracking_number);
+CREATE INDEX idx_shipments_created_by ON shipments (created_by);
 
--- Phase 9 (payments). Never contains card data — only provider references.
+-- Phase 9 (payments; built for Stripe). Never contains card data — only provider references.
 CREATE TABLE payments (
     id                   uuid PRIMARY KEY,
     order_id             uuid         NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
     provider             varchar(20)  NOT NULL CHECK (provider IN ('BANK_TRANSFER', 'STRIPE', 'PAYPAL')),
-    provider_reference   varchar(255) UNIQUE,     -- PaymentIntent ID / PayPal order ID
+    provider_reference   varchar(255) UNIQUE,     -- Stripe PaymentIntent id (pi_…) / PayPal order ID
     status               varchar(20)  NOT NULL CHECK (status IN (
                              'CREATED', 'PENDING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'REFUNDED', 'PARTIALLY_REFUNDED')),
-    amount_cents         bigint       NOT NULL,
-    refunded_cents       bigint       NOT NULL DEFAULT 0,
+    amount_cents         bigint       NOT NULL CHECK (amount_cents >= 0),   -- the order total when created
+    refunded_cents       bigint       NOT NULL DEFAULT 0 CHECK (refunded_cents >= 0),
     currency             char(3)      NOT NULL DEFAULT 'EUR',
-    method_detail        varchar(50),             -- e.g. 'card', 'apple_pay' (no card numbers)
+    method_detail        varchar(50),             -- e.g. 'card' (never card numbers)
+    failure_code         varchar(100),            -- last decline reason, e.g. 'card_declined'
     created_at           timestamptz  NOT NULL DEFAULT now(),
-    updated_at           timestamptz  NOT NULL DEFAULT now()
+    updated_at           timestamptz  NOT NULL DEFAULT now(),
+    version              bigint       NOT NULL DEFAULT 0,
+    CHECK (refunded_cents <= amount_cents)
 );
 CREATE INDEX idx_payments_order ON payments (order_id);
+-- One payment per order and provider: a second card attempt reuses the same PaymentIntent.
+CREATE UNIQUE INDEX uq_payments_order_provider ON payments (order_id, provider);
 
 CREATE TABLE payment_webhook_events (
     id            uuid PRIMARY KEY,
-    provider      varchar(20)  NOT NULL,
+    provider      varchar(20)  NOT NULL CHECK (provider IN ('STRIPE', 'PAYPAL')),
     event_id      varchar(255) NOT NULL,
     event_type    varchar(100) NOT NULL,
-    payload       jsonb        NOT NULL,
+    payload       jsonb        NOT NULL,          -- reduced: ids, amounts, statuses, decline code
     received_at   timestamptz  NOT NULL DEFAULT now(),
     processed_at  timestamptz,
-    error         text,
+    error         text,                           -- processing error, or why nothing changed
     UNIQUE (provider, event_id)                   -- idempotency
 );
+CREATE INDEX idx_payment_webhook_events_received ON payment_webhook_events (received_at);
 
 -- Later: sequential, gap-free invoice numbers as required for German invoices
 CREATE TABLE invoices (
@@ -635,23 +648,46 @@ quantity − discount_cents`. An order number is `PW-<year>-<6 digits>` from
 `order_number_seq` (gaps are fine). `UNIQUE (user_id, idempotency_key)` backs the
 idempotent placement. Orders are locked `FOR UPDATE` when they are cancelled or expire.
 
+Notes on payments (built in Phase 9 for Stripe): a row is created with the PaymentIntent
+for the stored order total, and only Stripe's signed webhook moves it to `SUCCEEDED`; a
+different amount is never accepted. Bank transfers don't use this table: the owner marks
+them paid in the admin order view, which sets `orders.paid_at` and writes the status history.
+Every path that touches both takes the order's lock first and
+then the payment's (checkout, expiry, webhook), so two transactions never wait for each
+other. A webhook delivery is stored first in its own transaction, then processed; its row
+is locked while processing, so a repeated delivery is skipped once `processed_at` is set.
+
+Notes on fulfilment (Phase 7): shipments and notes belong to the order aggregate and are
+written only by `AdminOrderService` while it holds the order's lock. The carrier must be
+one of `app.shipping.carriers`; the tracking number is stored without spaces and the
+tracking link is built once from the carrier's URL template, so a later template change
+does not alter links already emailed. Entering the first parcel moves the order to
+`SHIPPED`; marking it delivered sets `delivered_at` on every parcel. The only parcel of a
+shipped order cannot be removed. The order snapshot (items, prices, addresses) is never
+changed by any of these actions.
+
 ### 3.8 Content
 
 ```sql
+-- Phase 7: photos for the public gallery, managed in the admin area
 CREATE TABLE gallery_images (
     id           uuid PRIMARY KEY,
-    storage_key  varchar(255) NOT NULL,
+    -- Folder of the WebP renditions (<storage_key>/<width>.webp), see media.ImageService.
+    storage_key  varchar(255) NOT NULL UNIQUE,
     title        varchar(150),
     caption      varchar(500),
     alt_text     varchar(255) NOT NULL,
-    species_id   uuid         REFERENCES species(id) ON DELETE SET NULL,
-    width        int          NOT NULL,
-    height       int          NOT NULL,
+    width        int          NOT NULL CHECK (width > 0),
+    height       int          NOT NULL CHECK (height > 0),
     sort_order   int          NOT NULL DEFAULT 0,
     published    boolean      NOT NULL DEFAULT false,
-    created_at   timestamptz  NOT NULL DEFAULT now()
+    created_by   uuid         REFERENCES users(id) ON DELETE SET NULL,
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    updated_at   timestamptz  NOT NULL DEFAULT now(),
+    version      bigint       NOT NULL DEFAULT 0
 );
-CREATE INDEX idx_gallery_published ON gallery_images (published, sort_order);
+CREATE INDEX idx_gallery_images_published  ON gallery_images (published, sort_order);
+CREATE INDEX idx_gallery_images_created_by ON gallery_images (created_by);
 
 CREATE TABLE contact_messages (
     id            uuid PRIMARY KEY,
@@ -665,6 +701,13 @@ CREATE TABLE contact_messages (
 );
 CREATE INDEX idx_contact_messages_status ON contact_messages (status, created_at DESC);
 ```
+
+Notes: uploads go through `media.ImageService` (re-encoded to WebP, metadata stripped,
+originals not kept), like product photos; at most 200 gallery photos. New photos start
+unpublished at the end; reordering locks every row and rewrites `sort_order`. Linking a
+photo to a species (planned earlier as `species_id`) is left for later. Contact messages
+are read and triaged in the admin inbox (status only); replies are written in the mail
+program.
 
 ### 3.9 Operations
 
@@ -804,7 +847,7 @@ uniqueness, webhook event uniqueness.
 | 4 | `carts`, `cart_items` |
 | 5 | `shipping_methods`, `shipping_method_countries`, `shop_settings`, `order_number_seq`, `orders`, `order_items`, `order_addresses`, `order_status_history`, foreign key `stock_movements.order_id → orders` |
 | 6 | (inventory admin uses existing tables) |
-| 7 | `shipments`, `order_notes`, `gallery_images` |
+| 7 | `shipments`, `order_notes`, `gallery_images`, `shipping_methods.version` |
 | 8 | `coupons`, `coupon_redemptions`, `carts.coupon_id` |
 | 9 | `payments`, `payment_webhook_events` |
 | 10 | `invoices` |
@@ -834,18 +877,31 @@ adviser.
 | Emails to be sent | `outbox_messages` | Delivery of transactional emails | Text erased as soon as the email is sent; row deleted after 30 days (`app.retention.sent-emails`), undeliverable ones after 30 days |
 | Contact form messages: name, email, message | `contact_messages` (+ the email to the shop inbox) | Answering the enquiry, Art. 6(1)(b)/(f) | 365 days (`app.retention.contact-messages`); copies in the shop mailbox follow the mailbox's own rules |
 | Audit log: who did what, when; IP address | `audit_log` | Security, Art. 6(1)(f) | IP address erased after 90 days (`app.retention.audit-ip-addresses`); entries stay |
+| Card payments: Stripe PaymentIntent id, amount, status, refunded amount, method (`card`), decline code — no card or billing details | `payments` | Contract Art. 6(1)(b); accounting Art. 6(1)(c) | With the order (statutory retention) |
+| Stripe webhook deliveries: event id and type, reduced to ids, amounts and statuses | `payment_webhook_events` | Recognising repeated deliveries, tracing payment problems, Art. 6(1)(f) | 90 days (`app.retention.payment-webhook-events`) |
+| Internal order notes and status-change notes written by the shop (may mention the customer) | `order_notes`, `order_status_history.note` | Running the order, Art. 6(1)(b)/(f) | With the order (statutory retention) |
+| Shipments: carrier, tracking number, tracking link, shipping and delivery time | `shipments` | Delivering the order and answering where it is, Art. 6(1)(b) | With the order (statutory retention) |
+| Account lock: time, the admin who locked it and the reason they gave | `users.status`/`locked_until` + audit entries `ACCOUNT_LOCKED_BY_SHOP`/`ACCOUNT_UNLOCKED_BY_SHOP` | Protecting the shop against abuse, Art. 6(1)(f) | Entries stay (IP address erased after 90 days); the reason should be factual and short |
+| Gallery photos (aquariums and animals; no people) | `gallery_images` + files under `media/gallery/` | Presenting the shop, Art. 6(1)(f) | Until the owner deletes the photo (files removed with it) |
 | Language choice | Browser `localStorage` key `pwa.language` (no personal data) | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
 
 **Cookies:** `SESSION` (login), `XSRF-TOKEN` (CSRF protection) and `CART_TOKEN` (guest
 cart) are strictly necessary for services the visitor asks for, so no consent banner is
 needed (§ 25(2) no. 2 TDDDG). Adding analytics, tracking, external fonts, maps or videos
-would change that. Fonts are self-hosted; the site makes no third-party requests.
+would change that. Fonts are self-hosted; the only third-party requests are made by
+Stripe.js, and only on the card payment page (`/checkout/pay/…`): Stripe sets its own
+cookies there for fraud prevention, which we treat as necessary for the payment the
+customer asked for (to be confirmed by the legal adviser). The privacy policy must name
+Stripe (Stripe Payments Europe, Ltd.) as the recipient of payment data for card payments.
 
-**Payment data:** none is stored. Customers pay by bank transfer to the shop's account
-(configured in the environment, not in the database); the shop never asks for a
-customer's bank or card details. With card and PayPal payments (Phase 9) the browser
-talks to Stripe/PayPal directly and the shop keeps only provider references, status and
-amounts (PCI DSS SAQ A); webhook payloads must be stored without billing details.
+**Payment data:** no card or bank details of customers are stored. Bank transfers go to
+the shop's account (configured in the environment, not in the database). For card payment
+the customer types the card details into Stripe's own fields (Payment Element); they never
+reach our servers (PCI DSS SAQ A). The shop keeps only the PaymentIntent id, amounts,
+status and decline code; webhook payloads are reduced to ids, amounts and statuses before
+they are stored, because Stripe's events also carry names, addresses and the last digits of
+cards. Stripe's "Link" (saving card details in a Stripe account) is switched off in the
+payment form.
 
 **Account deletion:** the user row is anonymised (`status = 'ANONYMISED'`, email
 replaced with a placeholder, names and phone cleared, password hash and newsletter
@@ -861,6 +917,8 @@ database errors can quote a value, so production logs must be kept short (see
 **Data subject requests** (access, rectification, erasure, portability, objection):
 customers see and edit their profile, addresses and orders in the account and can
 delete the account themselves; everything else is answered by the owner within one
-month, with the admin customer view (Phase 7) as the tool.
+month, with the admin customer view (`/admin/customers`) as the tool: it shows the
+profile, saved addresses and orders, and can lock an account. Locking ends the customer's
+sessions at once; administrator accounts cannot be locked there.
 
 Backups are encrypted and follow the same retention.
