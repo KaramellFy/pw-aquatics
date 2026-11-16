@@ -7,6 +7,7 @@ import { anna } from '@/features/auth/test/fixtures';
 import type { Session } from '@/features/auth/api/auth';
 import { mockApi, problem } from '@/test/mockApi';
 import { renderRoutes } from '@/test/render';
+import type { CouponStats } from '../api/coupons';
 import type { Dashboard, ProductStats, SalesStats, StockStats } from '../api/statistics';
 import { AdminDashboardPage } from './AdminDashboardPage';
 
@@ -98,6 +99,18 @@ const stockStats: StockStats = {
   ],
 };
 
+const couponStats: CouponStats = {
+  period: productStats.period,
+  orders: { value: 2, previous: 0, changeBps: null },
+  share: { valueBps: 6667, previousBps: 0 },
+  saving: { value: eur(1490), previous: eur(0), changeBps: null },
+  revenue: { value: eur(7480), previous: eur(0), changeBps: null },
+  coupons: [
+    { code: 'SPRING10', orders: 1, saving: eur(500), revenue: eur(4490) },
+    { code: 'SHIPFREE', orders: 1, saving: eur(990), revenue: eur(2990) },
+  ],
+};
+
 const routes = [
   {
     path: '/admin',
@@ -122,6 +135,7 @@ function mockStats() {
       sales(url.searchParams.get('from') ?? '', url.searchParams.get('to') ?? ''),
     '/admin/stats/products': productStats,
     '/admin/stats/stock': stockStats,
+    '/admin/stats/coupons': couponStats,
   });
 }
 
@@ -161,6 +175,14 @@ describe('admin dashboard', () => {
     expect(screen.getByText('−5')).toBeInTheDocument();
     expect(screen.getByText('PW-2026-000042')).toBeInTheDocument();
     expect(screen.getByText('3 left')).toBeInTheDocument();
+
+    // Coupons: figures and revenue per code, as the server counted them.
+    const couponKpis = await screen.findByRole('list', { name: 'Coupon figures' });
+    expect(within(couponKpis).getByText('66.7%')).toBeInTheDocument();
+    expect(within(couponKpis).getByText('€14.90')).toBeInTheDocument();
+    expect(within(couponKpis).getByText('€74.80')).toBeInTheDocument();
+    expect(screen.getByText('SPRING10')).toBeInTheDocument();
+    expect(screen.getByText('1 order · saved €9.90')).toBeInTheDocument();
   });
 
   it('asks the server for the chosen period', async () => {

@@ -160,6 +160,10 @@ app:
     cart-write:
       capacity: 120
       period: PT1M
+    # Coupon codes entered per client IP (low, so codes cannot be found by trying).
+    cart-coupon:
+      capacity: 10
+      period: PT1M
     # Orders placed per customer.
     checkout-order:
       capacity: 10

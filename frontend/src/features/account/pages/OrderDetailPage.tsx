@@ -152,7 +152,7 @@ function OrderDetail({ order }: { order: Order }) {
               </li>
             ))}
           </ul>
-          <OrderTotalsList totals={order.totals} className="mt-6" />
+          <OrderTotalsList totals={order.totals} couponCode={order.couponCode} className="mt-6" />
 
           {order.customerNote && (
             <section className="mt-10">

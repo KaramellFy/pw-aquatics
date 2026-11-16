@@ -3,6 +3,7 @@ package com.pwaquatics.shop.order.application;
 import com.pwaquatics.shop.audit.application.AuditService;
 import com.pwaquatics.shop.cart.application.CartCheckout;
 import com.pwaquatics.shop.cart.application.CartLine;
+import com.pwaquatics.shop.cart.application.CheckoutCart;
 import com.pwaquatics.shop.catalog.application.CatalogLookup;
 import com.pwaquatics.shop.catalog.application.CatalogStock;
 import com.pwaquatics.shop.catalog.application.view.VariantSnapshot;
@@ -12,6 +13,10 @@ import com.pwaquatics.shop.common.error.ConflictException;
 import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.error.RateLimitedException;
 import com.pwaquatics.shop.common.money.Money;
+import com.pwaquatics.shop.coupon.application.Coupons;
+import com.pwaquatics.shop.coupon.application.view.CouponStateView;
+import com.pwaquatics.shop.coupon.application.view.CouponTerms;
+import com.pwaquatics.shop.coupon.domain.CouponProblem;
 import com.pwaquatics.shop.customer.application.AddressService;
 import com.pwaquatics.shop.customer.application.view.AddressView;
 import com.pwaquatics.shop.identity.application.AccountService;
@@ -31,6 +36,9 @@ import com.pwaquatics.shop.order.infrastructure.OrderRepository;
 import com.pwaquatics.shop.payment.application.BankTransferPayments;
 import com.pwaquatics.shop.payment.application.StripePayments;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
+import com.pwaquatics.shop.pricing.domain.Discount;
+import com.pwaquatics.shop.pricing.domain.DiscountOutcome;
+import com.pwaquatics.shop.pricing.domain.DiscountType;
 import com.pwaquatics.shop.pricing.domain.PriceCalculator;
 import com.pwaquatics.shop.pricing.domain.PricedLine;
 import com.pwaquatics.shop.pricing.domain.Totals;
@@ -57,15 +65,22 @@ import org.springframework.transaction.annotation.Transactional;
  * Checkout: shipping options, the price quote and placing the order (docs/API.md §2.5).
  *
  * <p>Nothing here trusts the client. A request names the customer's own address and a
- * shipping method; the items come from the server-side cart, and prices, tax rates, the
- * shipping price and availability from the database.
+ * shipping method; the items and the coupon come from the server-side cart, and prices, tax
+ * rates, the shipping price, the coupon's terms and availability from the database.
+ *
+ * <p>A coupon is priced like this everywhere: the discount is taken off the goods first; the
+ * goods value after the discount decides a shipping method's free-shipping threshold; a
+ * free-shipping coupon then waives the shipping price.
  */
 @Service
 public class CheckoutService {
 
     private static final String RATE_LIMIT = "checkout-order";
+    /** Stripe does not charge less than 0.50 EUR; smaller totals can only be paid by bank transfer. */
+    static final long CARD_MINIMUM_CENTS = 50;
 
     private final CartCheckout cart;
+    private final Coupons coupons;
     private final CatalogLookup catalog;
     private final CatalogStock stock;
     private final InventoryService inventory;
@@ -86,6 +101,7 @@ public class CheckoutService {
 
     CheckoutService(
             CartCheckout cart,
+            Coupons coupons,
             CatalogLookup catalog,
             CatalogStock stock,
             InventoryService inventory,
@@ -103,6 +119,7 @@ public class CheckoutService {
             AppProperties properties,
             Clock clock) {
         this.cart = cart;
+        this.coupons = coupons;
         this.catalog = catalog;
         this.stock = stock;
         this.inventory = inventory;
@@ -129,8 +146,19 @@ public class CheckoutService {
      */
     @Transactional
     public ShippingOptions shippingMethods(UUID userId, String countryCode) {
-        Basket basket = basket(cart.lockLines(userId));
-        return shipping.optionsFor(countryCode, basket.containsLiveAnimals(), basket.subtotalCents());
+        CheckoutCart checkoutCart = cart.lock(userId);
+        Basket basket = basket(checkoutCart.lines());
+        Priced goods = price(basket, coupon(checkoutCart, userId), 0);
+        ShippingOptions options = shipping.optionsFor(
+                countryCode, basket.containsLiveAnimals(), goods.totals().goodsAfterDiscount().amount());
+        if (!goods.freeShipping()) {
+            return options;
+        }
+        return new ShippingOptions(
+                options.methods().stream().map(method -> method.withPrice(Money.eur(0))).toList(),
+                options.paused(),
+                options.pauseMessage(),
+                options.pausedUntil());
     }
 
     /**
@@ -142,17 +170,24 @@ public class CheckoutService {
      */
     @Transactional
     public QuoteView quote(UUID userId, UUID shippingAddressId, String shippingMethodCode) {
-        Basket basket = basket(cart.lockLines(userId));
+        CheckoutCart checkoutCart = cart.lock(userId);
+        Basket basket = basket(checkoutCart.lines());
+        CouponTerms coupon = coupon(checkoutCart, userId);
         AddressView address = addresses.get(userId, shippingAddressId);
         ShippingOption method = shipping.require(
-                shippingMethodCode, address.countryCode(), basket.containsLiveAnimals(), basket.subtotalCents());
-        Totals totals = PriceCalculator.totals(basket.pricedLines(), method.price().amount());
+                shippingMethodCode,
+                address.countryCode(),
+                basket.containsLiveAnimals(),
+                price(basket, coupon, 0).totals().goodsAfterDiscount().amount());
+        Priced priced = price(basket, coupon, method.price().amount());
+        Totals totals = priced.totals();
         return new QuoteView(
                 basket.lines().stream().map(CheckoutService::quoteLine).toList(),
-                new OrderTotalsView(totals.subtotal(), totals.shipping(), totals.total(), totals.includedTax()),
-                method,
+                totalsView(totals),
+                priced.freeShipping() ? method.withPrice(totals.shipping()) : method,
                 basket.containsLiveAnimals(),
-                availablePaymentMethods());
+                availablePaymentMethods(totals.total()),
+                priced.couponState());
     }
 
     /**
@@ -168,7 +203,9 @@ public class CheckoutService {
      * @throws ConflictException {@code CART_EMPTY}, {@code CART_CHANGED}, {@code INSUFFICIENT_STOCK},
      *     {@code SHIPPING_PAUSED}, {@code SHIPPING_METHOD_UNAVAILABLE}, {@code PAYMENT_METHOD_UNAVAILABLE} or
      *     {@code PRICE_CHANGED}
-     * @throws BusinessRuleException {@code LIVE_ANIMAL_CONDITIONS_REQUIRED}
+     * @throws BusinessRuleException {@code LIVE_ANIMAL_CONDITIONS_REQUIRED}, {@code ORDER_TOTAL_ZERO}, or a
+     *     coupon problem ({@code COUPON_USAGE_LIMIT_REACHED}, {@code COUPON_EXPIRED}, …) when the coupon
+     *     in the cart stopped applying since the customer saw the total
      * @throws RateLimitedException too many orders in a short time
      */
     @Transactional
@@ -176,7 +213,8 @@ public class CheckoutService {
         rateLimiter.consume(RATE_LIMIT, userId.toString());
 
         // The cart lock queues this customer's checkout requests one after the other.
-        List<CartLine> cartLines = cart.lockLines(userId);
+        CheckoutCart checkoutCart = cart.lock(userId);
+        List<CartLine> cartLines = checkoutCart.lines();
         Optional<Order> earlier = orders.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
         if (earlier.isPresent()) {
             return views.placed(earlier.get());
@@ -188,6 +226,10 @@ public class CheckoutService {
         // From here on prices and stock of these products cannot change until we commit.
         stock.lockProductsOf(cartLines.stream().map(CartLine::variantId).toList());
         Basket basket = basket(cartLines);
+        // Lock order: cart → products → coupon. The coupon's counter cannot change until we commit.
+        CouponTerms coupon = checkoutCart.couponId() == null
+                ? null
+                : coupons.lockForOrder(checkoutCart.couponId(), userId).orElse(null);
 
         AddressView shippingAddress = addresses.get(userId, command.shippingAddressId());
         AddressView billingAddress = command.billingAddressId() == null
@@ -197,19 +239,28 @@ public class CheckoutService {
                 command.shippingMethodCode(),
                 shippingAddress.countryCode(),
                 basket.containsLiveAnimals(),
-                basket.subtotalCents());
-        if (!availablePaymentMethods().contains(command.paymentMethod())) {
+                price(basket, coupon, 0).totals().goodsAfterDiscount().amount());
+        Priced priced = price(basket, coupon, method.price().amount());
+        Totals totals = priced.totals();
+        if (!availablePaymentMethods(totals.total()).contains(command.paymentMethod())) {
             throw new ConflictException("PAYMENT_METHOD_UNAVAILABLE", "This payment method is not available.");
         }
         if (basket.containsLiveAnimals() && !command.acceptedLiveAnimalConditions()) {
             throw new BusinessRuleException(
                     "LIVE_ANIMAL_CONDITIONS_REQUIRED", "Please accept the conditions for shipping live animals.");
         }
-
-        Totals totals = PriceCalculator.totals(basket.pricedLines(), method.price().amount());
+        boolean couponApplied = totals.discountOutcome() == DiscountOutcome.APPLIED;
         if (!totals.total().equals(command.expectedTotal())) {
+            if (coupon != null && !couponApplied) {
+                // The coupon stopped applying since the quote (e.g. used up meanwhile): say so.
+                throw Coupons.problem(CouponProblem.ofCode(priced.couponState().problem()));
+            }
             throw new ConflictException(
                     "PRICE_CHANGED", "The total of your order has changed. Please check it before ordering.");
+        }
+        if (totals.total().amount() == 0) {
+            throw new BusinessRuleException(
+                    "ORDER_TOTAL_ZERO", "An order without anything to pay cannot be placed online. Please contact us.");
         }
 
         Instant now = clock.instant();
@@ -232,7 +283,9 @@ public class CheckoutService {
                         snapshot(billingAddress),
                         command.customerNote(),
                         idempotencyKey,
-                        paymentDueAt(command.paymentMethod(), now)),
+                        paymentDueAt(command.paymentMethod(), now),
+                        couponApplied ? coupon.discount() : null,
+                        couponApplied ? coupon.code() : null),
                 now);
         if (!order.total().equals(totals.total())) {
             throw new IllegalStateException("Order total differs from the quoted total");
@@ -241,10 +294,17 @@ public class CheckoutService {
 
         // Final guard against overselling: fails (and rolls everything back) if stock is short.
         inventory.reserveForOrder(order.getId(), order.stockUnitsByProduct());
+        if (couponApplied) {
+            coupons.redeem(coupon.id(), order.getId(), userId, totals.couponSaving());
+        }
         cart.clear(userId);
         outbox.enqueueEmail(emails.confirmation(order, views.paymentInstructions(order)));
-        audit.record(userId, "ORDER_PLACED", "ORDER", order.getId(), Map.of("orderNumber", order.getOrderNumber()),
-                clientIp);
+        Map<String, Object> details = new HashMap<>();
+        details.put("orderNumber", order.getOrderNumber());
+        if (couponApplied) {
+            details.put("couponCode", coupon.code());
+        }
+        audit.record(userId, "ORDER_PLACED", "ORDER", order.getId(), details, clientIp);
         return views.placed(order);
     }
 
@@ -260,12 +320,9 @@ public class CheckoutService {
                     .map(line -> new PricedLine(
                             line.variant().unitPrice().amount(),
                             line.cartLine().quantity(),
-                            line.variant().taxRateBps()))
+                            line.variant().taxRateBps(),
+                            !line.variant().reduced()))
                     .toList();
-        }
-
-        long subtotalCents() {
-            return PriceCalculator.totals(pricedLines()).subtotal().amount();
         }
 
         boolean containsLiveAnimals() {
@@ -306,15 +363,47 @@ public class CheckoutService {
         return new Basket(lines);
     }
 
+    /** The basket priced with its coupon (if any) and a shipping price. */
+    private record Priced(Totals totals, CouponTerms coupon) {
+
+        /** A free-shipping coupon applies (the shipping price is waived). */
+        boolean freeShipping() {
+            return totals.discountOutcome() == DiscountOutcome.APPLIED
+                    && coupon.discount().type() == DiscountType.FREE_SHIPPING;
+        }
+
+        CouponStateView couponState() {
+            return coupon == null ? null : Coupons.state(coupon, totals.discountOutcome(), totals.couponSaving());
+        }
+    }
+
+    private static Priced price(Basket basket, CouponTerms coupon, long shippingCents) {
+        Discount discount = coupon == null || coupon.problem() != null ? null : coupon.discount();
+        return new Priced(PriceCalculator.totals(basket.pricedLines(), shippingCents, discount), coupon);
+    }
+
+    /** The coupon the customer entered in the cart, or null (also when it has been deleted meanwhile). */
+    private CouponTerms coupon(CheckoutCart checkoutCart, UUID userId) {
+        return checkoutCart.couponId() == null ? null : coupons.byId(checkoutCart.couponId(), userId).orElse(null);
+    }
+
+    static OrderTotalsView totalsView(Totals totals) {
+        return new OrderTotalsView(
+                totals.subtotal(), totals.discount(), totals.shipping(), totals.total(), totals.includedTax());
+    }
+
     private static ConflictException cartChanged() {
         return new ConflictException(
                 "CART_CHANGED", "Some items in your cart are no longer available as requested. Please review your cart.");
     }
 
-    /** Card payment first (it is the quickest way to get the animals on their way), then bank transfer. */
-    private List<PaymentMethod> availablePaymentMethods() {
+    /**
+     * Card payment first (it is the quickest way to get the animals on their way), then bank
+     * transfer. Card payment needs at least Stripe's minimum charge.
+     */
+    private List<PaymentMethod> availablePaymentMethods(Money total) {
         List<PaymentMethod> methods = new ArrayList<>(2);
-        if (stripe.isAvailable()) {
+        if (stripe.isAvailable() && total.amount() >= CARD_MINIMUM_CENTS) {
             methods.add(PaymentMethod.STRIPE);
         }
         if (bankTransfer.isAvailable()) {
@@ -371,7 +460,8 @@ public class CheckoutService {
                 variant.packSize(),
                 variant.unitPrice().amount(),
                 line.cartLine().quantity(),
-                variant.taxRateBps());
+                variant.taxRateBps(),
+                !variant.reduced());
     }
 
     private static OrderAddress snapshot(AddressView address) {

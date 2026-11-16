@@ -68,6 +68,7 @@ function quoteOf(total: number): Quote {
     items: [line],
     totals: {
       subtotal: money(780),
+      discount: money(0),
       shipping: money(total - 780),
       total: money(total),
       includedTax: money(283),
@@ -75,6 +76,7 @@ function quoteOf(total: number): Quote {
     shippingMethod: dhl,
     containsLiveAnimals: true,
     paymentMethods: ['BANK_TRANSFER'],
+    coupon: null,
   };
 }
 
@@ -310,6 +312,54 @@ describe('CheckoutPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     expect(await screen.findByText(/Shipping of live animals is paused at the moment/)).toBeInTheDocument();
     expect(screen.getByText('Heat wave until further notice.')).toBeInTheDocument();
+  });
+
+  it('shows the coupon the server applied, and says why when it no longer applies', async () => {
+    const spring: NonNullable<Quote['coupon']> = {
+      code: 'SPRING10',
+      description: null,
+      type: 'PERCENTAGE',
+      percentage: 1000,
+      amount: null,
+      maxDiscount: null,
+      minOrder: money(500),
+      applied: true,
+      problem: null,
+      saving: money(78),
+    };
+    let quoteCoupon = spring;
+    api({
+      '/cart': {
+        ...cart,
+        totals: { ...cart.totals, discount: money(78), total: money(702) },
+        coupon: spring,
+      },
+      'POST /checkout/quote': () => {
+        const base = quoteOf(1692);
+        return quoteCoupon.applied
+          ? { ...base, totals: { ...base.totals, discount: money(78) }, coupon: quoteCoupon }
+          : { ...quoteOf(1770), coupon: quoteCoupon };
+      },
+    });
+    const first = renderRoutes(routes, { path: '/checkout' });
+    const summary = await screen.findByRole('region', { name: 'Your order' });
+    expect(await within(summary).findByText('Coupon SPRING10')).toBeInTheDocument();
+    expect(within(summary).getByText('−€0.78')).toBeInTheDocument();
+
+    await goToReview();
+    expect(within(summary).getByText('Coupon SPRING10')).toBeInTheDocument();
+    expect(within(summary).getByText('−€0.78')).toBeInTheDocument();
+    expect(within(summary).getByText('€16.92')).toBeInTheDocument();
+    first.unmount();
+
+    quoteCoupon = { ...spring, applied: false, problem: 'COUPON_MIN_ORDER_NOT_MET', saving: money(0) };
+    renderRoutes(routes, { path: '/checkout' });
+    await goToReview();
+    const later = screen.getByRole('region', { name: 'Your order' });
+    expect(within(later).queryByText('Coupon SPRING10')).not.toBeInTheDocument();
+    expect(within(later).getByText(/Your code SPRING10 is not applied/)).toHaveTextContent(
+      'Applies from an order value of €5.00.',
+    );
   });
 
   it('has nothing to check out with an empty cart', async () => {

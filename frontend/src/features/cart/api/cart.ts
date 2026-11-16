@@ -6,6 +6,7 @@ import type { Schemas } from '@/lib/api/types';
 export type Cart = Schemas['CartView'];
 export type CartLine = Schemas['CartLineView'];
 export type CartWarning = Schemas['CartWarningView'];
+export type CouponState = Schemas['CouponStateView'];
 
 /**
  * The cart as calculated by the server (prices, totals, availability). The UI never
@@ -47,4 +48,13 @@ export function useRemoveCartItem() {
 
 export function useClearCart() {
   return useCartMutation(() => api.delete<Cart>('/cart'));
+}
+
+/** Enters a coupon code. The server only accepts it if it reduces the cart right now. */
+export function useApplyCoupon() {
+  return useCartMutation((code: string) => api.put<Cart>('/cart/coupon', { code }));
+}
+
+export function useRemoveCoupon() {
+  return useCartMutation(() => api.delete<Cart>('/cart/coupon'));
 }

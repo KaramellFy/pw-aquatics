@@ -261,6 +261,18 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            path: 'coupons',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminCouponsPage')).AdminCouponsPage,
+            }),
+          },
+          {
+            path: 'coupons/:id',
+            lazy: async () => ({
+              Component: (await import('@/features/admin/pages/AdminCouponDetailPage')).AdminCouponDetailPage,
+            }),
+          },
+          {
             path: 'inbox',
             lazy: async () => ({
               Component: (await import('@/features/admin/pages/AdminInboxPage')).AdminInboxPage,

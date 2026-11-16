@@ -54,12 +54,22 @@ class OrderEmails {
         for (OrderItem item : order.getItems()) {
             body.append("  ").append(item.getQuantity()).append(" × ").append(item.getProductName())
                     .append(" – ").append(item.getVariantName())
-                    .append(": ").append(money(Money.eur(item.getLineTotalCents()), locale)).append('\n');
+                    .append(": ").append(money(Money.eur(item.grossLineTotalCents()), locale)).append('\n');
         }
         body.append('\n');
         body.append(german ? "Zwischensumme: " : "Subtotal: ").append(money(order.subtotal(), locale)).append('\n');
+        String coupon = order.getCouponCode();
+        boolean freeShippingCoupon = coupon != null && order.discount().amount() == 0;
+        if (coupon != null && !freeShippingCoupon) {
+            body.append(german ? "Gutschein " : "Coupon ").append(coupon).append(": −")
+                    .append(money(order.discount(), locale)).append('\n');
+        }
         body.append(german ? "Versand (" : "Shipping (").append(order.getShippingMethodName()).append("): ")
-                .append(money(order.shipping(), locale)).append('\n');
+                .append(money(order.shipping(), locale));
+        if (freeShippingCoupon) {
+            body.append(german ? " – kostenlos mit Gutschein " : " – free with coupon ").append(coupon);
+        }
+        body.append('\n');
         body.append(german ? "Gesamtsumme: " : "Total: ").append(money(order.total(), locale))
                 .append(german ? " (inkl. " : " (includes ").append(money(order.includedTax(), locale))
                 .append(german ? " MwSt.)\n\n" : " VAT)\n\n");

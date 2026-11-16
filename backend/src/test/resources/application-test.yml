@@ -29,6 +29,10 @@ app:
   security:
     max-failed-logins: 3
   rate-limits:
+    # Many tests enter coupons from the same address; the limit has its own test.
+    cart-coupon:
+      capacity: 200
+      period: PT1M
     login-email:
       capacity: 8
       period: PT15M

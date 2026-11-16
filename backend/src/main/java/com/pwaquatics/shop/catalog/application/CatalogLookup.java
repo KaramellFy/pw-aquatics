@@ -66,6 +66,7 @@ public class CatalogLookup {
                 variant.getSku(),
                 variant.getPackSize(),
                 variant.price(),
+                variant.compareAtPrice() != null,
                 product.getTaxRateBps(),
                 product.isLiveAnimal(),
                 purchasable,

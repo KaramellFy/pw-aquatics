@@ -15,7 +15,12 @@ import com.pwaquatics.shop.common.error.ConflictException;
 import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.ids.Ids;
 import com.pwaquatics.shop.common.money.Money;
+import com.pwaquatics.shop.coupon.application.Coupons;
+import com.pwaquatics.shop.coupon.application.view.CouponStateView;
+import com.pwaquatics.shop.coupon.application.view.CouponTerms;
+import com.pwaquatics.shop.coupon.domain.CouponProblem;
 import com.pwaquatics.shop.identity.domain.UserAnonymised;
+import com.pwaquatics.shop.pricing.domain.Discount;
 import com.pwaquatics.shop.pricing.domain.PriceCalculator;
 import com.pwaquatics.shop.pricing.domain.PricedLine;
 import com.pwaquatics.shop.pricing.domain.Totals;
@@ -41,6 +46,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>When a request carries both a login and a guest cart cookie (the visitor has just
  * signed in), the guest cart is merged into the customer's cart.
+ *
+ * <p>A cart can carry one coupon. Whether it reduces the cart is decided again on every call
+ * (dates, limits, minimum order value, reduced products), so the cart always shows the
+ * discount that would be given right now.
  */
 @Service
 public class CartService {
@@ -53,15 +62,19 @@ public class CartService {
     /** Hard cap for a merged line whose variant is currently unavailable. */
     private static final int MAX_QUANTITY = 20;
     private static final String RATE_LIMIT = "cart-write";
+    /** Entering coupon codes, per client IP: low, so codes cannot be guessed by trying. */
+    private static final String COUPON_RATE_LIMIT = "cart-coupon";
 
     private final CartRepository carts;
     private final CatalogLookup catalog;
+    private final Coupons coupons;
     private final RateLimiter rateLimiter;
     private final Clock clock;
 
-    CartService(CartRepository carts, CatalogLookup catalog, RateLimiter rateLimiter, Clock clock) {
+    CartService(CartRepository carts, CatalogLookup catalog, Coupons coupons, RateLimiter rateLimiter, Clock clock) {
         this.carts = carts;
         this.catalog = catalog;
+        this.coupons = coupons;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
     }
@@ -136,6 +149,48 @@ public class CartService {
         return result(resolved);
     }
 
+    /**
+     * Enters a coupon code, replacing one entered before. It is only accepted if it reduces
+     * the cart right now; a coupon that stops applying later (e.g. items removed) stays in the
+     * cart and is shown with the reason.
+     *
+     * @throws ConflictException {@code CART_EMPTY}
+     * @throws BusinessRuleException {@code COUPON_INVALID}, {@code COUPON_EXPIRED},
+     *     {@code COUPON_USAGE_LIMIT_REACHED}, {@code COUPON_ALREADY_USED},
+     *     {@code COUPON_MIN_ORDER_NOT_MET} or {@code COUPON_NOT_APPLICABLE}
+     */
+    @Transactional
+    public CartResult applyCoupon(CartOwner owner, String code, String clientIp) {
+        rateLimiter.consume(COUPON_RATE_LIMIT, clientIp);
+        Resolved resolved = resolve(owner, false);
+        Cart cart = resolved.cart();
+        if (cart == null || cart.getItems().isEmpty()) {
+            throw new ConflictException("CART_EMPTY", "Add something to your cart before entering a code.");
+        }
+        CouponTerms terms = coupons.byCode(code, owner.userId());
+        if (terms.problem() != null) {
+            throw Coupons.problem(terms.problem());
+        }
+        cart.applyCoupon(terms.id(), clock.instant());
+        CartResult result = result(resolved);
+        CouponStateView state = result.cart().coupon();
+        if (state == null || !state.applied()) {
+            // Rolls the transaction back, so the coupon is not attached.
+            throw Coupons.problem(state == null ? CouponProblem.INVALID : CouponProblem.ofCode(state.problem()));
+        }
+        return result;
+    }
+
+    @Transactional
+    public CartResult removeCoupon(CartOwner owner, String clientIp) {
+        rateLimiter.consume(RATE_LIMIT, clientIp);
+        Resolved resolved = resolve(owner, false);
+        if (resolved.cart() != null) {
+            resolved.cart().removeCoupon(clock.instant());
+        }
+        return result(resolved);
+    }
+
     /** Removes the cart of a deleted account (same transaction as the anonymisation). */
     @EventListener
     @Transactional
@@ -200,6 +255,10 @@ public class CartService {
             int cap = variant != null && variant.maxQuantity() > 0 ? variant.maxQuantity() : MAX_QUANTITY;
             into.put(guestItem.getVariantId(), Math.min(sum, cap), now);
         }
+        // A coupon entered as a guest comes along unless the customer's cart already has one.
+        if (into.getCouponId() == null && from.getCouponId() != null) {
+            into.applyCoupon(from.getCouponId(), now);
+        }
     }
 
     /** An item of someone else's cart is simply "not found". */
@@ -256,7 +315,7 @@ public class CartService {
     private CartView toView(Cart cart) {
         if (cart == null || cart.getItems().isEmpty()) {
             Totals empty = PriceCalculator.totals(List.of());
-            return new CartView(List.of(), totalsView(empty), 0, List.of());
+            return new CartView(List.of(), totalsView(empty), 0, List.of(), null);
         }
         Instant now = clock.instant();
         Map<UUID, VariantSnapshot> variants =
@@ -295,8 +354,8 @@ public class CartService {
         for (CheckedLine line : checked) {
             CartItem item = line.item();
             VariantSnapshot variant = line.variant();
-            PricedLine pricedLine =
-                    new PricedLine(variant.unitPrice().amount(), item.getQuantity(), variant.taxRateBps());
+            PricedLine pricedLine = new PricedLine(
+                    variant.unitPrice().amount(), item.getQuantity(), variant.taxRateBps(), !variant.reduced());
             int maxQuantity = 0;
             if (line.available()) {
                 priced.add(pricedLine);
@@ -322,12 +381,19 @@ public class CartService {
                     Money.eur(pricedLine.totalCents()),
                     line.available()));
         }
-        return new CartView(lines, totalsView(PriceCalculator.totals(priced)), itemCount, warnings);
+        CouponTerms coupon = cart.getCouponId() == null
+                ? null
+                : coupons.byId(cart.getCouponId(), cart.getUserId()).orElse(null);
+        Discount discount = coupon == null || coupon.problem() != null ? null : coupon.discount();
+        Totals totals = PriceCalculator.totals(priced, 0, discount);
+        CouponStateView couponState =
+                coupon == null ? null : Coupons.state(coupon, totals.discountOutcome(), totals.discount());
+        return new CartView(lines, totalsView(totals), itemCount, warnings, couponState);
     }
 
     private record CheckedLine(CartItem item, VariantSnapshot variant, boolean available) {}
 
     private static CartTotalsView totalsView(Totals totals) {
-        return new CartTotalsView(totals.subtotal(), totals.total(), totals.includedTax());
+        return new CartTotalsView(totals.subtotal(), totals.discount(), totals.total(), totals.includedTax());
     }
 }

@@ -193,7 +193,9 @@ export function CheckoutPage() {
             <CheckoutSummary
               lines={quote.data?.items ?? cart.data.items.filter((line) => line.available)}
               subtotal={cart.data.totals.subtotal}
+              discount={cart.data.totals.discount}
               totals={step === 'review' ? quote.data?.totals : undefined}
+              coupon={step === 'review' && quote.data ? quote.data.coupon : cart.data.coupon}
             />
           </div>
         </div>

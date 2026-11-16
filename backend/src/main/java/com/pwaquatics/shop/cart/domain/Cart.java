@@ -44,6 +44,10 @@ public class Cart extends AbstractEntity {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    /** The coupon the visitor entered, if any (one per cart). */
+    @Column(name = "coupon_id")
+    private UUID couponId;
+
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt ASC, id ASC")
     private List<CartItem> items = new ArrayList<>();
@@ -89,8 +93,21 @@ public class Cart extends AbstractEntity {
         touch(now);
     }
 
+    /** Removes all lines and the coupon (also after the order has been placed). */
     public void clear(Instant now) {
         items.clear();
+        couponId = null;
+        touch(now);
+    }
+
+    /** Attaches a coupon, replacing the one entered before (one coupon per order). */
+    public void applyCoupon(UUID couponId, Instant now) {
+        this.couponId = couponId;
+        touch(now);
+    }
+
+    public void removeCoupon(Instant now) {
+        couponId = null;
         touch(now);
     }
 
@@ -108,6 +125,10 @@ public class Cart extends AbstractEntity {
 
     public List<CartItem> getItems() {
         return items;
+    }
+
+    public UUID getCouponId() {
+        return couponId;
     }
 
     public Instant getExpiresAt() {

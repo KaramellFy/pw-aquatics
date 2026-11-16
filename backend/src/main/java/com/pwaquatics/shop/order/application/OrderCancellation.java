@@ -1,6 +1,7 @@
 package com.pwaquatics.shop.order.application;
 
 import com.pwaquatics.shop.common.error.ConflictException;
+import com.pwaquatics.shop.coupon.application.Coupons;
 import com.pwaquatics.shop.inventory.application.InventoryService;
 import com.pwaquatics.shop.notification.application.OutboxService;
 import com.pwaquatics.shop.order.domain.Order;
@@ -15,22 +16,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Cancels an unshipped order: stops an open card payment, changes the status, puts the animals
- * back into stock and emails the customer — all in the caller's transaction. The caller must
- * hold the lock on the order.
+ * back into stock, gives a used coupon back and emails the customer — all in the caller's
+ * transaction. The caller must hold the lock on the order.
  */
 @Component
 class OrderCancellation {
 
     private final StripePayments stripe;
     private final InventoryService inventory;
+    private final Coupons coupons;
     private final OutboxService outbox;
     private final OrderEmails emails;
     private final Clock clock;
 
     OrderCancellation(
-            StripePayments stripe, InventoryService inventory, OutboxService outbox, OrderEmails emails, Clock clock) {
+            StripePayments stripe,
+            InventoryService inventory,
+            Coupons coupons,
+            OutboxService outbox,
+            OrderEmails emails,
+            Clock clock) {
         this.stripe = stripe;
         this.inventory = inventory;
+        this.coupons = coupons;
         this.outbox = outbox;
         this.emails = emails;
         this.clock = clock;
@@ -62,6 +70,7 @@ class OrderCancellation {
         if (restock) {
             inventory.releaseForOrder(order.getId(), order.stockUnitsByProduct());
         }
+        coupons.release(order.getId());
         if (notify) {
             outbox.enqueueEmail(emails.cancelledByShop(order, customerMessage));
         }
@@ -84,6 +93,7 @@ class OrderCancellation {
         }
         order.cancel(reason, changedBy, clock.instant());
         inventory.releaseForOrder(order.getId(), order.stockUnitsByProduct());
+        coupons.release(order.getId());
         outbox.enqueueEmail(emails.cancelled(order, paymentMissed));
         return true;
     }

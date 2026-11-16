@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -108,6 +109,29 @@ class CartController {
             HttpServletResponse response) {
         CartOwner owner = owner(principal, token);
         return respond(cartService.clear(owner, http.getRemoteAddr()), owner, true, response);
+    }
+
+    @Operation(summary = "Enter a coupon code (replaces one entered before)")
+    @PutMapping("/coupon")
+    CartView applyCoupon(
+            @AuthenticationPrincipal ShopUserPrincipal principal,
+            @CookieValue(name = COOKIE, required = false) String token,
+            @Valid @RequestBody ApplyCouponRequest request,
+            HttpServletRequest http,
+            HttpServletResponse response) {
+        CartOwner owner = owner(principal, token);
+        return respond(cartService.applyCoupon(owner, request.code(), http.getRemoteAddr()), owner, true, response);
+    }
+
+    @Operation(summary = "Remove the coupon")
+    @DeleteMapping("/coupon")
+    CartView removeCoupon(
+            @AuthenticationPrincipal ShopUserPrincipal principal,
+            @CookieValue(name = COOKIE, required = false) String token,
+            HttpServletRequest http,
+            HttpServletResponse response) {
+        CartOwner owner = owner(principal, token);
+        return respond(cartService.removeCoupon(owner, http.getRemoteAddr()), owner, true, response);
     }
 
     private static CartOwner owner(ShopUserPrincipal principal, String token) {

@@ -1,6 +1,7 @@
 package com.pwaquatics.shop.admin.api;
 
 import com.pwaquatics.shop.admin.application.AdminStatisticsService;
+import com.pwaquatics.shop.admin.application.view.CouponStatsView;
 import com.pwaquatics.shop.admin.application.view.DashboardView;
 import com.pwaquatics.shop.admin.application.view.ProductStatsView;
 import com.pwaquatics.shop.admin.application.view.SalesStatsView;
@@ -63,6 +64,15 @@ class AdminStatisticsController {
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
         LocalDate end = to != null ? to : statistics.today();
         return statistics.products(from != null ? from : defaultFrom(end), end, limit);
+    }
+
+    @Operation(summary = "Orders with coupons, what the coupons saved customers and those orders' revenue")
+    @GetMapping("/stats/coupons")
+    CouponStatsView coupons(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        LocalDate end = to != null ? to : statistics.today();
+        return statistics.coupons(from != null ? from : defaultFrom(end), end);
     }
 
     @Operation(summary = "Restocks, sales and losses from the stock ledger")

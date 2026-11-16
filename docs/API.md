@@ -79,8 +79,8 @@ stable `code` the frontend can switch on:
 | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS` |
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
-| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `COUPON_IN_USE`, `CONFLICT` (optimistic lock), `DUPLICATE` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
@@ -259,9 +259,9 @@ object is always present (marked `required` in OpenAPI); properties that can be
 | POST | `/cart/items` | `{ variantId, quantity }` | Add packs (on top of an existing line). Creates the cart if needed |
 | PATCH | `/cart/items/{itemId}` | `{ quantity }` | Set the quantity of a line |
 | DELETE | `/cart/items/{itemId}` | — | Remove a line |
-| DELETE | `/cart` | — | Empty the cart |
-
-`PUT /cart/coupon` and `DELETE /cart/coupon` follow with coupons (Phase 8).
+| DELETE | `/cart` | — | Empty the cart (and remove its coupon) |
+| PUT | `/cart/coupon` | `{ code }` | Enter a coupon code (replaces one entered before) |
+| DELETE | `/cart/coupon` | — | Remove the coupon |
 
 **Who owns the cart**
 
@@ -312,21 +312,63 @@ Every call returns the full, recalculated cart:
   ],
   "totals": {
     "subtotal":    { "amount": 1170, "currency": "EUR" },
-    "total":       { "amount": 1170, "currency": "EUR" },
-    "includedTax": { "amount": 187,  "currency": "EUR" }
+    "discount":    { "amount": 117,  "currency": "EUR" },
+    "total":       { "amount": 1053, "currency": "EUR" },
+    "includedTax": { "amount": 168,  "currency": "EUR" }
   },
   "itemCount": 3,
   "warnings": [
     { "code": "QUANTITY_REDUCED", "itemId": "0193…c1", "productName": "Blue Dream", "quantity": 3 }
-  ]
+  ],
+  "coupon": {
+    "code": "SPRING10",
+    "description": "Spring sale",
+    "type": "PERCENTAGE",
+    "percentage": 1000,
+    "amount": null,
+    "maxDiscount": null,
+    "minOrder": null,
+    "applied": true,
+    "problem": null,
+    "saving": { "amount": 117, "currency": "EUR" }
+  }
 }
 ```
 
-`itemCount` is the number of packs in available lines (header badge). `total`
-equals `subtotal` until shipping and coupons exist. Warning codes:
+`itemCount` is the number of packs in available lines (header badge). The cart has no
+shipping yet, so `total` is `subtotal − discount`. Warning codes:
 `QUANTITY_REDUCED`, `ITEM_UNAVAILABLE`, `ITEM_REMOVED`. A changed price needs no
 warning here because the cart always shows the current price; the checkout
 compares the total the customer saw with the server's (`PRICE_CHANGED`, Phase 5).
+
+**Coupons**
+
+A cart carries at most one coupon (one code per order). `coupon` is `null` without one.
+
+- `PUT /cart/coupon` accepts a code (`code` 1–40 characters, any letter case) only if it
+  reduces the cart right now; an empty cart → `409 CART_EMPTY`; otherwise `422` with the
+  reason and the cart keeps its previous coupon: `COUPON_INVALID` (unknown, switched off or not started yet),
+  `COUPON_EXPIRED`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED` (signed-in
+  customer reached the per-customer limit), `COUPON_MIN_ORDER_NOT_MET`,
+  `COUPON_NOT_APPLICABLE` (only reduced products in the cart). Rate limit `cart-coupon` (§5).
+- A coupon that stops applying later (items removed, expired, used up) **stays** in the
+  cart with `applied: false` and `problem` set to one of the codes above, so the customer
+  sees why; `discount` is then `0`. It applies again once the reason is gone (e.g. more
+  items added).
+- Coupon fields: `type` `PERCENTAGE` (`percentage` in basis points, 1000 = 10 %),
+  `FIXED_AMOUNT` (`amount`) or `FREE_SHIPPING`; `maxDiscount` caps a percentage; `minOrder`
+  is the goods value (before the discount) needed; `saving` is what the coupon saves on
+  this cart. A free-shipping coupon saves nothing in the cart (`discount` 0) — the
+  shipping price is waived at checkout.
+- How the discount is calculated (all in `pricing.PriceCalculator`, whole cents): it
+  applies to the goods only, never to lines that are already reduced (a variant with a
+  compare-at price); a percentage is rounded half-up and capped by `maxDiscount`; a fixed
+  amount never exceeds the eligible goods. The discount is split over the eligible lines in
+  proportion to their value (largest remainder), and the VAT of each rate is calculated on
+  the reduced amounts.
+- Coupons apply to the whole shop (no restriction to categories or products yet).
+- After signing in, a guest's coupon comes along unless the account's cart already has one.
+  The per-customer limit is checked as soon as the customer is known.
 
 ### 2.5 Checkout — `/api/v1/checkout` (customer)
 
@@ -369,7 +411,9 @@ back to the cart, which shows what changed (§2.4).
 
 - Only methods that deliver to the country and may carry the cart (live animals need a
   method that allows them). No method → `methods` is empty.
-- `price` is `0` once the goods value reaches the method's `freeFrom` threshold.
+- `price` is `0` once the goods value (after a coupon discount) reaches the method's
+  `freeFrom` threshold, and for every method while the cart has a free-shipping coupon
+  that applies.
 - `plannedDispatchDate` is the **earliest** dispatch day: the first dispatch weekday of
   the method that is at least `SHIPPING_HANDLING_DAYS` (default 1) after today, in the
   shop's time zone. Public holidays are not considered yet.
@@ -384,10 +428,15 @@ back to the cart, which shows what changed (§2.4).
 ```
 
 Response: `items` (cart lines with current names, prices and `lineTotal`), `totals`
-(`subtotal`, `shipping`, `total`, `includedTax`), the chosen `shippingMethod` (as above),
-`containsLiveAnimals` and the `paymentMethods` that can be used right now, card first:
-`STRIPE` while the Stripe account is configured, `BANK_TRANSFER` while the shop's bank
-account is (e.g. `["STRIPE", "BANK_TRANSFER"]`; empty when neither is).
+(`subtotal`, `discount`, `shipping`, `total`, `includedTax`), the chosen `shippingMethod`
+(as above), `containsLiveAnimals`, the cart's `coupon` (as in §2.4, or `null`) and the
+`paymentMethods` that can be used right now, card first: `STRIPE` while the Stripe account
+is configured and the total is at least €0.50 (Stripe's minimum), `BANK_TRANSFER` while the
+shop's bank account is (e.g. `["STRIPE", "BANK_TRANSFER"]`; empty when neither is).
+
+Coupon order of calculation: the discount comes off the goods first; the goods value after
+the discount decides `freeFrom` thresholds; a free-shipping coupon then waives the shipping
+price (`shipping` 0, its `saving` is the waived price). `total` = `subtotal − discount + shipping`.
 Another customer's address → `404`; a method that does not fit → `409 SHIPPING_METHOD_UNAVAILABLE`.
 
 **`POST /checkout/orders`**
@@ -413,12 +462,19 @@ Another customer's address → `404`; a method that does not fit → `409 SHIPPI
 - `expectedTotal` is **not** used for pricing. If it differs from the server's total the
   request fails with `409 PRICE_CHANGED`, so nobody pays an amount they have not seen.
 - Unknown fields such as items or prices are ignored.
+- The coupon comes from the cart, never from the request. If it stopped applying since the
+  quote (e.g. the last use was taken meanwhile), the request fails with that coupon's code
+  (`422 COUPON_USAGE_LIMIT_REACHED`, `COUPON_EXPIRED`, …) instead of `PRICE_CHANGED`, and
+  the cart shows the coupon with its `problem`.
 - Other refusals: `409 PAYMENT_METHOD_UNAVAILABLE`, `409 INSUFFICIENT_STOCK` (final
-  guard while taking the stock), `429 RATE_LIMITED`.
+  guard while taking the stock), `422 ORDER_TOTAL_ZERO` (nothing to pay, e.g. a coupon
+  covering everything; such orders are taken by the shop directly), `429 RATE_LIMITED`.
 
-In one transaction the server locks the cart and the products, checks everything
-again, takes the animals out of stock, stores the order with snapshots of items, prices
-and addresses, empties the cart and queues the confirmation email (for card payment it
+In one transaction the server locks the cart, the products and then the coupon, checks
+everything again, takes the animals out of stock, stores the order with snapshots of items,
+prices, discount, coupon code and addresses, records the coupon's use (a conditional
+update of its counter, so the last use cannot be taken twice), empties the cart and queues
+the confirmation email (for card payment it
 contains the link to the payment page and the deadline; for bank transfer, the bank details).
 
 `201 Created`:
@@ -486,7 +542,9 @@ Another customer's order → `404`; a malformed order number → `400`.
 **Order detail:** `orderNumber`, `status`, `paymentStatus`, `paymentMethod`, `placedAt`,
 `paymentDueAt`, `plannedDispatchDate`, `items` (`sku`, `productName`, `variantName`,
 `speciesName`, `gradeName`, `quantity`, `unitPrice`, `lineTotal` — all snapshots from the
-purchase), `totals`, `shippingMethodName`, `shippingCarrier`, `shippingAddress`,
+purchase; `lineTotal` is before the coupon discount), `totals` (`subtotal`, `discount`,
+`shipping`, `total`, `includedTax`), `couponCode` (the code used, or `null`),
+`shippingMethodName`, `shippingCarrier`, `shippingAddress`,
 `billingAddress`, `customerNote`, `containsLiveAnimals`, `statusTimeline`,
 `paymentInstructions` (only while the order waits for a bank transfer, otherwise `null`),
 `cancellable` (whether the customer may cancel right now) and `payableByCard` (whether
@@ -596,8 +654,7 @@ Every write is recorded in the audit log.
 
 ### 3.1 Dashboard and statistics
 
-Built ahead of Phase 8 (coupon statistics follow with coupons). Read only; implemented as a
-read model in the `admin` module.
+Read only; implemented as a read model in the `admin` module.
 
 **Periods.** `from` and `to` are ISO dates, both inclusive, on the shop's calendar
 (Europe/Berlin). Without them the last 30 days up to today are used. A period may be at most
@@ -620,6 +677,7 @@ server (half-up rounding); the admin pages only format them.
 | GET | `/admin/stats/sales?from=&to=` | `kpis` (revenue, paidRevenue, orders, averageOrderValue, animalsSold, newAccounts — customer accounts registered —, returningCustomerShare — share of sales from emails that had ordered before —, cancelledOrders, cancellationRate — of all orders placed), each with `previous` and `changeBps`; `series` without gaps (per bucket: revenue, orders and animals, total and split into paid / awaiting payment); `byStatus` (all orders placed, by current status); `byWeekday` (sales, Monday = 1, all seven days); `byCountry` (sales by delivery country) |
 | GET | `/admin/stats/products?from=&to=&limit=10` | `topProducts` (best sellers by revenue: current name and grade, units, packs; `limit` 1–50), `byCategory` (current category of the product), `bySpecies` (species stored with the sale; `name: null` for lines without a species) |
 | GET | `/admin/stats/stock?from=&to=` | From the stock ledger: `restocked`, `sold` (order movements net of cancellations), `lost`, `lossRate` (lost ÷ (sold + lost)), each compared with the period before; `byReason` (net change per reason, largest first) |
+| GET | `/admin/stats/coupons?from=&to=` | Sales that used a coupon: `orders`, `share` (of all sales), `saving` (discounts plus waived shipping, as recorded with each redemption), `revenue` (order totals), each compared with the period before; `coupons` (per code: orders, saving, revenue; highest revenue first). Uses the code stored with the order, so renamed or deleted coupons keep their history |
 | GET | `/admin/stats/sales/export?from=&to=` | CSV download (`text/csv`, UTF-8, CRLF), one row per day of the period including empty days: `date, orders, paid_orders, revenue_gross_eur, vat_eur, shipping_eur, revenue_net_eur, animals`. Contains no personal data |
 
 ### 3.2 Products
@@ -744,13 +802,54 @@ URL containing `{trackingNumber}`); DHL and DHL Express are preset.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/admin/coupons?active=&q=` | List |
-| POST | `/admin/coupons` | Create |
-| GET | `/admin/coupons/{id}` | Detail incl. usage counters |
-| PUT | `/admin/coupons/{id}` | Update (with `version`) |
-| POST | `/admin/coupons/{id}/deactivate` | Deactivate (coupons with redemptions are never deleted) |
-| DELETE | `/admin/coupons/{id}` | Only if never redeemed |
-| GET | `/admin/coupons/{id}/redemptions` | Paged redemptions |
+| GET | `/admin/coupons?q=&status=` | All coupons, newest first (`q`: part of the code or note; `status` as below) |
+| POST | `/admin/coupons` | Create → `201` |
+| GET | `/admin/coupons/{id}` | One coupon |
+| PUT | `/admin/coupons/{id}` | Update; requires the `version` that was edited (missing → `400`, stale → `409 CONFLICT`). Switching on/off is an update of `active` |
+| DELETE | `/admin/coupons/{id}` | Delete a coupon no order has used (`204`; it is taken out of carts). Used → `409 COUPON_IN_USE` — switch it off instead |
+| GET | `/admin/coupons/{id}/usage` | Orders that used it and count as sales (§3.1): `orders`, `saving`, `revenue` |
+| GET | `/admin/coupons/{id}/redemptions?page=&size=20` | Paged, newest first: `orderNumber`, `placedAt`, `customerName` (billing name), `orderStatus`, `orderTotal`, `saving`, `released` (the order was cancelled and the use given back) |
+
+**Request** (`POST`, `PUT`):
+
+```json
+{
+  "code": "SPRING10",
+  "description": "Spring sale",
+  "type": "PERCENTAGE",
+  "value": 1250,
+  "minOrderCents": 3000,
+  "maxDiscountCents": 2000,
+  "startsOn": "2027-03-01",
+  "endsOn": "2027-03-31",
+  "usageLimitTotal": 100,
+  "usageLimitPerCustomer": 1,
+  "active": true,
+  "version": 0
+}
+```
+
+- `code`: 3–32 of `A–Z 0–9 _ -`, starting with a letter or digit; stored in upper case and
+  compared case-insensitively; unique (`409 CODE_TAKEN`). It cannot be changed after
+  creation (ignored on `PUT`).
+- `value`: basis points for `PERCENTAGE` (1–10 000), cents for `FIXED_AMOUNT` (≥ 1), `0`
+  for `FREE_SHIPPING`. `maxDiscountCents` only for percentages. A value or cap that does
+  not fit the type → `422 COUPON_VALUE_INVALID`.
+- `minOrderCents` (optional, default 0): goods value before the discount, without shipping.
+- `startsOn`/`endsOn` (optional): shop calendar days, both inclusive (stored as the start of
+  the first day and the start of the day after the last, Europe/Berlin); `endsOn` before
+  `startsOn` → `422 RANGE_INVALID`.
+- `usageLimitTotal` (1–1 000 000) and `usageLimitPerCustomer` (1–1 000) are optional
+  (`null` = unlimited).
+
+**Response** (`AdminCouponView`): the fields above as `percentage`/`amount`/`maxDiscount`/
+`minOrder` (Money), plus `id`, `timesRedeemed`, `status`, `createdAt`, `updatedAt`,
+`version`. `status` is decided by the server: `INACTIVE` (switched off), `EXPIRED`,
+`SCHEDULED` (not started), `USED_UP` (total limit reached) or `ACTIVE`, in that order.
+
+Every write is recorded in the audit log (`COUPON_CREATED`, `COUPON_UPDATED`,
+`COUPON_DELETED`). Cancelling an order (customer, owner or expiry) gives its coupon use
+back: the redemption is kept with `released` and the counter goes down.
 
 ### 3.7 Customers, content, settings
 
@@ -802,7 +901,7 @@ calculated on the server.
 | `POST /contact` | 3/hour per IP |
 | Password confirmations (`/account/password`, `/account/email`, `DELETE /account`) | 10 per 15 min per user |
 | Cart changes (`POST`/`PATCH`/`DELETE /cart…`) | 120/min per IP |
-| `PUT /cart/coupon` | 10/min per session |
+| `PUT /cart/coupon` | 10/min per IP (so codes cannot be guessed by trying) |
 | `POST /checkout/orders` | 10/min per user |
 | `POST /account/orders/{orderNumber}/cancel` | 10/min per user |
 | `POST /payments/stripe/intents` | 20/min per user |

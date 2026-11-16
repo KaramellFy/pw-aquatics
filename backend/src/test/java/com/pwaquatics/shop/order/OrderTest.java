@@ -16,6 +16,8 @@ import com.pwaquatics.shop.order.domain.PaymentStatus;
 import com.pwaquatics.shop.order.domain.Shipment;
 import com.pwaquatics.shop.order.domain.ShipmentData;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
+import com.pwaquatics.shop.pricing.domain.Discount;
+import com.pwaquatics.shop.pricing.domain.DiscountType;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -220,6 +222,48 @@ class OrderTest {
         assertThat(OrderNumber.of(2027, 123)).isEqualTo("PW-2027-000123");
         assertThat(OrderNumber.of(2027, 1_234_567)).isEqualTo("PW-2027-1234567");
         assertThatThrownBy(() -> OrderNumber.of(2027, 0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aCouponIsSplitOverTheLinesAndKeptWithTheOrder() {
+        NewOrder plain = data(List.of(
+                item(PRODUCT_A, "A-1", 1, 300, 3, true),
+                new NewOrderItem(PRODUCT_B, UUID.randomUUID(), "B-1", "Product B", "1 animal", null, null, false, 1,
+                        500, 2, 1900, false)));
+        NewOrder withCoupon = new NewOrder(plain.orderNumber(), plain.userId(), plain.customerEmail(),
+                plain.customerLocale(), plain.paymentMethod(), plain.items(), plain.shippingCents(),
+                plain.shippingMethodCode(), plain.shippingMethodName(), plain.shippingCarrier(),
+                plain.plannedDispatchDate(), plain.shippingAddress(), plain.billingAddress(), plain.customerNote(),
+                plain.idempotencyKey(), plain.paymentDueAt(),
+                new Discount(DiscountType.PERCENTAGE, 1000, null, 0), "SPRING10");
+
+        Order order = Order.place(withCoupon, NOW);
+
+        // 10 % of the 9.00 that may be discounted; the reduced 10.00 line keeps its price.
+        assertThat(order.subtotal().amount()).isEqualTo(1900);
+        assertThat(order.discount().amount()).isEqualTo(90);
+        assertThat(order.total().amount()).isEqualTo(1900 - 90 + 990);
+        assertThat(order.getCouponCode()).isEqualTo("SPRING10");
+        assertThat(order.getItems()).extracting("discountCents").containsExactly(90L, 0L);
+        assertThat(order.getItems()).extracting("lineTotalCents").containsExactly(810L, 1000L);
+        assertThat(order.getItems().getFirst().grossLineTotalCents()).isEqualTo(900);
+    }
+
+    @Test
+    void aCouponThatDoesNotApplyIsNotRecorded() {
+        NewOrder plain = data(List.of(item(PRODUCT_A, "A-1", 1, 300, 3, true)));
+        NewOrder withCoupon = new NewOrder(plain.orderNumber(), plain.userId(), plain.customerEmail(),
+                plain.customerLocale(), plain.paymentMethod(), plain.items(), plain.shippingCents(),
+                plain.shippingMethodCode(), plain.shippingMethodName(), plain.shippingCarrier(),
+                plain.plannedDispatchDate(), plain.shippingAddress(), plain.billingAddress(), plain.customerNote(),
+                plain.idempotencyKey(), plain.paymentDueAt(),
+                new Discount(DiscountType.FIXED_AMOUNT, 500, null, 5000), "BIG5");
+
+        Order order = Order.place(withCoupon, NOW);
+
+        assertThat(order.getCouponCode()).isNull();
+        assertThat(order.discount().amount()).isZero();
+        assertThat(order.total().amount()).isEqualTo(900 + 990);
     }
 
     @Test

@@ -15,6 +15,7 @@ import {
   type MoneyKpi,
   type ShareKpi,
 } from '../api/statistics';
+import { useCouponStats } from '../api/coupons';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { LoadState } from '../components/LoadState';
 import { KpiTile } from '../components/charts/KpiTile';
@@ -22,6 +23,7 @@ import {
   OrdersByStatus,
   OrdersByWeekday,
   RevenueByCountry,
+  RevenueByCoupon,
   RevenueByGroup,
   StockMovements,
   TopProducts,
@@ -47,6 +49,7 @@ export function AdminDashboardPage() {
   const sales = useSalesStats(period);
   const products = useProductStats(period);
   const stock = useStockStats(period);
+  const coupons = useCouponStats(period);
 
   const money = (kpi: MoneyKpi) => ({
     value: formatMoney(kpi.value, locale),
@@ -200,6 +203,40 @@ export function AdminDashboardPage() {
           {salesData && <OrdersByStatus stats={salesData} dimmed={sales.isPlaceholderData} />}
         </div>
       </section>
+
+      {coupons.data && (
+        <section aria-labelledby="coupons-title" className="mt-12 space-y-6">
+          <h2 id="coupons-title" className="text-title">
+            {t('admin.dashboard.coupons.title')}
+          </h2>
+          <ul
+            aria-label={t('admin.dashboard.coupons.kpiLabel')}
+            className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
+          >
+            <li>
+              <KpiTile label={t('admin.dashboard.coupons.orders')} {...count(coupons.data.orders)} />
+            </li>
+            <li>
+              <KpiTile
+                label={t('admin.dashboard.coupons.share')}
+                hint={t('admin.dashboard.coupons.shareHint')}
+                {...share(coupons.data.share)}
+              />
+            </li>
+            <li>
+              <KpiTile
+                label={t('admin.dashboard.coupons.saving')}
+                hint={t('admin.dashboard.coupons.savingHint')}
+                {...money(coupons.data.saving)}
+              />
+            </li>
+            <li>
+              <KpiTile label={t('admin.dashboard.coupons.revenue')} {...money(coupons.data.revenue)} />
+            </li>
+          </ul>
+          <RevenueByCoupon stats={coupons.data} dimmed={coupons.isPlaceholderData} />
+        </section>
+      )}
 
       <section aria-labelledby="stock-title" className="mt-12 space-y-6">
         <h2 id="stock-title" className="text-title">

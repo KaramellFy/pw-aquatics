@@ -17,7 +17,19 @@ import { OptionCard } from './OptionCard';
 import { ShippingDates } from './ShippingStep';
 
 /** Errors after which the customer has to look at the cart again. */
-const CART_ERRORS = ['CART_CHANGED', 'CART_EMPTY', 'INSUFFICIENT_STOCK', 'PRODUCT_UNAVAILABLE'];
+/** Problems the customer solves in the cart (items, or the coupon entered there). */
+const CART_ERRORS = [
+  'CART_CHANGED',
+  'CART_EMPTY',
+  'INSUFFICIENT_STOCK',
+  'PRODUCT_UNAVAILABLE',
+  'COUPON_INVALID',
+  'COUPON_EXPIRED',
+  'COUPON_USAGE_LIMIT_REACHED',
+  'COUPON_ALREADY_USED',
+  'COUPON_MIN_ORDER_NOT_MET',
+  'COUPON_NOT_APPLICABLE',
+];
 const FIELDS = ['customerNote', 'acceptedTerms', 'acceptedLiveAnimalConditions'] as const;
 const LEGAL_LINK = 'text-brand-700 underline underline-offset-4';
 

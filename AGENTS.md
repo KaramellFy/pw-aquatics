@@ -57,10 +57,14 @@ and some species may not be traded legally.
   Element (`/checkout/pay/:orderNumber`), PaymentIntents from the stored total
   (`POST /api/v1/payments/stripe/intents`), signed and idempotent webhook
   (`POST /api/v1/webhooks/stripe`), 60-minute expiry of unpaid card orders. PayPal follows.
-- **Dashboard & statistics** (from Phase 8, built early) are built end to end: the admin start
-  page with key figures, charts and CSV export, served by the read model in the `admin`
-  module (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Coupon statistics follow
-  with coupons.
+- **Phase 8 (coupons & statistics)** is built end to end: coupon field in the cart
+  (`PUT`/`DELETE /api/v1/cart/coupon`), discount in the quote, order, emails and order pages,
+  redemption in the order transaction (released on cancellation), admin coupons under
+  `/admin/coupons` (`/api/v1/admin/coupons/**`), and the admin start page with key figures,
+  charts, coupon figures and CSV export, served by the read model in the `admin` module
+  (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Defaults pending the owner's
+  confirmation: one code per order, whole shop, reduced products excluded, free shipping
+  for every method.
 
 - **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
   motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
@@ -221,6 +225,14 @@ working around them.
   reduced to ids, amounts and statuses before they are stored; never log or store card or
   billing details. Cancelling an unpaid card order cancels its PaymentIntent first
   (`OrderCancellation`).
+- **Coupon rules:** whether a coupon may be used at all is decided in `coupon`
+  (`Coupon.problemAt`, through `Coupons`); whether and by how much it reduces a basket only
+  in `PriceCalculator` (`Discount`, `DiscountOutcome`). Cart and checkout always run both
+  steps, so cart, quote and order agree. The coupon comes from the server-side cart, never
+  from a request. At order placement lock the coupon after the products (`lockForOrder`) and
+  count the use only through `Coupons.redeem` (conditional update); `times_redeemed` is
+  read-only in the entity. Cancellation releases the use (`Coupons.release` in
+  `OrderCancellation`). Orders keep their own `coupon_code` and discount snapshots.
 - **Statistics rules:** dashboard figures come from the read model in `admin`
   (`StatisticsQueries`, read-only SQL; which orders count as sales is defined there once).
   Periods are whole days in `ShippingService.SHOP_ZONE` (`StatsPeriod`). Shares, changes,
@@ -248,6 +260,10 @@ working around them.
   into the `queryKeys.cart` cache. Components show `lineTotal`, `totals` and
   `maxQuantity` from the API and never compute them. Invalidate `queryKeys.cart`
   whenever the signed-in user changes.
+- **Coupons:** the cart sends only the typed code; whether it applies, the discount, the
+  saving and the reason it does not apply (`coupon.applied`/`problem`) come from the API and
+  are shown as they are. Admin coupon values typed by the owner (percent or euros) go through
+  `parseMoneyInput` (hundredths: "12,5" % → 1250 bps); the coupon's status comes from the server.
 - **Checkout:** the pages only collect choices (address, shipping method, confirmations).
   Shipping options, dispatch dates, totals, available payment methods and whether an
   order can be cancelled all come from the API. An order request carries ids, the

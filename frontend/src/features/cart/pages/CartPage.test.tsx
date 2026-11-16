@@ -1,9 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { lastBody, mockApi } from '@/test/mockApi';
+import { lastBody, mockApi, problem } from '@/test/mockApi';
 import { renderRoutes } from '@/test/render';
-import type { Cart, CartLine } from '../api/cart';
+import type { Cart, CartLine, CouponState } from '../api/cart';
 import { CartPage } from './CartPage';
 
 const money = (amount: number) => ({ amount, currency: 'EUR' });
@@ -40,9 +40,10 @@ const soldOut: CartLine = {
 function cartOf(items: CartLine[], total: number, warnings: Cart['warnings'] = []): Cart {
   return {
     items,
-    totals: { subtotal: money(total), total: money(total), includedTax: money(187) },
+    totals: { subtotal: money(total), discount: money(0), total: money(total), includedTax: money(187) },
     itemCount: items.filter((line) => line.available).reduce((sum, line) => sum + line.quantity, 0),
     warnings,
+    coupon: null,
   };
 }
 
@@ -98,6 +99,86 @@ describe('CartPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Remove Blue Dream from cart' }));
     expect(await screen.findByText('Your cart is empty')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse the shop' })).toHaveAttribute('href', '/shop');
+  });
+
+  it('enters a coupon code and shows the discount the server granted', async () => {
+    const coupon: CouponState = {
+      code: 'SPRING10',
+      description: 'Spring sale',
+      type: 'PERCENTAGE',
+      percentage: 1000,
+      amount: null,
+      maxDiscount: null,
+      minOrder: null,
+      applied: true,
+      problem: null,
+      saving: money(117),
+    };
+    let attempts = 0;
+    const fetchMock = mockApi({
+      '/cart': cartOf([blueDream], 1170),
+      'PUT /cart/coupon': () =>
+        ++attempts === 1
+          ? problem(422, 'COUPON_EXPIRED')
+          : {
+              ...cartOf([blueDream], 1170),
+              totals: {
+                subtotal: money(1170),
+                discount: money(117),
+                total: money(1053),
+                includedTax: money(168),
+              },
+              coupon,
+            },
+      'DELETE /cart/coupon': cartOf([blueDream], 1170),
+    });
+    renderRoutes(routes, { path: '/cart' });
+
+    const summary = await screen.findByRole('region', { name: 'Summary' });
+    const field = within(summary).getByLabelText('Coupon code');
+    await userEvent.click(within(summary).getByRole('button', { name: 'Apply' }));
+    expect(within(summary).getByText('Enter a code.')).toBeInTheDocument();
+
+    await userEvent.type(field, 'spring10');
+    await userEvent.click(within(summary).getByRole('button', { name: 'Apply' }));
+    expect(await within(summary).findByText('This code has expired.')).toBeInTheDocument();
+
+    await userEvent.click(within(summary).getByRole('button', { name: 'Apply' }));
+    expect(await within(summary).findByText('SPRING10')).toBeInTheDocument();
+    expect(lastBody(fetchMock, 'PUT', '/cart/coupon')).toEqual({ code: 'spring10' });
+    expect(within(summary).getByText('Coupon SPRING10')).toBeInTheDocument();
+    expect(within(summary).getByText('−€1.17')).toBeInTheDocument();
+    expect(within(summary).getByText('You save €1.17.')).toBeInTheDocument();
+    expect(within(summary).getByText('€10.53')).toBeInTheDocument();
+
+    await userEvent.click(within(summary).getByRole('button', { name: 'Remove coupon SPRING10' }));
+    expect(await within(summary).findByLabelText('Coupon code')).toBeInTheDocument();
+  });
+
+  it('keeps a coupon that stopped applying and says why', async () => {
+    mockApi({
+      '/cart': {
+        ...cartOf([blueDream], 1170),
+        coupon: {
+          code: 'FIVEOFF',
+          description: null,
+          type: 'FIXED_AMOUNT',
+          percentage: null,
+          amount: money(500),
+          maxDiscount: null,
+          minOrder: money(3000),
+          applied: false,
+          problem: 'COUPON_MIN_ORDER_NOT_MET',
+          saving: money(0),
+        },
+      },
+    });
+    renderRoutes(routes, { path: '/cart' });
+
+    const summary = await screen.findByRole('region', { name: 'Summary' });
+    expect(await within(summary).findByText('Applies from an order value of €30.00.')).toBeInTheDocument();
+    expect(within(summary).getByText('€5.00 off')).toBeInTheDocument();
+    expect(within(summary).queryByText(/^Coupon FIVEOFF/)).not.toBeInTheDocument();
   });
 
   it('explains when the cart cannot be loaded', async () => {
