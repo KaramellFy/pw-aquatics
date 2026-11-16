@@ -70,8 +70,8 @@ and some species may not be traded legally.
   `/de/…` with the same path words, the link decides the language, pages carry canonical and
   `hreflang` links, emails link in the customer's language. The owner writes German catalog
   texts next to the English ones; the API answers in the page's language with English as the
-  fallback. Next: public pages filled in by the backend (no extra server), sitemap and
-  structured data.
+  fallback. Public pages are filled in by the backend for the first page load (ADR-013:
+  Caddy asks `GET /_pages/**`). Next: sitemap and structured data.
 
 - **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
   motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
@@ -198,6 +198,12 @@ working around them.
   (`ContentLanguage.of(locale)` outside a request, e.g. with a stored locale). Public responses carry one
   text per field; search covers both columns. Pages that can be untranslated report
   `languages` (`catalog.application.Translations`).
+- **Pages module** (ADR-013): `pages.application.PageService` fills public pages from the
+  frontend build's `index.html` (loaded by `FrontendShellSource` from `app.pages.shell-url`).
+  Its head must match what the app's `PageMeta` writes for the same page; interface words come
+  from `page-texts.json` (never hard-coded), catalog data from the catalog services; escape
+  everything with `Html` except sanitised HTML from the API. A new public page or a change to
+  the API paths and page sizes the app requests first means updating `PageService` too.
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
   keeping it, a deletion path (`app.retention.*` job or account deletion via
@@ -270,6 +276,11 @@ working around them.
   the API's `languages`, so an untranslated German page is not indexed. Admin forms show the
   German version of a text as its own field, labelled `admin.common.inGerman`, with
   `lang="de"` on the input.
+- **Pages filled in by the backend** (ADR-013): `index.html` keeps its markers (see the comment in
+  it); texts the backend needs go through `lib/seo/pageTexts.ts` (written to `page-texts.json` at
+  build). On start the app takes the page's data (`app/serverPage.ts`, `lib/api/preload.ts` maps
+  API paths to query keys) and waits for the router before rendering. Style the backend's text
+  only through the `.page-preview` classes.
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
 - **Login state** comes from `useSession()` (`GET /auth/me`); nothing auth-related is kept

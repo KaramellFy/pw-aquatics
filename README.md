@@ -42,6 +42,11 @@ with Stripe's test cards, e.g. `4242 4242 4242 4242` (success), `4000 0000 0000 
 (declined) or `4000 0025 0000 3155` (3-D Secure), any future date and any CVC. Without the
 keys, the shop offers bank transfer only.
 
+**Pages for search engines:** in production the frontend's Caddy asks the backend to fill in
+public pages (title, language links, text) before JavaScript runs, see
+[ADR-013](docs/adr/013-pages-filled-in-by-the-backend.md). Nothing to set up for `npm run dev`:
+the Vite dev server serves pages as before.
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — system design, modules, frontend structure, security, risks, open questions

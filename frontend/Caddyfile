@@ -1,4 +1,5 @@
 # Serves the built SPA. TLS and the /api proxy are handled by the edge proxy (infra/caddy).
+# Page requests are filled in by the backend (docs/adr/013-pages-filled-in-by-the-backend.md).
 {
 	admin off
 	auto_https off
@@ -18,13 +19,45 @@
 		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
 	}
 
-	# Hashed build assets can be cached forever; index.html must always be revalidated.
+	# Hashed build assets can be cached forever; pages and index.html must always be revalidated.
 	@assets path /assets/*
 	header @assets Cache-Control "public, max-age=31536000, immutable"
 	@document not path /assets/*
 	header @document Cache-Control "no-cache"
 
-	# Client-side routing: unknown paths fall back to index.html.
-	try_files {path} /index.html
-	file_server
+	# A page (a path without a file extension): the backend fills in its head, text and data.
+	# If the backend answers 5xx or cannot be reached, the plain index.html is served instead.
+	@page {
+		method GET HEAD
+		not path *.*
+	}
+	handle @page {
+		reverse_proxy {$PAGES_BACKEND:backend:8080} {
+			rewrite /_pages{uri}
+			# Pages are the same for everyone: no cookies to the backend, none back.
+			header_up -Cookie
+			header_down -Set-Cookie
+			# Set above for every response; not twice.
+			header_down -Cache-Control
+			header_down -X-Content-Type-Options
+			header_down -X-Frame-Options
+			header_down -Referrer-Policy
+			@unavailable status 5xx
+			handle_response @unavailable {
+				rewrite * /index.html
+				file_server
+			}
+		}
+	}
+
+	# Files, and client-side routing for anything else: unknown paths fall back to index.html.
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle_errors 502 503 504 {
+		rewrite * /index.html
+		file_server
+	}
 }

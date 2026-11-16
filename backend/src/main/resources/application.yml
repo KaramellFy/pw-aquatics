@@ -141,6 +141,12 @@ app:
     contact-messages: 365d
     # Processed payment webhook deliveries (ids, amounts and statuses only).
     payment-webhook-events: 90d
+  # Pages filled in by the backend for the first page load (docs/adr/013-pages-filled-in-by-the-backend.md).
+  # shell-url: where the built frontend is served inside the deployment (e.g. http://frontend:8080/);
+  # empty: pages are not filled in (local development with the Vite dev server).
+  pages:
+    shell-url: ${APP_PAGES_SHELL_URL:}
+    timeout: PT2S
   # Optional first administrator, created at startup if no admin exists yet.
   admin-bootstrap:
     email: ${APP_ADMIN_BOOTSTRAP_EMAIL:}

@@ -243,3 +243,55 @@
     @apply list-decimal pl-5;
   }
 }
+
+/*
+ * The text of a page the backend filled in (docs/adr/013-pages-filled-in-by-the-backend.md),
+ * readable until the app renders over it. The backend writes these class names.
+ */
+@layer components {
+  .page-preview {
+    @apply mx-auto max-w-6xl px-5 pt-6 pb-16 leading-relaxed text-ink;
+  }
+  .page-preview-header {
+    @apply flex flex-wrap items-center justify-between gap-4 pb-8;
+  }
+  .page-preview-header nav {
+    @apply flex flex-wrap gap-5;
+  }
+  .page-preview a {
+    @apply text-brand-700 underline-offset-4 hover:underline;
+  }
+  .page-preview .page-preview-brand {
+    @apply font-display text-xl font-semibold text-ink no-underline;
+  }
+  .page-preview h1 {
+    @apply mt-4 mb-4 font-display text-4xl leading-tight font-semibold text-balance;
+  }
+  .page-preview h2 {
+    @apply mt-10 mb-4 font-display text-2xl font-semibold;
+  }
+  .page-preview p,
+  .page-preview ul,
+  .page-preview figure {
+    @apply mb-4 max-w-prose;
+  }
+  .page-preview img {
+    @apply my-4 h-auto max-w-full rounded-2xl;
+  }
+  .page-preview figure img {
+    @apply max-w-sm;
+  }
+  .page-preview-breadcrumbs {
+    @apply flex flex-wrap gap-2 text-sm;
+  }
+  .page-preview-breadcrumbs li + li::before {
+    @apply mr-2 text-muted;
+    content: '/';
+  }
+  .page-preview-products,
+  .page-preview-categories,
+  .page-preview-variants,
+  .page-preview-text ul {
+    @apply list-disc space-y-1 pl-5;
+  }
+}

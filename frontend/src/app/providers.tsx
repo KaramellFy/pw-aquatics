@@ -29,8 +29,14 @@ export function createQueryClient(): QueryClient {
   return client;
 }
 
-export function AppProviders({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(createQueryClient);
+export function AppProviders({
+  children,
+  queryClient: given,
+}: {
+  children: ReactNode;
+  queryClient?: QueryClient;
+}) {
+  const [queryClient] = useState(() => given ?? createQueryClient());
   return (
     <QueryClientProvider client={queryClient}>
       <MotionProvider>{children}</MotionProvider>

@@ -176,6 +176,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `notification` | Transactional email via an outbox |
 | `media` | Image upload, processing, storage abstraction |
 | `content` | Gallery, contact messages |
+| `pages` | Public pages filled in for the first page load: head tags, main text and first API responses in the frontend's `index.html` (`GET /_pages/**`, ADR-013) |
 | `admin` | Dashboard, sales and coupon statistics and the customer view (read models); other admin controllers live in their feature modules |
 | `audit` | Audit log of admin and security-relevant actions |
 
@@ -686,10 +687,13 @@ design-led studio than a pet-supply store. Tokens live in
   for both languages (ADR-012), JSON-LD `Product`, and German catalog texts: the owner
   writes them next to the English ones in the admin, the API answers in the language of the
   page (`Accept-Language`), and a German product or species page stays out of the index
-  (`noindex`) until its German text is written. Planned (roadmap "SEO", brought forward
-  from Phase 10 at the owner's request): **public pages filled in by the backend** we already run (title, meta, language links, structured data, main text and
-  the page's data, per request — no extra server, owner decision 2026-11-16), backend-generated
-  `sitemap.xml`, `BreadcrumbList`/`Organization` data (see risk R3).
+  (`noindex`) until its German text is written. **Public pages are filled in by the backend**
+  we already run (ADR-013; no extra server, owner decision 2026-11-16): the frontend's Caddy asks
+  `GET /_pages/<path>`, and the backend puts the page's head tags, main text and first API
+  responses into the frontend build's `index.html`; the app takes over without a loading state.
+  Unknown products, species and categories answer 404. Planned (roadmap "SEO", brought forward
+  from Phase 10 at the owner's request): backend-generated `sitemap.xml`, canonical links for
+  filtered shop pages, `BreadcrumbList`/`Organization` data (see risk R3).
 - Responsive images: backend generates WebP sizes (e.g. 400/800/1200/2000 px);
   `ResponsiveImage` uses `srcset` + `sizes`, lazy loading below the fold,
   explicit width/height to avoid layout shift.
@@ -705,7 +709,7 @@ design-led studio than a pet-supply store. Tokens live in
 |---|---|---|---|---|
 | `postgres` | `postgres:18` | Database, named volume | ✓ | ✓ |
 | `backend` | built from `backend/Dockerfile` (multi-stage, JRE only, non-root user) | API | ✓ | ✓ |
-| `frontend` | built from `frontend/Dockerfile` (build stage → static files) | SPA assets | — (Vite dev server) | ✓ |
+| `frontend` | built from `frontend/Dockerfile` (build stage → static files) | SPA assets; sends page requests to the backend to be filled in (ADR-013, `PAGES_BACKEND`, default `backend:8080`) | — (Vite dev server) | ✓ |
 | `caddy` | `caddy:2` | Reverse proxy, automatic HTTPS, static files, `/media` | optional | ✓ |
 | `mailpit` | `axllent/mailpit` | Catches all outgoing email in development | ✓ | — |
 | `minio` | `minio/minio` | S3-compatible storage (only if we choose S3) | optional | — |
@@ -723,6 +727,7 @@ POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
 # App
 APP_BASE_URL, APP_COOKIE_SECURE
+APP_PAGES_SHELL_URL   # e.g. http://frontend:8080/ — where the backend loads the page template (ADR-013)
 # Orders and bank transfer (no orders can be placed without the bank account)
 BANK_ACCOUNT_HOLDER, BANK_IBAN, BANK_BIC, BANK_NAME
 ORDER_BANK_TRANSFER_PAYMENT_DAYS=7, SHIPPING_HANDLING_DAYS=1
@@ -777,7 +782,7 @@ endpoint (403).
 |---|---|---|---|
 | R1 | **Overselling** when two customers buy the last animals simultaneously | Selling animals we don't have | Row locks in deterministic order + conditional `UPDATE … WHERE stock_units >= n` + `CHECK (stock_units >= 0)`; concurrency test |
 | R2 | **Duplicate orders** from double-clicks or network retries | Double charge / double stock | `Idempotency-Key` header, unique `(user_id, idempotency_key)`; button disabled while pending |
-| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap; language in the link (ADR-012); public pages filled in per request by the existing backend (no extra server — owner decision). Build-time prerendering was dropped: stock and prices change daily through the admin |
+| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap; language in the link (ADR-012); public pages filled in per request by the existing backend (ADR-013; no extra server — owner decision). Build-time prerendering was dropped: stock and prices change daily through the admin |
 | R4 | **Live-animal shipping constraints:** heat/frost, weekends, carrier T&Cs (many standard parcel services restrict live animals) | Dead animals, refunds, reputation | Shipping methods flagged for live animals; configurable dispatch weekdays (e.g. Mon–Wed); admin "shipping pause" with message; heat/cold packs as options; confirm carrier before building carrier integrations |
 | R5 | **Legal trade restrictions:** some crayfish are on the EU list of invasive alien species and cannot be sold in the EU | Legal liability | `species.trade_restricted` blocks publishing; per-country restrictions possible later; legal review of the species list |
 | R6 | **German/EU e-commerce law:** Impressum, privacy policy, terms, right of withdrawal (live-animal specifics need legal advice), price display incl. VAT and shipping, "zahlungspflichtig bestellen" button, packaging registration (LUCID), invoice retention (up to 10 years) | Fines, cease-and-desist letters (Abmahnungen) | Legal pages managed as content; checkout copy reviewed by a lawyer; legal-text service considered; orders/invoices retained and anonymised rather than deleted |
@@ -812,8 +817,9 @@ endpoint (403).
 | ADR-010 | Hosted payment components; webhook-confirmed payments | Handling card data ourselves |
 | ADR-011 | Motion for React (`motion`) behind `LazyMotion`, CSS for simple effects | CSS only (no exit, shared-layout or drag animations), React Spring, GSAP |
 | ADR-012 | Language in the link: English at `/…`, German at `/de/…` with the same path words | Language only in the browser, `?lang=`, a `.de` domain, German path words |
+| ADR-013 | Public pages filled in by the backend from the frontend build's `index.html` (Caddy asks `/_pages/**`, falls back to the plain file) | Node.js SSR or prerender service, build-time prerendering, head tags only |
 
-Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-012).
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-013).
 
 ---
 
