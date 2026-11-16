@@ -37,7 +37,12 @@ export const queryKeys = {
   adminGallery: ['admin', 'gallery'] as const,
   adminShippingMethods: ['admin', 'shipping', 'methods'] as const,
   adminShippingPause: ['admin', 'shipping', 'pause'] as const,
-  adminStats: (kind: 'sales' | 'products' | 'stock', from: string, to: string) =>
+  adminCoupons: ['admin', 'coupons', 'list'] as const,
+  adminCoupon: (id: string) => ['admin', 'coupons', 'detail', id] as const,
+  adminCouponUsage: (id: string) => ['admin', 'coupons', 'usage', id] as const,
+  adminCouponRedemptions: (id: string, page: number) =>
+    ['admin', 'coupons', 'redemptions', id, page] as const,
+  adminStats: (kind: 'sales' | 'products' | 'stock' | 'coupons', from: string, to: string) =>
     ['admin', 'stats', kind, from, to] as const,
   products: (query: Record<string, string>) => ['catalog', 'products', query] as const,
   facets: (query: Record<string, string>) => ['catalog', 'facets', query] as const,

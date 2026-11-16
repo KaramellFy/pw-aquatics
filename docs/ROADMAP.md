@@ -32,7 +32,8 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 | 6 Admin I: catalog & inventory | ✅ separate admin area (own layout, lazy chunks, admins only): product list with search/filters, product editor (details, Markdown with preview, colours, SEO), pack sizes with prices, photo manager (upload, drag/arrow reorder, alt texts), publish/archive/duplicate, stock overview with low/sold-out filters, stock changes and stocktake, stock history, categories, species with care data and trade restriction, colours, grades | ✅ admin APIs for products, pack sizes, photos, taxonomy and stock; photo processing to WebP renditions (content sniffing, size limits, EXIF orientation, metadata stripped); publish rules; optimistic locking for edits with stock outside it; stock corrections through the ledger; audit log of every admin write; ADMIN checked at URL and method level |
 | 7 Admin II: orders & fulfilment | ✅ order list with search, status/payment/date filters and work queues (awaiting payment, to ship), order page with next step, history, notes, parcels and card-payment details; mark paid, packing, ship with tracking number, delivered, cancel with or without restock; printable packing slip; tracking links on the customer's order page; customer list and page with spend, lock/unlock; contact inbox; gallery manager (upload, alt text, publish, reorder) with the public gallery reading it; shipping methods and dispatch days; shipping pause with a banner on every shop page | ✅ `shipments`, `order_notes`, `gallery_images`; admin order API with server-decided next steps, state machine and audit log, bank transfers marked paid (card orders only by Stripe), shop cancellation with optional restock, carriers with tracking URL templates, "payment received"/"being prepared"/"shipped"/"delivered"/"cancelled" emails; customer read model and account lock that ends sessions; gallery and inbox APIs; shipping-method and pause admin with `GET /shop-info` |
 | 9 (part) Card payments (Stripe) | ✅ choice of card or bank transfer in the review step, payment page with Stripe's Payment Element (cards; Apple Pay/Google Pay where offered; 3-D Secure), clear decline messages, "pay now" on the order page until the deadline, confirmation page that waits for Stripe's confirmation, EN/DE | ✅ `payments` and `payment_webhook_events`, one PaymentIntent per order from the stored total, signed and idempotent webhook (`succeeded`, `processing`, `payment_failed`, `canceled`, `charge.refunded`), payload reduced before storing, 60-minute expiry that cancels the PaymentIntent first, "payment received" email, refunds recorded, tested with real test-mode payments |
-| 8 (part) Dashboard & statistics | ✅ admin start page: right-now tiles (awaiting payment, to ship, low stock, sold out), period filter (presets and custom), key figures compared with the previous period, sales over time (paid vs. awaiting payment; revenue, orders, animals), best sellers, revenue by category/species/country, orders by weekday and status, stock changes with loss rate, latest orders, running-low list, table view for every chart, CSV download | ✅ read model in `admin` (`/admin/dashboard`, `/admin/stats/{sales,products,stock}`, CSV export), periods in shop time with automatic day/week/month buckets, tested against hand-counted data |
+| 8 Coupons & statistics | ✅ coupon field in the cart summary (apply, remove, the server's reason when a code does not or no longer applies), discount in the cart, checkout, confirmation, order pages and emails; admin coupon list with status tabs, coupon dialog (percent or euros typed as „12,5“), coupon page with what it brought, orders that used it, switch on/off, delete while unused; coupon section on the dashboard. Dashboard: right-now tiles (awaiting payment, to ship, low stock, sold out), period filter (presets and custom), key figures compared with the previous period, sales over time (paid vs. awaiting payment; revenue, orders, animals), best sellers, revenue by category/species/country, orders by weekday and status, stock changes with loss rate, latest orders, running-low list, table view for every chart, CSV download | ✅ `coupons`, `coupon_redemptions`, `carts.coupon_id`; coupon terms in `pricing` (percentage with cap, fixed amount, free shipping; minimum order; reduced products excluded; largest-remainder allocation, VAT per rate after the discount); validity in `coupon` (dates, active, total and per-customer limits); redemption in the order transaction with a conditional counter update, released on cancellation; admin coupon API with audit log; read model in `admin` (`/admin/dashboard`, `/admin/stats/{sales,products,stock,coupons}`, coupon usage and redemptions, CSV export), periods in shop time with automatic day/week/month buckets, tested against hand-counted data |
+| 10 (part) SEO, brought forward | 🚧 step 1 ✅ German links: every page also under `/de/…` (same path words), language switch as links to the same page, canonical and `hreflang` per page, returning German visitors land on `/de/`, `robots.txt` for both languages. Step 2 ✅ German texts in the admin next to the English ones (products, pack sizes, photo descriptions, categories, species, colours, grades, shipping methods, gallery, coupon notes); German pages show them and fall back to English; a German product or species page stays out of Google (`noindex`) until its German text is written. Next: public pages filled in by the backend (step 3), sitemap and structured data (step 4) | ✅ step 1: email links in the customer's language (`SiteLinks`). Step 2 ✅ `…_de` columns, API answers in the request's language (`ContentLanguage`), search in both languages, `languages` on product and species details, orders keep names in the customer's language. Next: page filling per request without an extra server (step 3), `sitemap.xml` (step 4) |
 
 Open in Phase 7: a packing slip as PDF (with invoices in Phase 10; the print page covers it
 until then), the audit-log page, the orders CSV export, the real carrier list and tracking
@@ -41,7 +42,10 @@ the API (Phase 9).
 Open in Phase 6: real product photos and texts (entered by the owner in the admin), the
 owner's own administrator account (`APP_ADMIN_BOOTSTRAP_*` on first start), image storage
 outside the server (S3) if wanted.
-Open in the dashboard: coupon statistics (with coupons in Phase 8).
+Open in Phase 8: the owner's decisions on the coupon defaults (one code per order, whole
+shop, reduced products excluded, free shipping for every method — ARCHITECTURE.md §12);
+coupons limited to categories or products, combinable codes and first-order-only codes if
+wanted; a German/English text for the coupon's note (the note is shown as entered).
 Open in Phase 5: real shipping prices (the dev seed has placeholders; production has no
 shipping methods until they are entered), the shop's bank account (`BANK_*`), final
 checkout wording and legal texts, VAT treatment of deliveries outside Germany, public
@@ -227,23 +231,28 @@ stocked entirely through the admin UI; non-admins get 403 on every admin endpoin
 **Done when:** an order can go from placed → paid → processing → shipped →
 delivered via the admin, and the customer sees each step and the tracking link.
 
-## Phase 8 — Coupons & statistics
+## Phase 8 — Coupons & statistics ✅
 
 **Goal:** marketing tools and business insight.
 
-- Migrations: coupons, coupon_redemptions, carts.coupon_id.
-- Coupon rules in the pricing module (percentage, fixed amount, free shipping;
+- ✅ Migrations: coupons, coupon_redemptions, carts.coupon_id.
+- ✅ Coupon rules in the pricing module (percentage, fixed amount, free shipping;
   dates, minimum order, usage limits total/per customer, max discount),
   proportional discount allocation for VAT.
-- Cart and checkout coupon support; redemption recorded atomically with the order.
-- Admin coupon management and redemption list.
+- ✅ Cart and checkout coupon support; redemption recorded atomically with the order.
+- ✅ Admin coupon management and redemption list.
 - ✅ Dashboard: KPI cards, revenue chart, orders by status, low stock, recent orders
   (built early at the owner's request, together with the statistics below).
 - ✅ Statistics: sales over time, top products, revenue by category/species/country,
-  orders by weekday, stock changes and loss rate, CSV export. Still open: coupon performance.
+  orders by weekday, stock changes and loss rate, coupon performance, CSV export.
 
 **Done when:** coupon edge cases (expired, limit reached concurrently, minimum
 not met, rounding) are covered by tests; dashboard numbers match a manual check.
+✅ Tested: `DiscountCalculationTest` (rounding, caps, reduced lines, allocation, VAT per
+rate, free shipping), `CouponTest` (status and problems), `CouponApiTest` (expired,
+minimum not met, once per customer, release on cancel, two customers racing for the last
+use → one order, one `COUPON_USAGE_LIMIT_REACHED`), `AdminCouponApiTest`; the coupon
+figures on the dashboard were compared with a count straight from the order tables.
 
 ## Phase 9 — Payments
 
@@ -269,9 +278,11 @@ webhooks are harmless, no card data is stored or logged anywhere.
 
 **Goal:** a secure, legally compliant, fast production shop.
 
-- **SEO:** prerendering of public pages (home, shop, categories, products,
-  species, content), `sitemap.xml`, `robots.txt`, canonical URLs, structured data
-  checked with Google's Rich Results test.
+- **SEO** (brought forward at the owner's request, see the progress table; ADR-012): German
+  links under `/de` ✅, German catalog texts ✅, public pages (home, shop, categories, products,
+  species, content) filled in by the existing backend per request — no extra server —,
+  `sitemap.xml`, `robots.txt` ✅, canonical URLs ✅, structured data. At launch: real domain,
+  Google Search Console, sitemap submitted, Rich Results test.
 - **Legal (with lawyer/legal-text service):** Impressum, privacy policy,
   terms (AGB), withdrawal policy incl. live-animal specifics, shipping and
   live-arrival conditions, checkout wording, price display. No cookie banner is

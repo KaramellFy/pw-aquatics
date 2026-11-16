@@ -1,7 +1,9 @@
 package com.pwaquatics.shop.order.application.view;
 
+import com.pwaquatics.shop.coupon.application.view.CouponStateView;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.shipping.application.view.ShippingOption;
+import jakarta.annotation.Nullable;
 import java.util.List;
 
 /**
@@ -11,10 +13,12 @@ import java.util.List;
  *
  * @param containsLiveAnimals the customer must accept the live-animal conditions
  * @param paymentMethods payment methods that can be chosen right now
+ * @param coupon the coupon from the cart and whether it applies, or null
  */
 public record QuoteView(
         List<QuoteLineView> items,
         OrderTotalsView totals,
         ShippingOption shippingMethod,
         boolean containsLiveAnimals,
-        List<PaymentMethod> paymentMethods) {}
+        List<PaymentMethod> paymentMethods,
+        @Nullable CouponStateView coupon) {}

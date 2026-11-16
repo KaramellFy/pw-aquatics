@@ -99,6 +99,7 @@ function ProductView({ product }: { product: ProductDetail }) {
       <PageMeta
         title={`${product.seo.title} – ${t('common.brand')}`}
         description={product.seo.description ?? undefined}
+        languages={product.languages}
       />
       <JsonLd data={jsonLd} />
 

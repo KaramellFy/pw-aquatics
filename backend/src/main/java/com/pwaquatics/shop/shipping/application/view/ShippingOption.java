@@ -21,4 +21,11 @@ public record ShippingOption(
         @Nullable Money freeFrom,
         LocalDate plannedDispatchDate,
         @Nullable LocalDate estimatedDeliveryFrom,
-        @Nullable LocalDate estimatedDeliveryTo) {}
+        @Nullable LocalDate estimatedDeliveryTo) {
+
+    /** The same option at another price (a free-shipping coupon waives it). */
+    public ShippingOption withPrice(Money newPrice) {
+        return new ShippingOption(code, name, description, carrier, newPrice, freeFrom, plannedDispatchDate,
+                estimatedDeliveryFrom, estimatedDeliveryTo);
+    }
+}

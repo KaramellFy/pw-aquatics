@@ -57,10 +57,21 @@ and some species may not be traded legally.
   Element (`/checkout/pay/:orderNumber`), PaymentIntents from the stored total
   (`POST /api/v1/payments/stripe/intents`), signed and idempotent webhook
   (`POST /api/v1/webhooks/stripe`), 60-minute expiry of unpaid card orders. PayPal follows.
-- **Dashboard & statistics** (from Phase 8, built early) are built end to end: the admin start
-  page with key figures, charts and CSV export, served by the read model in the `admin`
-  module (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Coupon statistics follow
-  with coupons.
+- **Phase 8 (coupons & statistics)** is built end to end: coupon field in the cart
+  (`PUT`/`DELETE /api/v1/cart/coupon`), discount in the quote, order, emails and order pages,
+  redemption in the order transaction (released on cancellation), admin coupons under
+  `/admin/coupons` (`/api/v1/admin/coupons/**`), and the admin start page with key figures,
+  charts, coupon figures and CSV export, served by the read model in the `admin` module
+  (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Defaults pending the owner's
+  confirmation: one code per order, whole shop, reduced products excluded, free shipping
+  for every method.
+
+- **SEO** (from Phase 10, brought forward; ADR-012) is in progress: German pages live under
+  `/de/…` with the same path words, the link decides the language, pages carry canonical and
+  `hreflang` links, emails link in the customer's language. The owner writes German catalog
+  texts next to the English ones; the API answers in the page's language with English as the
+  fallback. Next: public pages filled in by the backend (no extra server), sitemap and
+  structured data.
 
 - **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
   motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
@@ -179,6 +190,14 @@ working around them.
 - Side effects (emails) go through the **outbox**, never inside the HTTP request.
 - Configuration via `@ConfigurationProperties` records, validated at startup.
 - No `System.out`, no swallowed exceptions, no personal data in logs.
+- **Links in emails** go through `common.web.SiteLinks.page(locale, path)`, which adds `/de`
+  for German customers; never concatenate `app.base-url` by hand.
+- **Texts in two languages** (ADR-012 addendum): a text the owner writes gets a nullable
+  `<column>_de` next to the English one (no translations table), a `…De` field in the admin
+  request and view, and is shown through `ContentLanguage.current().pick(english, german)`
+  (`ContentLanguage.of(locale)` outside a request, e.g. with a stored locale). Public responses carry one
+  text per field; search covers both columns. Pages that can be untranslated report
+  `languages` (`catalog.application.Translations`).
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
   keeping it, a deletion path (`app.retention.*` job or account deletion via
@@ -221,6 +240,14 @@ working around them.
   reduced to ids, amounts and statuses before they are stored; never log or store card or
   billing details. Cancelling an unpaid card order cancels its PaymentIntent first
   (`OrderCancellation`).
+- **Coupon rules:** whether a coupon may be used at all is decided in `coupon`
+  (`Coupon.problemAt`, through `Coupons`); whether and by how much it reduces a basket only
+  in `PriceCalculator` (`Discount`, `DiscountOutcome`). Cart and checkout always run both
+  steps, so cart, quote and order agree. The coupon comes from the server-side cart, never
+  from a request. At order placement lock the coupon after the products (`lockForOrder`) and
+  count the use only through `Coupons.redeem` (conditional update); `times_redeemed` is
+  read-only in the entity. Cancellation releases the use (`Coupons.release` in
+  `OrderCancellation`). Orders keep their own `coupon_code` and discount snapshots.
 - **Statistics rules:** dashboard figures come from the read model in `admin`
   (`StatisticsQueries`, read-only SQL; which orders count as sales is defined there once).
   Periods are whole days in `ShippingService.SHOP_ZONE` (`StatsPeriod`). Shares, changes,
@@ -234,6 +261,15 @@ working around them.
   Features import each other only through their `index.ts`. The router
   (`src/app/routes.tsx`) imports page modules directly and lazily, so a
   feature's `index.ts` must not re-export pages (that would defeat code splitting).
+- **Language in links** (ADR-012): pages and `<Link>`s use language-neutral paths (`/shop`); the
+  router's basename adds `/de`. A full link outside the router (e.g. for Stripe) comes from
+  `useHref`; the other language's link from `pathInLanguage`. Never write `/de` by hand, and
+  don't switch the language with `i18n.changeLanguage` in the app (only tests do): the switch
+  loads the page's link in the other language. Indexable pages render `PageMeta` without
+  `noIndex`, which adds canonical and `hreflang` links; pages with owner-written texts pass
+  the API's `languages`, so an untranslated German page is not indexed. Admin forms show the
+  German version of a text as its own field, labelled `admin.common.inGerman`, with
+  `lang="de"` on the input.
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
 - **Login state** comes from `useSession()` (`GET /auth/me`); nothing auth-related is kept
@@ -248,6 +284,10 @@ working around them.
   into the `queryKeys.cart` cache. Components show `lineTotal`, `totals` and
   `maxQuantity` from the API and never compute them. Invalidate `queryKeys.cart`
   whenever the signed-in user changes.
+- **Coupons:** the cart sends only the typed code; whether it applies, the discount, the
+  saving and the reason it does not apply (`coupon.applied`/`problem`) come from the API and
+  are shown as they are. Admin coupon values typed by the owner (percent or euros) go through
+  `parseMoneyInput` (hundredths: "12,5" % → 1250 bps); the coupon's status comes from the server.
 - **Checkout:** the pages only collect choices (address, shipping method, confirmations).
   Shipping options, dispatch dates, totals, available payment methods and whether an
   order can be cancelled all come from the API. An order request carries ids, the

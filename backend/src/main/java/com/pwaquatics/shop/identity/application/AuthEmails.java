@@ -1,6 +1,6 @@
 package com.pwaquatics.shop.identity.application;
 
-import com.pwaquatics.shop.common.config.AppProperties;
+import com.pwaquatics.shop.common.web.SiteLinks;
 import com.pwaquatics.shop.identity.domain.User;
 import com.pwaquatics.shop.notification.domain.EmailMessage;
 import java.net.URLEncoder;
@@ -11,14 +11,14 @@ import org.springframework.stereotype.Component;
 @Component
 class AuthEmails {
 
-    private final String baseUrl;
+    private final SiteLinks links;
 
-    AuthEmails(AppProperties properties) {
-        this.baseUrl = properties.baseUrl().replaceAll("/+$", "");
+    AuthEmails(SiteLinks links) {
+        this.links = links;
     }
 
     EmailMessage verification(User user, String token) {
-        String link = link("/verify-email", token);
+        String link = link(user, "/verify-email", token);
         return german(user)
                 ? mail(user.getEmail(), "Bitte bestätige deine E-Mail-Adresse", """
                         Hallo %s,
@@ -42,8 +42,8 @@ class AuthEmails {
 
     /** Sent instead of a verification when someone registers with an address that already has an account. */
     EmailMessage alreadyRegistered(User user) {
-        String login = baseUrl + "/login";
-        String reset = baseUrl + "/forgot-password";
+        String login = links.page(user.getLocale(), "/login");
+        String reset = links.page(user.getLocale(), "/forgot-password");
         return german(user)
                 ? mail(user.getEmail(), "Du hast bereits ein Konto bei PW Aquatics", """
                         Hallo %s,
@@ -68,7 +68,7 @@ class AuthEmails {
     }
 
     EmailMessage passwordReset(User user, String token) {
-        String link = link("/reset-password", token);
+        String link = link(user, "/reset-password", token);
         return german(user)
                 ? mail(user.getEmail(), "Passwort zurücksetzen", """
                         Hallo %s,
@@ -98,19 +98,19 @@ class AuthEmails {
                         das Passwort deines PW Aquatics Kontos wurde soeben geändert. Alle anderen Geräte wurden abgemeldet.
 
                         Wenn du das nicht warst, setze dein Passwort bitte sofort zurück: %s
-                        """.formatted(user.getFirstName(), baseUrl + "/forgot-password"))
+                        """.formatted(user.getFirstName(), links.page(user.getLocale(), "/forgot-password")))
                 : mail(user.getEmail(), "Your password was changed", """
                         Hello %s,
 
                         the password of your PW Aquatics account was just changed. All other devices were signed out.
 
                         If this was not you, please reset your password immediately: %s
-                        """.formatted(user.getFirstName(), baseUrl + "/forgot-password"));
+                        """.formatted(user.getFirstName(), links.page(user.getLocale(), "/forgot-password")));
     }
 
     /** Sent to the NEW address; the change only happens when the link is opened. */
     EmailMessage emailChangeConfirmation(User user, String newEmail, String token) {
-        String link = link("/verify-email", token);
+        String link = link(user, "/verify-email", token);
         return german(user)
                 ? mail(newEmail, "Bitte bestätige deine neue E-Mail-Adresse", """
                         Hallo %s,
@@ -169,8 +169,9 @@ class AuthEmails {
                         """.formatted(firstName));
     }
 
-    private String link(String path, String token) {
-        return baseUrl + path + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
+    /** A one-time link in the user's language. */
+    private String link(User user, String path, String token) {
+        return links.page(user.getLocale(), path) + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
     }
 
     private static boolean german(User user) {

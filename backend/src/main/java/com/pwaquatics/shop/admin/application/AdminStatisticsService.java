@@ -6,6 +6,8 @@ import static com.pwaquatics.shop.admin.domain.Ratios.shareBps;
 
 import com.pwaquatics.shop.admin.application.view.CountKpiView;
 import com.pwaquatics.shop.admin.application.view.CountryView;
+import com.pwaquatics.shop.admin.application.view.CouponSalesView;
+import com.pwaquatics.shop.admin.application.view.CouponStatsView;
 import com.pwaquatics.shop.admin.application.view.DashboardView;
 import com.pwaquatics.shop.admin.application.view.GroupSalesView;
 import com.pwaquatics.shop.admin.application.view.LowStockProductView;
@@ -23,6 +25,8 @@ import com.pwaquatics.shop.admin.application.view.StockReasonView;
 import com.pwaquatics.shop.admin.application.view.StockStatsView;
 import com.pwaquatics.shop.admin.application.view.WeekdayView;
 import com.pwaquatics.shop.admin.domain.StatsPeriod;
+import com.pwaquatics.shop.admin.infrastructure.CouponQueries;
+import com.pwaquatics.shop.admin.infrastructure.CouponQueries.CouponRow;
 import com.pwaquatics.shop.admin.infrastructure.StatisticsQueries;
 import com.pwaquatics.shop.admin.infrastructure.StatisticsQueries.BucketRow;
 import com.pwaquatics.shop.admin.infrastructure.StatisticsQueries.DayRow;
@@ -69,10 +73,12 @@ public class AdminStatisticsService {
     private static final int LOW_STOCK_ROWS = 8;
 
     private final StatisticsQueries queries;
+    private final CouponQueries couponQueries;
     private final Clock clock;
 
-    AdminStatisticsService(StatisticsQueries queries, Clock clock) {
+    AdminStatisticsService(StatisticsQueries queries, CouponQueries couponQueries, Clock clock) {
         this.queries = queries;
+        this.couponQueries = couponQueries;
         this.clock = clock;
     }
 
@@ -168,6 +174,33 @@ public class AdminStatisticsService {
         return new ProductStatsView(periodView(period), top,
                 queries.salesByCategory(start, end).stream().map(group).toList(),
                 queries.salesBySpecies(start, end).stream().map(group).toList());
+    }
+
+    /**
+     * How coupons did in a period: orders that used one, their share of all orders, what the
+     * coupons saved customers and those orders' revenue, compared with the period before.
+     */
+    public CouponStatsView coupons(LocalDate from, LocalDate to) {
+        StatsPeriod period = StatsPeriod.of(from, to);
+        StatsPeriod previous = period.previous();
+        List<CouponRow> now = couponQueries.byCoupon(period.start(ZONE), period.end(ZONE));
+        List<CouponRow> before = couponQueries.byCoupon(previous.start(ZONE), previous.end(ZONE));
+        long orders = now.stream().mapToLong(CouponRow::orders).sum();
+        long ordersBefore = before.stream().mapToLong(CouponRow::orders).sum();
+        long allOrders = queries.salesTotals(period.start(ZONE), period.end(ZONE)).orders();
+        long allOrdersBefore = queries.salesTotals(previous.start(ZONE), previous.end(ZONE)).orders();
+        return new CouponStatsView(
+                periodView(period),
+                count(orders, ordersBefore),
+                new ShareKpiView(shareBps(orders, allOrders), shareBps(ordersBefore, allOrdersBefore)),
+                money(now.stream().mapToLong(CouponRow::savingCents).sum(),
+                        before.stream().mapToLong(CouponRow::savingCents).sum()),
+                money(now.stream().mapToLong(CouponRow::revenueCents).sum(),
+                        before.stream().mapToLong(CouponRow::revenueCents).sum()),
+                now.stream()
+                        .map(row -> new CouponSalesView(row.code(), row.orders(), Money.eur(row.savingCents()),
+                                Money.eur(row.revenueCents())))
+                        .toList());
     }
 
     /** Restocks, sales and losses from the stock ledger, with the loss rate. */

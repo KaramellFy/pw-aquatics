@@ -31,6 +31,10 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  web:
+    # Shop texts follow the request's Accept-Language; without one, English (common.text.ContentLanguage).
+    locale: en
+    locale-resolver: accept-header
   servlet:
     multipart:
       # Product photos (admin only); larger files are refused with 413 FILE_TOO_LARGE.
@@ -159,6 +163,10 @@ app:
     # Cart changes per client IP.
     cart-write:
       capacity: 120
+      period: PT1M
+    # Coupon codes entered per client IP (low, so codes cannot be found by trying).
+    cart-coupon:
+      capacity: 10
       period: PT1M
     # Orders placed per customer.
     checkout-order:

@@ -54,6 +54,25 @@ class AuthApiTest {
     }
 
     @Test
+    void emailLinksOpenTheShopInTheCustomersLanguage() throws Exception {
+        String english = uniqueEmail();
+        auth.register(english);
+        assertThat(auth.emailsTo(english)).singleElement()
+                .satisfies(mail -> assertThat(mail.getPayload().body())
+                        .contains("http://localhost:5173/verify-email?token="));
+
+        String german = uniqueEmail();
+        mvc.perform(json(post("/api/v1/auth/register"), """
+                        {"email":"%s","password":"%s","firstName":"Anna","lastName":"Schmidt"}
+                        """.formatted(german, PASSWORD)).header("Accept-Language", "de"))
+                .andExpect(status().isAccepted());
+        assertThat(auth.emailsTo(german)).singleElement()
+                .satisfies(mail -> assertThat(mail.getPayload().body())
+                        .contains("Bitte bestätige")
+                        .contains("http://localhost:5173/de/verify-email?token="));
+    }
+
+    @Test
     void verificationLinksWorkOnlyOnce() throws Exception {
         String email = uniqueEmail();
         auth.register(email);

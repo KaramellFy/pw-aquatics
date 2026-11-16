@@ -79,7 +79,11 @@ export function OrderConfirmationPage() {
                 </ol>
               </section>
             )}
-            <OrderTotalsList totals={order.data.totals} className="mt-10 border-t border-line pt-6" />
+            <OrderTotalsList
+              totals={order.data.totals}
+              couponCode={order.data.couponCode}
+              className="mt-10 border-t border-line pt-6"
+            />
           </>
         )}
 

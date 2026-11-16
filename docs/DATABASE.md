@@ -24,6 +24,7 @@ coupon codes), `pg_trgm` (fuzzy product search).
 | Booleans | `not null` with a default |
 | Soft delete | Not used generally. Products are **archived** (status), users are **anonymised**. Orders are never deleted. |
 | Snapshots | Orders copy product names, prices and addresses at purchase time; later catalog edits never change past orders |
+| Translations | Texts the owner writes have a German version in a nullable `<column>_de` next to the English column (same type and length). `NULL` means "not translated yet": the API shows the English text instead (§3, ADR-012). English stays required where it was |
 
 ---
 
@@ -69,6 +70,22 @@ erDiagram
 The DDL below is the **reference design**, grouped by topic rather than in
 executable order (some foreign keys point to tables defined further down).
 Migrations will implement it in small steps per roadmap phase (see §5).
+
+**German texts** (`V2026_11_16_1500__add_german_texts.sql`, §1 "Translations"). For brevity
+the DDL below shows only the English columns; each of these has a nullable `_de` twin:
+
+| Table | Columns with a German version |
+|---|---|
+| `products` | `name`, `short_description`, `description`, `care_notes`, `seo_title`, `seo_description` (`name_de` has its own trigram index for search) |
+| `product_variants` | `name` |
+| `product_images` | `alt_text` |
+| `categories` | `name`, `description` |
+| `species` | `common_name`, `description`, `origin`, `restriction_note` (the scientific name is the same in every language) |
+| `colours` | `name` |
+| `grades` | `name`, `description` |
+| `shipping_methods` | `name`, `description` |
+| `gallery_images` | `title`, `caption`, `alt_text` |
+| `coupons` | `description` |
 
 ### 3.1 Identity and customers
 
@@ -390,45 +407,74 @@ deadline and handling time are configuration (`ORDER_BANK_TRANSFER_PAYMENT_DAYS`
 
 ### 3.5 Coupons
 
+Migration `V2026_11_16_0900__create_coupons.sql` (Phase 8).
+
 ```sql
 CREATE TABLE coupons (
-    id                       uuid PRIMARY KEY,
-    code                     citext       NOT NULL UNIQUE,
-    description              varchar(255),
-    type                     varchar(20)  NOT NULL CHECK (type IN ('PERCENTAGE', 'FIXED_AMOUNT', 'FREE_SHIPPING')),
+    id                        uuid PRIMARY KEY,
+    code                      citext       NOT NULL UNIQUE CHECK (length(code) BETWEEN 3 AND 32),  -- upper case, never changes
+    description               varchar(255),
+    type                      varchar(20)  NOT NULL CHECK (type IN ('PERCENTAGE', 'FIXED_AMOUNT', 'FREE_SHIPPING')),
     -- PERCENTAGE: basis points (1000 = 10 %); FIXED_AMOUNT: cents; FREE_SHIPPING: 0
-    value                    bigint       NOT NULL CHECK (value >= 0),
-    min_order_cents          bigint       NOT NULL DEFAULT 0,
-    max_discount_cents       bigint,                    -- cap for percentage coupons
-    starts_at                timestamptz,
-    ends_at                  timestamptz,
-    usage_limit_total        int,
-    usage_limit_per_customer int,
-    times_redeemed           int          NOT NULL DEFAULT 0,
-    active                   boolean      NOT NULL DEFAULT true,
-    created_at               timestamptz  NOT NULL DEFAULT now(),
-    updated_at               timestamptz  NOT NULL DEFAULT now(),
-    version                  bigint       NOT NULL DEFAULT 0,
-    CHECK (type <> 'PERCENTAGE' OR value <= 10000),
+    value                     bigint       NOT NULL,
+    min_order_cents           bigint       NOT NULL DEFAULT 0 CHECK (min_order_cents >= 0),   -- goods before discount
+    max_discount_cents        bigint       CHECK (max_discount_cents > 0),   -- cap for percentage coupons
+    starts_at                 timestamptz,
+    ends_at                   timestamptz,                                    -- exclusive
+    usage_limit_total         int          CHECK (usage_limit_total > 0),
+    usage_limit_per_customer  int          CHECK (usage_limit_per_customer > 0),
+    times_redeemed            int          NOT NULL DEFAULT 0 CHECK (times_redeemed >= 0),
+    active                    boolean      NOT NULL DEFAULT true,
+    created_by                uuid         REFERENCES users(id) ON DELETE SET NULL,
+    created_at                timestamptz  NOT NULL DEFAULT now(),
+    updated_at                timestamptz  NOT NULL DEFAULT now(),
+    version                   bigint       NOT NULL DEFAULT 0,
+    CHECK (CASE type
+               WHEN 'PERCENTAGE'    THEN value BETWEEN 1 AND 10000
+               WHEN 'FIXED_AMOUNT'  THEN value >= 1 AND max_discount_cents IS NULL
+               ELSE                      value = 0 AND max_discount_cents IS NULL
+           END),
     CHECK (starts_at IS NULL OR ends_at IS NULL OR starts_at < ends_at)
 );
+CREATE INDEX idx_coupons_created_by ON coupons (created_by);
 
 CREATE TABLE coupon_redemptions (
     id             uuid PRIMARY KEY,
     coupon_id      uuid        NOT NULL REFERENCES coupons(id) ON DELETE RESTRICT,
     order_id       uuid        NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
     user_id        uuid        REFERENCES users(id) ON DELETE SET NULL,
-    email          citext      NOT NULL,
-    discount_cents bigint      NOT NULL,
-    redeemed_at    timestamptz NOT NULL DEFAULT now()
+    discount_cents bigint      NOT NULL CHECK (discount_cents >= 0),   -- saving: discount or waived shipping
+    redeemed_at    timestamptz NOT NULL,
+    released_at    timestamptz                                         -- set when the order is cancelled
 );
 CREATE INDEX idx_coupon_redemptions_coupon_user ON coupon_redemptions (coupon_id, user_id);
+CREATE INDEX idx_coupon_redemptions_user        ON coupon_redemptions (user_id);
 ```
 
-`times_redeemed` is incremented with a conditional update inside the order
-transaction (`WHERE usage_limit_total IS NULL OR times_redeemed < usage_limit_total`)
-so a limited coupon cannot be over-redeemed. A cancelled order releases its
-redemption.
+Notes:
+
+- `times_redeemed` is read-only in the `Coupon` entity and changed only by conditional
+  updates inside the order transaction, after the coupon row is locked (lock order cart →
+  products → coupon):
+
+  ```sql
+  UPDATE coupons SET times_redeemed = times_redeemed + 1
+  WHERE id = :id AND active
+    AND (usage_limit_total IS NULL OR times_redeemed < usage_limit_total);
+  -- 0 rows updated ⇒ COUPON_USAGE_LIMIT_REACHED, order rolled back
+  ```
+
+  so a limited coupon can never be used more often than allowed, even by simultaneous
+  orders. Usage counts therefore never touch `version`.
+- The per-customer limit counts the customer's redemptions with `released_at IS NULL`.
+- A cancelled order keeps its redemption row (history) but sets `released_at` and lowers
+  `times_redeemed` again, so the use can be made again.
+- A redemption blocks deleting its coupon (`RESTRICT`); used coupons are switched off
+  instead. The order stores the code itself (`orders.coupon_code`) and the discount
+  (`orders.discount_cents`, `order_items.discount_cents` per line), so orders and statistics
+  never depend on the coupon row.
+- Dates entered by the owner are whole days in Europe/Berlin: `starts_at` is the start of the
+  first day, `ends_at` the start of the day after the last one.
 
 ### 3.6 Cart
 
@@ -437,7 +483,7 @@ CREATE TABLE carts (
     id                    uuid PRIMARY KEY,
     user_id               uuid        UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     anonymous_token_hash  char(64)    UNIQUE,         -- SHA-256 of the guest cart cookie
-    coupon_id             uuid        REFERENCES coupons(id) ON DELETE SET NULL,   -- added in Phase 8
+    coupon_id             uuid        REFERENCES coupons(id) ON DELETE SET NULL,   -- Phase 8; idx_carts_coupon
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now(),
     expires_at            timestamptz,                 -- guest carts only: 30 days after the last change
@@ -461,7 +507,9 @@ Notes: the cart deliberately stores **no prices**. `carts.user_id` and
 `cart_items.variant_id` are plain ids for the `cart` module (no entity links to
 other modules). Expired guest carts are deleted daily; a customer's cart is
 removed when the account is deleted. Carts are always loaded `FOR UPDATE`, so
-simultaneous requests for one cart run one after the other.
+simultaneous requests for one cart run one after the other. `coupon_id` is the code the
+visitor entered (at most one); whether it reduces the cart is decided again on every read,
+and deleting the coupon takes it out of carts.
 
 
 ### 3.7 Orders, fulfilment and payments
@@ -809,10 +857,15 @@ The existing indexes (`orders(placed_at)`, `order_items(order_id)`,
 table only if the dashboard gets slow (ARCHITECTURE.md risk R16). The statistics store
 nothing; the CSV export holds no personal data.
 
+**Coupon statistics** (docs/API.md §3.1, `CouponQueries`) join `coupon_redemptions` to
+`orders` with the same definition of a sale, grouped by `orders.coupon_code`; the saving is
+`coupon_redemptions.discount_cents` (discount or waived shipping).
+
 **Invariants enforced in the database** (in addition to the service layer):
 non-negative stock, unique SKUs/slugs/emails/coupon codes, one default address
 per type per user, valid enum values, order total consistency, idempotency
-uniqueness, webhook event uniqueness.
+uniqueness, webhook event uniqueness, coupon values that fit their type, one
+redemption per order, coupon usage never above its limit (conditional update).
 
 ---
 
@@ -829,7 +882,8 @@ uniqueness, webhook event uniqueness.
   shipping methods, settings) goes into normal migrations. Demo products and test
   users live in `db/seed-dev` and are only loaded with the `dev` profile.
   `R__dev_catalog.sql` is a repeatable migration with fixed IDs and
-  `ON CONFLICT … DO UPDATE`, so editing it refreshes the demo catalog. Don't run
+  `ON CONFLICT … DO UPDATE`, so editing it refreshes the demo catalog;
+  `R__dev_coupons.sql` adds the demo codes `WELCOME10`, `SHIPFREE` and `FIVEOFF` the same way. Don't run
   a database that has the dev seed with another profile (Flyway would report the
   repeatable migration as missing).
 - **Zero-downtime habits:** add nullable column → backfill → add constraint;
@@ -850,7 +904,7 @@ uniqueness, webhook event uniqueness.
 | 7 | `shipments`, `order_notes`, `gallery_images`, `shipping_methods.version` |
 | 8 | `coupons`, `coupon_redemptions`, `carts.coupon_id` |
 | 9 | `payments`, `payment_webhook_events` |
-| 10 | `invoices` |
+| 10 | `invoices`; German texts (`…_de` columns, brought forward with SEO, §3) |
 
 A foreign key that points to a table created in a later phase is added by
 that later phase's migration.
@@ -882,8 +936,9 @@ adviser.
 | Internal order notes and status-change notes written by the shop (may mention the customer) | `order_notes`, `order_status_history.note` | Running the order, Art. 6(1)(b)/(f) | With the order (statutory retention) |
 | Shipments: carrier, tracking number, tracking link, shipping and delivery time | `shipments` | Delivering the order and answering where it is, Art. 6(1)(b) | With the order (statutory retention) |
 | Account lock: time, the admin who locked it and the reason they gave | `users.status`/`locked_until` + audit entries `ACCOUNT_LOCKED_BY_SHOP`/`ACCOUNT_UNLOCKED_BY_SHOP` | Protecting the shop against abuse, Art. 6(1)(f) | Entries stay (IP address erased after 90 days); the reason should be factual and short |
+| Coupon use: which coupon an order used, the customer's user id and what they saved | `coupon_redemptions` (user id only, no email or name; after account deletion it points to the anonymised user row) | Enforcing "once per customer" limits and coupon statistics, Art. 6(1)(b)/(f) | With the order (statutory retention; deleted with it) |
 | Gallery photos (aquariums and animals; no people) | `gallery_images` + files under `media/gallery/` | Presenting the shop, Art. 6(1)(f) | Until the owner deletes the photo (files removed with it) |
-| Language choice | Browser `localStorage` key `pwa.language` (no personal data) | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
+| Language choice | Browser `localStorage` key `pwa.language` (no personal data); only used to open the bare home page `/` in the language chosen last — the link decides the language everywhere else | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
 
 **Cookies:** `SESSION` (login), `XSRF-TOKEN` (CSRF protection) and `CART_TOKEN` (guest
 cart) are strictly necessary for services the visitor asks for, so no consent banner is

@@ -1,7 +1,7 @@
 package com.pwaquatics.shop.order.application;
 
-import com.pwaquatics.shop.common.config.AppProperties;
 import com.pwaquatics.shop.common.money.Money;
+import com.pwaquatics.shop.common.web.SiteLinks;
 import com.pwaquatics.shop.notification.domain.EmailMessage;
 import com.pwaquatics.shop.order.domain.Order;
 import com.pwaquatics.shop.order.domain.OrderAddress;
@@ -29,10 +29,10 @@ class OrderEmails {
 
     private static final Locale ENGLISH = Locale.of("en", "IE"); // "€12.34", "16 November 2026"
 
-    private final String baseUrl;
+    private final SiteLinks links;
 
-    OrderEmails(AppProperties properties) {
-        this.baseUrl = properties.baseUrl().replaceAll("/+$", "");
+    OrderEmails(SiteLinks links) {
+        this.links = links;
     }
 
     /**
@@ -54,12 +54,22 @@ class OrderEmails {
         for (OrderItem item : order.getItems()) {
             body.append("  ").append(item.getQuantity()).append(" × ").append(item.getProductName())
                     .append(" – ").append(item.getVariantName())
-                    .append(": ").append(money(Money.eur(item.getLineTotalCents()), locale)).append('\n');
+                    .append(": ").append(money(Money.eur(item.grossLineTotalCents()), locale)).append('\n');
         }
         body.append('\n');
         body.append(german ? "Zwischensumme: " : "Subtotal: ").append(money(order.subtotal(), locale)).append('\n');
+        String coupon = order.getCouponCode();
+        boolean freeShippingCoupon = coupon != null && order.discount().amount() == 0;
+        if (coupon != null && !freeShippingCoupon) {
+            body.append(german ? "Gutschein " : "Coupon ").append(coupon).append(": −")
+                    .append(money(order.discount(), locale)).append('\n');
+        }
         body.append(german ? "Versand (" : "Shipping (").append(order.getShippingMethodName()).append("): ")
-                .append(money(order.shipping(), locale)).append('\n');
+                .append(money(order.shipping(), locale));
+        if (freeShippingCoupon) {
+            body.append(german ? " – kostenlos mit Gutschein " : " – free with coupon ").append(coupon);
+        }
+        body.append('\n');
         body.append(german ? "Gesamtsumme: " : "Total: ").append(money(order.total(), locale))
                 .append(german ? " (inkl. " : " (includes ").append(money(order.includedTax(), locale))
                 .append(german ? " MwSt.)\n\n" : " VAT)\n\n");
@@ -297,11 +307,11 @@ class OrderEmails {
     }
 
     private String orderLink(Order order) {
-        return baseUrl + "/account/orders/" + order.getOrderNumber();
+        return links.page(order.getCustomerLocale(), "/account/orders/" + order.getOrderNumber());
     }
 
     private String payLink(Order order) {
-        return baseUrl + "/checkout/pay/" + order.getOrderNumber();
+        return links.page(order.getCustomerLocale(), "/checkout/pay/" + order.getOrderNumber());
     }
 
     private static void appendAddress(StringBuilder body, OrderAddress address) {

@@ -72,8 +72,11 @@ public class OrderItem extends AbstractEntity {
 
     protected OrderItem() {}
 
-    OrderItem(Order order, int position, NewOrderItem item) {
-        if (item.quantity() < 1 || item.packSize() < 1 || item.unitPriceCents() < 0) {
+    /**
+     * @param discountCents this line's share of the coupon discount
+     */
+    OrderItem(Order order, int position, NewOrderItem item, long discountCents) {
+        if (item.quantity() < 1 || item.packSize() < 1 || item.unitPriceCents() < 0 || discountCents < 0) {
             throw new IllegalArgumentException("Invalid order item");
         }
         this.order = order;
@@ -89,8 +92,12 @@ public class OrderItem extends AbstractEntity {
         this.packSize = item.packSize();
         this.unitPriceCents = item.unitPriceCents();
         this.quantity = item.quantity();
-        this.discountCents = 0;
-        this.lineTotalCents = Math.multiplyExact(item.unitPriceCents(), (long) item.quantity());
+        this.discountCents = discountCents;
+        this.lineTotalCents = Math.subtractExact(
+                Math.multiplyExact(item.unitPriceCents(), (long) item.quantity()), discountCents);
+        if (lineTotalCents < 0) {
+            throw new IllegalArgumentException("Discount larger than the line");
+        }
         this.taxRateBps = item.taxRateBps();
         this.taxCents = PriceCalculator.includedTaxCents(lineTotalCents, item.taxRateBps());
     }
@@ -148,6 +155,17 @@ public class OrderItem extends AbstractEntity {
         return quantity;
     }
 
+    /** Unit price × quantity, before the coupon discount (what the customer sees per line). */
+    public long grossLineTotalCents() {
+        return Math.multiplyExact(unitPriceCents, (long) quantity);
+    }
+
+    /** This line's share of the coupon discount. */
+    public long getDiscountCents() {
+        return discountCents;
+    }
+
+    /** What the line was sold for: unit price × quantity − its share of the discount. */
     public long getLineTotalCents() {
         return lineTotalCents;
     }

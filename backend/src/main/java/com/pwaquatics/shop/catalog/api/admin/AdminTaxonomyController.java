@@ -85,7 +85,7 @@ class AdminTaxonomyController {
 
     private static CategoryInput input(CategoryRequest r) {
         return new CategoryInput(r.name().strip(), trimToNull(r.slug()), r.parentId(), trimToNull(r.description()),
-                r.sortOrder(), r.active());
+                r.sortOrder(), r.active(), trimToNull(r.nameDe()), trimToNull(r.descriptionDe()));
     }
 
     // ------------------------------------------------------------------ species
@@ -134,7 +134,9 @@ class AdminTaxonomyController {
         return new SpeciesData(r.scientificName().strip(), trimToNull(r.commonName()), trimToNull(r.slug()),
                 trimToNull(r.description()), trimToNull(r.origin()), r.tempMinC(), r.tempMaxC(), r.phMin(),
                 r.phMax(), r.ghMin(), r.ghMax(), r.khMin(), r.khMax(), r.tdsMin(), r.tdsMax(), r.adultSizeMm(),
-                r.lifespanMonths(), r.difficulty(), r.tradeRestricted(), trimToNull(r.restrictionNote()));
+                r.lifespanMonths(), r.difficulty(), r.tradeRestricted(), trimToNull(r.restrictionNote()),
+                trimToNull(r.commonNameDe()), trimToNull(r.descriptionDe()), trimToNull(r.originDe()),
+                trimToNull(r.restrictionNoteDe()));
     }
 
     // ------------------------------------------------------------------ colours
@@ -174,7 +176,8 @@ class AdminTaxonomyController {
     }
 
     private static ColourInput input(ColourRequest r) {
-        return new ColourInput(r.name().strip(), trimToNull(r.slug()), trimToNull(r.hexCode()), r.sortOrder());
+        return new ColourInput(r.name().strip(), trimToNull(r.slug()), trimToNull(r.hexCode()), r.sortOrder(),
+                trimToNull(r.nameDe()));
     }
 
     // ------------------------------------------------------------------ grades
@@ -215,7 +218,8 @@ class AdminTaxonomyController {
 
     private static GradeInput input(GradeRequest r) {
         return new GradeInput(r.name().strip(), trimToNull(r.slug()), trimToNull(r.scale()),
-                trimToNull(r.description()), r.rank(), r.sortOrder());
+                trimToNull(r.description()), r.rank(), r.sortOrder(), trimToNull(r.nameDe()),
+                trimToNull(r.descriptionDe()));
     }
 
     static Actor actor(ShopUserPrincipal principal, HttpServletRequest http) {

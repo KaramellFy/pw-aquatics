@@ -29,6 +29,7 @@ export function SpeciesPage() {
         <PageMeta
           title={`${title} (${data.scientificName}) – ${t('common.brand')}`}
           description={data.descriptionHtml?.replace(/<[^>]+>/g, '').slice(0, 160)}
+          languages={data.languages}
         />
       )}
       <Container className="pt-10 pb-24 sm:pt-14">

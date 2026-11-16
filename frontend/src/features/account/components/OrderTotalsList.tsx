@@ -5,8 +5,15 @@ import { useIntlLocale } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 import type { OrderTotals } from '../api/orders';
 
-/** Subtotal, shipping and total exactly as the server calculated them. */
-export function OrderTotalsList({ totals, className }: { totals: OrderTotals; className?: string }) {
+interface OrderTotalsListProps {
+  totals: OrderTotals;
+  /** Code of the coupon used, shown next to its discount (or as free shipping). */
+  couponCode?: string | null;
+  className?: string;
+}
+
+/** Subtotal, coupon, shipping and total exactly as the server calculated them. */
+export function OrderTotalsList({ totals, couponCode, className }: OrderTotalsListProps) {
   const { t } = useTranslation();
   const locale = useIntlLocale();
   return (
@@ -17,6 +24,17 @@ export function OrderTotalsList({ totals, className }: { totals: OrderTotals; cl
           <Price value={totals.subtotal} />
         </dd>
       </div>
+      {couponCode && (
+        <div className="flex justify-between gap-4">
+          <dt className="text-ink-soft">{t('orders.totals.coupon', { code: couponCode })}</dt>
+          <dd className="text-success tabular-nums">
+            {/* A coupon without a discount on the goods is a free-shipping coupon. */}
+            {totals.discount.amount > 0
+              ? t('orders.totals.minus', { amount: formatMoney(totals.discount, locale) })
+              : t('orders.totals.freeShipping')}
+          </dd>
+        </div>
+      )}
       <div className="flex justify-between gap-4">
         <dt className="text-ink-soft">{t('orders.totals.shipping')}</dt>
         <dd>{totals.shipping.amount === 0 ? t('orders.totals.free') : <Price value={totals.shipping} />}</dd>

@@ -137,6 +137,7 @@ public class AdminGalleryService {
         return new AdminGalleryImageView(image.getId(), image.getTitle(), image.getCaption(), image.getAltText(),
                 image.isPublished(), image.getSortOrder(),
                 urls.image(image.getStorageKey(), image.getAltText(), image.getWidth(), image.getHeight()),
-                image.getCreatedAt(), image.getVersion());
+                image.getCreatedAt(), image.getVersion(), image.getTitleDe(), image.getCaptionDe(),
+                image.getAltTextDe());
     }
 }

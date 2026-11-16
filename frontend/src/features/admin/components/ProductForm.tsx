@@ -43,6 +43,12 @@ function productSchema(t: TFunction) {
     taxRateBps: z.string(),
     seoTitle: optional(160),
     seoDescription: optional(320),
+    nameDe: optional(150),
+    shortDescriptionDe: optional(300),
+    descriptionDe: optional(20000),
+    careNotesDe: optional(10000),
+    seoTitleDe: optional(160),
+    seoDescriptionDe: optional(320),
   });
 }
 export type ProductFormValues = z.infer<ReturnType<typeof productSchema>>;
@@ -60,6 +66,12 @@ const FIELDS = [
   'taxRateBps',
   'seoTitle',
   'seoDescription',
+  'nameDe',
+  'shortDescriptionDe',
+  'descriptionDe',
+  'careNotesDe',
+  'seoTitleDe',
+  'seoDescriptionDe',
 ] as const;
 
 function toValues(product?: AdminProduct): ProductFormValues {
@@ -80,6 +92,12 @@ function toValues(product?: AdminProduct): ProductFormValues {
     taxRateBps: String(product?.taxRateBps ?? 1900),
     seoTitle: product?.seoTitle ?? '',
     seoDescription: product?.seoDescription ?? '',
+    nameDe: product?.nameDe ?? '',
+    shortDescriptionDe: product?.shortDescriptionDe ?? '',
+    descriptionDe: product?.descriptionDe ?? '',
+    careNotesDe: product?.careNotesDe ?? '',
+    seoTitleDe: product?.seoTitleDe ?? '',
+    seoDescriptionDe: product?.seoDescriptionDe ?? '',
   };
 }
 
@@ -102,6 +120,12 @@ export function toProductInput(values: ProductFormValues, version?: number): Pro
     taxRateBps: Number(values.taxRateBps),
     seoTitle: values.seoTitle || undefined,
     seoDescription: values.seoDescription || undefined,
+    nameDe: values.nameDe || undefined,
+    shortDescriptionDe: values.shortDescriptionDe || undefined,
+    descriptionDe: values.descriptionDe || undefined,
+    careNotesDe: values.careNotesDe || undefined,
+    seoTitleDe: values.seoTitleDe || undefined,
+    seoDescriptionDe: values.seoDescriptionDe || undefined,
     version,
   };
 }
@@ -145,6 +169,9 @@ export function ProductForm({ product, submitLabel, pending, error, onSubmit, no
   const taxRate = useWatch({ control, name: 'taxRateBps' });
   const description = useWatch({ control, name: 'description' });
   const careNotes = useWatch({ control, name: 'careNotes' });
+  const descriptionDe = useWatch({ control, name: 'descriptionDe' });
+  const careNotesDe = useWatch({ control, name: 'careNotesDe' });
+  const german = (label: string) => t('admin.common.inGerman', { label });
   const conflict = error instanceof ApiError && error.code === 'CONFLICT';
   const slugError =
     errors.slug?.message ??
@@ -300,6 +327,57 @@ export function ProductForm({ product, submitLabel, pending, error, onSubmit, no
             rows={2}
             maxLength={320}
             {...register('seoDescription')}
+          />
+        </div>
+      </AdminCard>
+
+      <AdminCard title={t('admin.product.sections.german')} id="product-german">
+        <p className="mb-5 text-sm text-ink-soft">{t('admin.product.germanIntro')}</p>
+        <div className="space-y-5">
+          <TextField
+            label={german(t('admin.product.fields.name'))}
+            error={errors.nameDe?.message}
+            maxLength={150}
+            lang="de"
+            {...register('nameDe')}
+          />
+          <TextAreaField
+            label={german(t('admin.product.fields.shortDescription'))}
+            error={errors.shortDescriptionDe?.message}
+            rows={2}
+            maxLength={300}
+            lang="de"
+            {...register('shortDescriptionDe')}
+          />
+          <MarkdownField
+            label={german(t('admin.product.fields.description'))}
+            value={descriptionDe}
+            error={errors.descriptionDe?.message}
+            lang="de"
+            {...register('descriptionDe')}
+          />
+          <MarkdownField
+            label={german(t('admin.product.fields.careNotes'))}
+            value={careNotesDe}
+            error={errors.careNotesDe?.message}
+            rows={5}
+            lang="de"
+            {...register('careNotesDe')}
+          />
+          <TextField
+            label={german(t('admin.product.fields.seoTitle'))}
+            error={errors.seoTitleDe?.message}
+            maxLength={160}
+            lang="de"
+            {...register('seoTitleDe')}
+          />
+          <TextAreaField
+            label={german(t('admin.product.fields.seoDescription'))}
+            error={errors.seoDescriptionDe?.message}
+            rows={2}
+            maxLength={320}
+            lang="de"
+            {...register('seoDescriptionDe')}
           />
         </div>
       </AdminCard>

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/lib/format/money';
 import { formatCount, formatCountCompact } from '@/lib/format/number';
+import type { CouponStats } from '../../api/coupons';
 import type { ProductStats, SalesStats, StockStats } from '../../api/statistics';
 import { ChartCard, ChartTable } from '../charts/ChartCard';
 import { ColumnChart } from '../charts/ColumnChart';
@@ -216,6 +217,36 @@ export function StockMovements({ stats, dimmed }: { stats: StockStats; dimmed: b
           value: row.units,
           display: t(row.units > 0 ? 'admin.dashboard.stock.added' : 'admin.dashboard.stock.removed', {
             formatted: formatCount(Math.abs(row.units), locale),
+          }),
+        }))}
+      />
+    </ChartCard>
+  );
+}
+
+/** Revenue of the orders that used each coupon, with orders and what the coupon saved. */
+export function RevenueByCoupon({ stats, dimmed }: { stats: CouponStats; dimmed: boolean }) {
+  const { t } = useTranslation();
+  const locale = useLocale();
+  return (
+    <ChartCard
+      id="revenue-by-coupon"
+      title={t('admin.dashboard.coupons.byCoupon')}
+      description={t('admin.dashboard.coupons.byCouponDescription')}
+      dimmed={dimmed}
+    >
+      <RankedBars
+        label={t('admin.dashboard.coupons.byCoupon')}
+        emptyText={t('admin.dashboard.coupons.none')}
+        rows={stats.coupons.map((row) => ({
+          key: row.code,
+          label: row.code,
+          value: row.revenue.amount,
+          display: formatMoney(row.revenue, locale),
+          secondary: t('admin.dashboard.coupons.rowDetail', {
+            count: row.orders,
+            orders: formatCount(row.orders, locale),
+            saving: formatMoney(row.saving, locale),
           }),
         }))}
       />

@@ -26,6 +26,10 @@ public class ProductVariant extends AbstractEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    /** German name of the pack size, or null (the English one is shown). */
+    @Column(name = "name_de", length = 100)
+    private String nameDe;
+
     @Column(name = "pack_size", nullable = false)
     private int packSize;
 
@@ -50,10 +54,13 @@ public class ProductVariant extends AbstractEntity {
      * Changes the pack size. Prices are set by the shop owner in the admin area; they are
      * never taken from a customer's request.
      */
-    void update(String sku, String name, int packSize, long priceCents, Long compareAtPriceCents, boolean active) {
+    void update(
+            String sku, String name, String nameDe, int packSize, long priceCents, Long compareAtPriceCents,
+            boolean active) {
         requireValid(packSize, priceCents, compareAtPriceCents);
         this.sku = sku;
         this.name = name;
+        this.nameDe = nameDe;
         this.packSize = packSize;
         this.priceCents = priceCents;
         this.compareAtPriceCents = compareAtPriceCents;
@@ -75,11 +82,12 @@ public class ProductVariant extends AbstractEntity {
     }
 
     ProductVariant(
-            Product product, String sku, String name, int packSize, long priceCents, Long compareAtPriceCents,
-            int sortOrder) {
+            Product product, String sku, String name, String nameDe, int packSize, long priceCents,
+            Long compareAtPriceCents, int sortOrder) {
         this.product = product;
         this.sku = sku;
         this.name = name;
+        this.nameDe = nameDe;
         this.packSize = packSize;
         this.priceCents = priceCents;
         this.compareAtPriceCents = compareAtPriceCents;
@@ -104,6 +112,10 @@ public class ProductVariant extends AbstractEntity {
 
     public String getName() {
         return name;
+    }
+
+    public String getNameDe() {
+        return nameDe;
     }
 
     public int getPackSize() {

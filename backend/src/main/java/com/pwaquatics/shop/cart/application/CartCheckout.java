@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.cart.application;
 
+import com.pwaquatics.shop.cart.domain.Cart;
 import com.pwaquatics.shop.cart.infrastructure.CartRepository;
 import com.pwaquatics.shop.common.ids.Ids;
 import java.time.Clock;
@@ -29,17 +30,19 @@ public class CartCheckout {
 
     /**
      * Locks the customer's cart (creating an empty one if needed) and returns its lines in
-     * the order they were added.
+     * the order they were added, with the coupon the customer entered.
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public List<CartLine> lockLines(UUID userId) {
+    public CheckoutCart lock(UUID userId) {
         carts.insertForUserIfAbsent(Ids.newId(), userId, clock.instant());
-        return carts.lockByUserId(userId).orElseThrow().getItems().stream()
+        Cart cart = carts.lockByUserId(userId).orElseThrow();
+        List<CartLine> lines = cart.getItems().stream()
                 .map(item -> new CartLine(item.getVariantId(), item.getQuantity()))
                 .toList();
+        return new CheckoutCart(lines, cart.getCouponId());
     }
 
-    /** Empties the customer's cart after the order has been created (same transaction). */
+    /** Empties the customer's cart (and removes its coupon) after the order has been created (same transaction). */
     @Transactional(propagation = Propagation.MANDATORY)
     public void clear(UUID userId) {
         carts.lockByUserId(userId).ifPresent(cart -> cart.clear(clock.instant()));

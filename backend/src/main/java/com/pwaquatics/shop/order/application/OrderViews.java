@@ -67,7 +67,9 @@ class OrderViews {
                 order.getPaymentDueAt(),
                 order.getPlannedDispatchDate(),
                 order.getItems().stream().map(OrderViews::item).toList(),
-                new OrderTotalsView(order.subtotal(), order.shipping(), order.total(), order.includedTax()),
+                new OrderTotalsView(
+                        order.subtotal(), order.discount(), order.shipping(), order.total(), order.includedTax()),
+                order.getCouponCode(),
                 order.getShippingMethodName(),
                 order.getShippingCarrier(),
                 address(order.shippingAddress()),
@@ -119,7 +121,7 @@ class OrderViews {
                 item.getGradeName(),
                 item.getQuantity(),
                 Money.eur(item.getUnitPriceCents()),
-                Money.eur(item.getLineTotalCents()));
+                Money.eur(item.grossLineTotalCents()));
     }
 
     private static OrderAddressView address(OrderAddress address) {

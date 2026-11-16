@@ -18,6 +18,7 @@ import java.util.List;
  * @param cancellable whether the customer may cancel the order right now
  * @param payableByCard whether the customer can (still) pay this order by card right now
  * @param shipments parcels handed to the carrier, with tracking links
+ * @param couponCode the coupon used for this order, or null
  */
 public record OrderDetailView(
         String orderNumber,
@@ -29,6 +30,7 @@ public record OrderDetailView(
         @Nullable LocalDate plannedDispatchDate,
         List<OrderItemView> items,
         OrderTotalsView totals,
+        @Nullable String couponCode,
         String shippingMethodName,
         @Nullable String shippingCarrier,
         OrderAddressView shippingAddress,

@@ -71,6 +71,7 @@ public class AdminTaxonomyService {
         Category category = new Category(input.name(), slug);
         category.update(input.name(), slug, parent(input.parentId()), input.description(), input.sortOrder(),
                 input.active());
+        category.changeGermanTexts(input.nameDe(), input.descriptionDe());
         categories.save(category);
         audit.record(actor, "CATEGORY_CREATED", "CATEGORY", category.getId(), Map.of("slug", slug));
         return toView(category, counts(products.countByCategory()));
@@ -82,6 +83,7 @@ public class AdminTaxonomyService {
         String slug = AdminSlugs.resolve(input.slug(), input.name(), 120, s -> categories.existsBySlugAndIdNot(s, id));
         category.update(input.name(), slug, parent(input.parentId()), input.description(), input.sortOrder(),
                 input.active());
+        category.changeGermanTexts(input.nameDe(), input.descriptionDe());
         audit.record(actor, "CATEGORY_UPDATED", "CATEGORY", id, Map.of("slug", slug));
         return toView(category, counts(products.countByCategory()));
     }
@@ -109,7 +111,9 @@ public class AdminTaxonomyService {
                 category.getDescription(),
                 category.getSortOrder(),
                 category.isActive(),
-                counts.getOrDefault(category.getId(), 0L));
+                counts.getOrDefault(category.getId(), 0L),
+                category.getNameDe(),
+                category.getDescriptionDe());
     }
 
     // ------------------------------------------------------------------ species
@@ -132,7 +136,7 @@ public class AdminTaxonomyService {
         }
         String slug = AdminSlugs.resolve(input.slug(), input.scientificName(), 170, species::existsBySlug);
         Species created = new Species(input.scientificName(), input.commonName(), slug);
-        created.update(withSlug(input, slug));
+        created.update(input.withSlug(slug));
         species.save(created);
         audit.record(actor, "SPECIES_CREATED", "SPECIES", created.getId(), Map.of("slug", slug));
         return toView(created, counts(products.countBySpecies()));
@@ -151,7 +155,7 @@ public class AdminTaxonomyService {
         String slug = AdminSlugs.resolve(input.slug(), input.scientificName(), 170,
                 s -> species.existsBySlugAndIdNot(s, id));
         boolean wasRestricted = existing.isTradeRestricted();
-        existing.update(withSlug(input, slug));
+        existing.update(input.withSlug(slug));
         audit.record(actor, "SPECIES_UPDATED", "SPECIES", id, Map.of("slug", slug));
         if (existing.isTradeRestricted() != wasRestricted) {
             audit.record(actor, existing.isTradeRestricted() ? "SPECIES_TRADE_RESTRICTED" : "SPECIES_TRADE_ALLOWED",
@@ -170,19 +174,13 @@ public class AdminTaxonomyService {
         audit.record(actor, "SPECIES_DELETED", "SPECIES", id, Map.of("slug", existing.getSlug()));
     }
 
-    private static SpeciesData withSlug(SpeciesData data, String slug) {
-        return new SpeciesData(data.scientificName(), data.commonName(), slug, data.description(), data.origin(),
-                data.tempMinC(), data.tempMaxC(), data.phMin(), data.phMax(), data.ghMin(), data.ghMax(),
-                data.khMin(), data.khMax(), data.tdsMin(), data.tdsMax(), data.adultSizeMm(), data.lifespanMonths(),
-                data.difficulty(), data.tradeRestricted(), data.restrictionNote());
-    }
-
     private static AdminSpeciesView toView(Species s, Map<UUID, Long> counts) {
         return new AdminSpeciesView(s.getId(), s.getScientificName(), s.getCommonName(), s.getSlug(),
                 s.getDescription(), s.getOrigin(), s.getTempMinC(), s.getTempMaxC(), s.getPhMin(), s.getPhMax(),
                 s.getGhMin(), s.getGhMax(), s.getKhMin(), s.getKhMax(), s.getTdsMin(), s.getTdsMax(),
                 s.getAdultSizeMm(), s.getLifespanMonths(), s.getDifficulty(), s.isTradeRestricted(),
-                s.getRestrictionNote(), counts.getOrDefault(s.getId(), 0L));
+                s.getRestrictionNote(), counts.getOrDefault(s.getId(), 0L), s.getCommonNameDe(), s.getDescriptionDe(),
+                s.getOriginDe(), s.getRestrictionNoteDe());
     }
 
     // ------------------------------------------------------------------ colours
@@ -198,6 +196,7 @@ public class AdminTaxonomyService {
         String slug = AdminSlugs.resolve(input.slug(), input.name(), 80, colours::existsBySlug);
         Colour colour = new Colour(input.name(), slug);
         colour.update(input.name(), slug, normaliseHex(input.hexCode()), input.sortOrder());
+        colour.changeGermanName(input.nameDe());
         colours.save(colour);
         audit.record(actor, "COLOUR_CREATED", "COLOUR", colour.getId(), Map.of("slug", slug));
         return toView(colour, Map.of());
@@ -208,6 +207,7 @@ public class AdminTaxonomyService {
         Colour colour = colours.findById(id).orElseThrow(() -> notFound("Colour"));
         String slug = AdminSlugs.resolve(input.slug(), input.name(), 80, s -> colours.existsBySlugAndIdNot(s, id));
         colour.update(input.name(), slug, normaliseHex(input.hexCode()), input.sortOrder());
+        colour.changeGermanName(input.nameDe());
         audit.record(actor, "COLOUR_UPDATED", "COLOUR", id, Map.of("slug", slug));
         return toView(colour, counts(products.countByColour()));
     }
@@ -228,7 +228,7 @@ public class AdminTaxonomyService {
 
     private static AdminColourView toView(Colour colour, Map<UUID, Long> counts) {
         return new AdminColourView(colour.getId(), colour.getName(), colour.getSlug(), colour.getHexCode(),
-                colour.getSortOrder(), counts.getOrDefault(colour.getId(), 0L));
+                colour.getSortOrder(), counts.getOrDefault(colour.getId(), 0L), colour.getNameDe());
     }
 
     // ------------------------------------------------------------------ grades
@@ -244,6 +244,7 @@ public class AdminTaxonomyService {
         String slug = AdminSlugs.resolve(input.slug(), input.name(), 80, grades::existsBySlug);
         Grade grade = new Grade(input.name(), slug);
         grade.update(input.name(), slug, input.scale(), input.description(), input.rank(), input.sortOrder());
+        grade.changeGermanTexts(input.nameDe(), input.descriptionDe());
         grades.save(grade);
         audit.record(actor, "GRADE_CREATED", "GRADE", grade.getId(), Map.of("slug", slug));
         return toView(grade, Map.of());
@@ -254,6 +255,7 @@ public class AdminTaxonomyService {
         Grade grade = grades.findById(id).orElseThrow(() -> notFound("Grade"));
         String slug = AdminSlugs.resolve(input.slug(), input.name(), 80, s -> grades.existsBySlugAndIdNot(s, id));
         grade.update(input.name(), slug, input.scale(), input.description(), input.rank(), input.sortOrder());
+        grade.changeGermanTexts(input.nameDe(), input.descriptionDe());
         audit.record(actor, "GRADE_UPDATED", "GRADE", id, Map.of("slug", slug));
         return toView(grade, counts(products.countByGrade()));
     }
@@ -270,7 +272,8 @@ public class AdminTaxonomyService {
 
     private static AdminGradeView toView(Grade grade, Map<UUID, Long> counts) {
         return new AdminGradeView(grade.getId(), grade.getName(), grade.getSlug(), grade.getScale(),
-                grade.getDescription(), grade.getRank(), grade.getSortOrder(), counts.getOrDefault(grade.getId(), 0L));
+                grade.getDescription(), grade.getRank(), grade.getSortOrder(), counts.getOrDefault(grade.getId(), 0L),
+                grade.getNameDe(), grade.getDescriptionDe());
     }
 
     // ------------------------------------------------------------------ helpers

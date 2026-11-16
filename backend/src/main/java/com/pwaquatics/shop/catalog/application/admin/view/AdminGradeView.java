@@ -12,4 +12,6 @@ public record AdminGradeView(
         @Nullable String description,
         int rank,
         int sortOrder,
-        long productCount) {}
+        long productCount,
+        @Nullable String nameDe,
+        @Nullable String descriptionDe) {}

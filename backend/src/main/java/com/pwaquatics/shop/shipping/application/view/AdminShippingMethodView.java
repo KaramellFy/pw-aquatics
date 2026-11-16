@@ -27,4 +27,6 @@ public record AdminShippingMethodView(
         List<String> countries,
         boolean active,
         int sortOrder,
-        long version) {}
+        long version,
+        @Nullable String nameDe,
+        @Nullable String descriptionDe) {}

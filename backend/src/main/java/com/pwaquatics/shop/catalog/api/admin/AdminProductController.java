@@ -176,7 +176,8 @@ class AdminProductController {
             @Valid @RequestBody AltTextRequest request,
             @AuthenticationPrincipal ShopUserPrincipal principal,
             HttpServletRequest http) {
-        return products.changeAltText(id, imageId, request.altText().strip(), actor(principal, http));
+        return products.changeAltText(id, imageId, request.altText().strip(), trimToNull(request.altTextDe()),
+                actor(principal, http));
     }
 
     @Operation(summary = "Reorder photos (every photo once; the first is the main photo)")
@@ -210,12 +211,14 @@ class AdminProductController {
                 new ProductDetails(r.name().strip(), trimToNull(r.slug()), trimToNull(r.shortDescription()),
                         trimToNull(r.description()), trimToNull(r.careNotes()), r.liveAnimal(), r.featured(),
                         r.lowStockThreshold(), r.availableFrom(), r.taxRateBps(), trimToNull(r.seoTitle()),
-                        trimToNull(r.seoDescription())),
+                        trimToNull(r.seoDescription()), trimToNull(r.nameDe()), trimToNull(r.shortDescriptionDe()),
+                        trimToNull(r.descriptionDe()), trimToNull(r.careNotesDe()), trimToNull(r.seoTitleDe()),
+                        trimToNull(r.seoDescriptionDe())),
                 r.categoryId(), r.speciesId(), r.gradeId(), r.colourIds() == null ? List.of() : r.colourIds());
     }
 
     private static VariantInput input(VariantRequest r) {
         return new VariantInput(r.sku(), r.name().strip(), r.packSize(), r.priceCents(), r.compareAtPriceCents(),
-                r.active());
+                r.active(), trimToNull(r.nameDe()));
     }
 }

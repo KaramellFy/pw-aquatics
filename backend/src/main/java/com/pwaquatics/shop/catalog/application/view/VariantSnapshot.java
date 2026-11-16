@@ -13,6 +13,7 @@ import java.util.UUID;
  * @param purchasable the product is visible in the shop, the variant is active and at least one pack is in stock
  * @param maxQuantity packs that can be bought now (0 if not purchasable); capped per line
  * @param stockUnits animals in stock, shared by all pack sizes of the product (internal; never sent to clients)
+ * @param reduced the variant has a previous price (it is on sale), so coupons do not reduce it
  */
 public record VariantSnapshot(
         UUID variantId,
@@ -23,6 +24,7 @@ public record VariantSnapshot(
         String sku,
         int packSize,
         Money unitPrice,
+        boolean reduced,
         int taxRateBps,
         boolean liveAnimal,
         boolean purchasable,

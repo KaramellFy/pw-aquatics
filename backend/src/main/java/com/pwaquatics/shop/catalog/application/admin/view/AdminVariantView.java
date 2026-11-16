@@ -9,6 +9,7 @@ public record AdminVariantView(
         UUID id,
         String sku,
         String name,
+        @Nullable String nameDe,
         int packSize,
         Money price,
         @Nullable Money compareAtPrice,

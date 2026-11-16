@@ -18,6 +18,7 @@ const groups = [
     items: [
       { to: '/admin/orders', labelKey: 'admin.nav.orders', end: false },
       { to: '/admin/customers', labelKey: 'admin.nav.customers', end: false },
+      { to: '/admin/coupons', labelKey: 'admin.nav.coupons', end: false },
     ],
   },
   {

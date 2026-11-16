@@ -53,7 +53,10 @@ class AdminGalleryController {
             @Size(max = GalleryText.CAPTION_MAX) String caption,
             @NotBlank @Size(max = GalleryText.ALT_TEXT_MAX) String altText,
             boolean published,
-            long version) {}
+            long version,
+            @Size(max = GalleryText.TITLE_MAX) String titleDe,
+            @Size(max = GalleryText.CAPTION_MAX) String captionDe,
+            @Size(max = GalleryText.ALT_TEXT_MAX) String altTextDe) {}
 
     record GalleryOrderRequest(@NotEmpty @Size(max = AdminGalleryService.MAX_IMAGES) List<@NotNull UUID> imageIds) {}
 
@@ -74,7 +77,7 @@ class AdminGalleryController {
             @AuthenticationPrincipal ShopUserPrincipal principal,
             HttpServletRequest http) {
         try {
-            return gallery.upload(file.getBytes(), new GalleryText(trimToNull(title), trimToNull(caption),
+            return gallery.upload(file.getBytes(), GalleryText.english(trimToNull(title), trimToNull(caption),
                     altText.strip()), actor(principal, http));
         } catch (IOException e) {
             throw new UncheckedIOException("Could not read the upload", e);
@@ -89,7 +92,8 @@ class AdminGalleryController {
             @AuthenticationPrincipal ShopUserPrincipal principal,
             HttpServletRequest http) {
         return gallery.update(id, new GalleryText(trimToNull(request.title()), trimToNull(request.caption()),
-                request.altText().strip()), request.published(), request.version(), actor(principal, http));
+                request.altText().strip(), trimToNull(request.titleDe()), trimToNull(request.captionDe()),
+                trimToNull(request.altTextDe())), request.published(), request.version(), actor(principal, http));
     }
 
     @Operation(summary = "Put the photos in a new order (every photo once, first one first)")

@@ -3,6 +3,7 @@ package com.pwaquatics.shop.shipping.application;
 import com.pwaquatics.shop.common.config.AppProperties;
 import com.pwaquatics.shop.common.error.ConflictException;
 import com.pwaquatics.shop.common.money.Money;
+import com.pwaquatics.shop.common.text.ContentLanguage;
 import com.pwaquatics.shop.settings.application.ShopSettings;
 import com.pwaquatics.shop.shipping.application.view.ShippingOption;
 import com.pwaquatics.shop.shipping.application.view.ShippingOptions;
@@ -97,10 +98,11 @@ public class ShippingService {
         LocalDate dispatch =
                 DispatchCalendar.plannedDispatchDate(today, handlingDays, method.dispatchDays(), pausedUntil);
         Long threshold = method.getFreeShippingThresholdCents();
+        ContentLanguage lang = ContentLanguage.current(); // orders keep the name as the customer saw it
         return new ShippingOption(
                 method.getCode(),
-                method.getName(),
-                method.getDescription(),
+                lang.pick(method.getName(), method.getNameDe()),
+                lang.pick(method.getDescription(), method.getDescriptionDe()),
                 method.getCarrier(),
                 Money.eur(method.priceFor(subtotalCents)),
                 threshold == null ? null : Money.eur(threshold),

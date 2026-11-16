@@ -4,6 +4,24 @@
  */
 
 export interface paths {
+    "/api/v1/cart/coupon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Enter a coupon code (replaces one entered before) */
+        put: operations["applyCoupon"];
+        post?: never;
+        /** Remove the coupon */
+        delete: operations["removeCoupon"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/species/{id}": {
         parameters: {
             query?: never;
@@ -164,6 +182,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/coupons/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One coupon */
+        get: operations["get_1"];
+        /** Change a coupon (the code stays; send the version you loaded) */
+        put: operations["update_3"];
+        post?: never;
+        /** Delete a coupon that no order has used */
+        delete: operations["delete_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/colours/{id}": {
         parameters: {
             query?: never;
@@ -243,10 +280,10 @@ export interface paths {
         };
         get?: never;
         /** Update an address */
-        put: operations["update_3"];
+        put: operations["update_4"];
         post?: never;
         /** Delete an address */
-        delete: operations["delete_1"];
+        delete: operations["delete_2"];
         options?: never;
         head?: never;
         patch?: never;
@@ -801,6 +838,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/coupons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Coupons, newest first, optionally filtered by text and current status */
+        get: operations["list_3"];
+        put?: never;
+        /** Create a coupon */
+        post: operations["create_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/colours": {
         parameters: {
             query?: never;
@@ -862,10 +917,10 @@ export interface paths {
             cookie?: never;
         };
         /** Saved addresses, defaults first */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /** Add an address */
-        post: operations["create_2"];
+        post: operations["create_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1301,6 +1356,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stats/coupons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Orders with coupons, what the coupons saved customers and those orders' revenue */
+        get: operations["coupons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders": {
         parameters: {
             query?: never;
@@ -1309,7 +1381,7 @@ export interface paths {
             cookie?: never;
         };
         /** Orders, newest first (or oldest first); search by order number, email or name */
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1326,7 +1398,7 @@ export interface paths {
             cookie?: never;
         };
         /** One order with customer, history, internal notes, payment and possible actions */
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1377,7 +1449,7 @@ export interface paths {
             cookie?: never;
         };
         /** Customers, newest first; search by email or name */
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1394,7 +1466,41 @@ export interface paths {
             cookie?: never;
         };
         /** A customer with addresses, latest orders and what they have spent */
-        get: operations["get_2"];
+        get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/coupons/{id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Orders that used the coupon, what it saved customers and those orders' revenue */
+        get: operations["usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/coupons/{id}/redemptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Orders that used the coupon, newest first */
+        get: operations["redemptions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1411,7 +1517,7 @@ export interface paths {
             cookie?: never;
         };
         /** Messages, newest first; without a status everything except spam */
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1445,7 +1551,7 @@ export interface paths {
             cookie?: never;
         };
         /** Order history, newest first */
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1492,6 +1598,80 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ApplyCouponRequest: {
+            code: string;
+        };
+        CartLineView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            variantId: string;
+            productSlug: string;
+            productName: string;
+            variantName: string;
+            speciesName: string | null;
+            gradeName: string | null;
+            categorySlug: string;
+            colourHex: string | null;
+            image: components["schemas"]["ImageView"] | null;
+            /** Format: int32 */
+            quantity: number;
+            /** Format: int32 */
+            maxQuantity: number;
+            unitPrice: components["schemas"]["Money"];
+            lineTotal: components["schemas"]["Money"];
+            available: boolean;
+        };
+        CartTotalsView: {
+            subtotal: components["schemas"]["Money"];
+            discount: components["schemas"]["Money"];
+            total: components["schemas"]["Money"];
+            includedTax: components["schemas"]["Money"];
+        };
+        CartView: {
+            items: components["schemas"]["CartLineView"][];
+            totals: components["schemas"]["CartTotalsView"];
+            /** Format: int32 */
+            itemCount: number;
+            warnings: components["schemas"]["CartWarningView"][];
+            coupon: components["schemas"]["CouponStateView"] | null;
+        };
+        CartWarningView: {
+            code: string;
+            /** Format: uuid */
+            itemId: string | null;
+            productName: string | null;
+            /** Format: int32 */
+            quantity: number | null;
+        };
+        CouponStateView: {
+            code: string;
+            description: string | null;
+            /** @enum {string} */
+            type: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_SHIPPING";
+            /** Format: int32 */
+            percentage: number | null;
+            amount: components["schemas"]["Money"] | null;
+            maxDiscount: components["schemas"]["Money"] | null;
+            minOrder: components["schemas"]["Money"] | null;
+            applied: boolean;
+            problem: string | null;
+            saving: components["schemas"]["Money"];
+        };
+        ImageView: {
+            url: string;
+            srcSet: string;
+            alt: string;
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            height: number;
+        };
+        Money: {
+            /** Format: int64 */
+            amount: number;
+            currency: string;
+        };
         SpeciesRequest: {
             scientificName: string;
             commonName?: string;
@@ -1522,6 +1702,10 @@ export interface components {
             difficulty?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
             tradeRestricted?: boolean;
             restrictionNote?: string;
+            commonNameDe?: string;
+            descriptionDe?: string;
+            originDe?: string;
+            restrictionNoteDe?: string;
         };
         AdminSpeciesView: {
             /** Format: uuid */
@@ -1557,6 +1741,10 @@ export interface components {
             restrictionNote: string | null;
             /** Format: int64 */
             productCount: number;
+            commonNameDe: string | null;
+            descriptionDe: string | null;
+            originDe: string | null;
+            restrictionNoteDe: string | null;
         };
         ShippingMethodRequest: {
             code?: string;
@@ -1579,6 +1767,8 @@ export interface components {
             sortOrder?: number;
             /** Format: int64 */
             version?: number;
+            nameDe?: string;
+            descriptionDe?: string;
         };
         AdminShippingMethodView: {
             /** Format: uuid */
@@ -1601,11 +1791,8 @@ export interface components {
             sortOrder: number;
             /** Format: int64 */
             version: number;
-        };
-        Money: {
-            /** Format: int64 */
-            amount: number;
-            currency: string;
+            nameDe: string | null;
+            descriptionDe: string | null;
         };
         ShippingPauseRequest: {
             active?: boolean;
@@ -1645,6 +1832,12 @@ export interface components {
             seoDescription?: string;
             /** Format: int64 */
             version?: number;
+            nameDe?: string;
+            shortDescriptionDe?: string;
+            descriptionDe?: string;
+            careNotesDe?: string;
+            seoTitleDe?: string;
+            seoDescriptionDe?: string;
         };
         AdminImageView: {
             /** Format: uuid */
@@ -1652,6 +1845,7 @@ export interface components {
             url: string;
             srcSet: string;
             altText: string;
+            altTextDe: string | null;
             /** Format: int32 */
             width: number;
             /** Format: int32 */
@@ -1690,6 +1884,12 @@ export interface components {
             taxRateBps: number;
             seoTitle: string | null;
             seoDescription: string | null;
+            nameDe: string | null;
+            shortDescriptionDe: string | null;
+            descriptionDe: string | null;
+            careNotesDe: string | null;
+            seoTitleDe: string | null;
+            seoDescriptionDe: string | null;
             /** @enum {string} */
             availability: "IN_STOCK" | "LOW_STOCK" | "COMING_SOON" | "OUT_OF_STOCK";
             /** Format: date-time */
@@ -1707,6 +1907,7 @@ export interface components {
             id: string;
             sku: string;
             name: string;
+            nameDe: string | null;
             /** Format: int32 */
             packSize: number;
             price: components["schemas"]["Money"];
@@ -1725,6 +1926,7 @@ export interface components {
             /** Format: int64 */
             compareAtPriceCents?: number;
             active?: boolean;
+            nameDe?: string;
         };
         ShipmentCorrection: {
             carrier: string;
@@ -1791,6 +1993,7 @@ export interface components {
             plannedDispatchDate: string | null;
             items: components["schemas"]["OrderItemView"][];
             totals: components["schemas"]["OrderTotalsView"];
+            couponCode: string | null;
             shippingMethodName: string;
             shippingCarrier: string | null;
             shippingAddress: components["schemas"]["OrderAddressView"];
@@ -1834,6 +2037,7 @@ export interface components {
         };
         OrderTotalsView: {
             subtotal: components["schemas"]["Money"];
+            discount: components["schemas"]["Money"];
             shipping: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
             includedTax: components["schemas"]["Money"];
@@ -1891,6 +2095,8 @@ export interface components {
             rank?: number;
             /** Format: int32 */
             sortOrder?: number;
+            nameDe?: string;
+            descriptionDe?: string;
         };
         AdminGradeView: {
             /** Format: uuid */
@@ -1905,6 +2111,8 @@ export interface components {
             sortOrder: number;
             /** Format: int64 */
             productCount: number;
+            nameDe: string | null;
+            descriptionDe: string | null;
         };
         GalleryImageRequest: {
             title?: string;
@@ -1913,6 +2121,9 @@ export interface components {
             published?: boolean;
             /** Format: int64 */
             version?: number;
+            titleDe?: string;
+            captionDe?: string;
+            altTextDe?: string;
         };
         AdminGalleryImageView: {
             /** Format: uuid */
@@ -1928,15 +2139,66 @@ export interface components {
             createdAt: string;
             /** Format: int64 */
             version: number;
+            titleDe: string | null;
+            captionDe: string | null;
+            altTextDe: string | null;
         };
-        ImageView: {
-            url: string;
-            srcSet: string;
-            alt: string;
+        CouponRequest: {
+            code?: string;
+            description?: string;
+            /** @enum {string} */
+            type: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_SHIPPING";
+            /** Format: int64 */
+            value?: number;
+            /** Format: int64 */
+            minOrderCents?: number;
+            /** Format: int64 */
+            maxDiscountCents?: number;
+            /** Format: date */
+            startsOn?: string;
+            /** Format: date */
+            endsOn?: string;
             /** Format: int32 */
-            width: number;
+            usageLimitTotal?: number;
             /** Format: int32 */
-            height: number;
+            usageLimitPerCustomer?: number;
+            active?: boolean;
+            /** Format: int64 */
+            version?: number;
+            descriptionDe?: string;
+        };
+        AdminCouponView: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            description: string | null;
+            descriptionDe: string | null;
+            /** @enum {string} */
+            type: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_SHIPPING";
+            /** Format: int32 */
+            percentage: number | null;
+            amount: components["schemas"]["Money"] | null;
+            maxDiscount: components["schemas"]["Money"] | null;
+            minOrder: components["schemas"]["Money"] | null;
+            /** Format: date */
+            startsOn: string | null;
+            /** Format: date */
+            endsOn: string | null;
+            /** Format: int32 */
+            usageLimitTotal: number | null;
+            /** Format: int32 */
+            usageLimitPerCustomer: number | null;
+            /** Format: int32 */
+            timesRedeemed: number;
+            /** @enum {string} */
+            status: "ACTIVE" | "SCHEDULED" | "EXPIRED" | "USED_UP" | "INACTIVE";
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
         };
         ColourRequest: {
             name: string;
@@ -1944,6 +2206,7 @@ export interface components {
             hexCode?: string;
             /** Format: int32 */
             sortOrder?: number;
+            nameDe?: string;
         };
         AdminColourView: {
             /** Format: uuid */
@@ -1955,6 +2218,7 @@ export interface components {
             sortOrder: number;
             /** Format: int64 */
             productCount: number;
+            nameDe: string | null;
         };
         CategoryRequest: {
             name: string;
@@ -1965,6 +2229,8 @@ export interface components {
             /** Format: int32 */
             sortOrder?: number;
             active?: boolean;
+            nameDe?: string;
+            descriptionDe?: string;
         };
         AdminCategoryView: {
             /** Format: uuid */
@@ -1979,6 +2245,8 @@ export interface components {
             active: boolean;
             /** Format: int64 */
             productCount: number;
+            nameDe: string | null;
+            descriptionDe: string | null;
         };
         ChangePasswordRequest: {
             currentPassword: string;
@@ -2071,6 +2339,7 @@ export interface components {
             shippingMethod: components["schemas"]["ShippingOption"];
             containsLiveAnimals: boolean;
             paymentMethods: ("BANK_TRANSFER" | "STRIPE" | "PAYPAL")[];
+            coupon: components["schemas"]["CouponStateView"] | null;
         };
         ShippingOption: {
             code: string;
@@ -2122,47 +2391,6 @@ export interface components {
             variantId: string;
             /** Format: int32 */
             quantity: number;
-        };
-        CartLineView: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            variantId: string;
-            productSlug: string;
-            productName: string;
-            variantName: string;
-            speciesName: string | null;
-            gradeName: string | null;
-            categorySlug: string;
-            colourHex: string | null;
-            image: components["schemas"]["ImageView"] | null;
-            /** Format: int32 */
-            quantity: number;
-            /** Format: int32 */
-            maxQuantity: number;
-            unitPrice: components["schemas"]["Money"];
-            lineTotal: components["schemas"]["Money"];
-            available: boolean;
-        };
-        CartTotalsView: {
-            subtotal: components["schemas"]["Money"];
-            total: components["schemas"]["Money"];
-            includedTax: components["schemas"]["Money"];
-        };
-        CartView: {
-            items: components["schemas"]["CartLineView"][];
-            totals: components["schemas"]["CartTotalsView"];
-            /** Format: int32 */
-            itemCount: number;
-            warnings: components["schemas"]["CartWarningView"][];
-        };
-        CartWarningView: {
-            code: string;
-            /** Format: uuid */
-            itemId: string | null;
-            productName: string | null;
-            /** Format: int32 */
-            quantity: number | null;
         };
         TokenRequest: {
             token: string;
@@ -2307,6 +2535,7 @@ export interface components {
         };
         AltTextRequest: {
             altText: string;
+            altTextDe?: string;
         };
         ImageOrderRequest: {
             imageIds: string[];
@@ -2386,6 +2615,7 @@ export interface components {
             origin: string | null;
             descriptionHtml: string | null;
             care: components["schemas"]["CareView"];
+            languages: string[];
         };
         ShippingPauseNotice: {
             message: string | null;
@@ -2463,6 +2693,7 @@ export interface components {
             variants: components["schemas"]["VariantView"][];
             images: components["schemas"]["ImageView"][];
             seo: components["schemas"]["SeoView"];
+            languages: string[];
         };
         SeoView: {
             title: string;
@@ -2676,6 +2907,21 @@ export interface components {
             byCategory: components["schemas"]["GroupSalesView"][];
             bySpecies: components["schemas"]["GroupSalesView"][];
         };
+        CouponSalesView: {
+            code: string;
+            /** Format: int64 */
+            orders: number;
+            saving: components["schemas"]["Money"];
+            revenue: components["schemas"]["Money"];
+        };
+        CouponStatsView: {
+            period: components["schemas"]["StatsPeriodView"];
+            orders: components["schemas"]["CountKpiView"];
+            share: components["schemas"]["ShareKpiView"];
+            saving: components["schemas"]["MoneyKpiView"];
+            revenue: components["schemas"]["MoneyKpiView"];
+            coupons: components["schemas"]["CouponSalesView"][];
+        };
         AdminProductSummaryView: {
             /** Format: uuid */
             id: string;
@@ -2837,6 +3083,34 @@ export interface components {
             /** Format: int32 */
             totalPages: number;
         };
+        CouponUsageView: {
+            /** Format: int64 */
+            orders: number;
+            saving: components["schemas"]["Money"];
+            revenue: components["schemas"]["Money"];
+        };
+        CouponRedemptionView: {
+            orderNumber: string;
+            /** Format: date-time */
+            placedAt: string;
+            customerName: string | null;
+            /** @enum {string} */
+            orderStatus: "PENDING_PAYMENT" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            orderTotal: components["schemas"]["Money"];
+            saving: components["schemas"]["Money"];
+            released: boolean;
+        };
+        PageResponseCouponRedemptionView: {
+            items: components["schemas"]["CouponRedemptionView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
         PageResponseContactMessageView: {
             items: components["schemas"]["ContactMessageView"][];
             /** Format: int32 */
@@ -2884,6 +3158,54 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    applyCoupon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                CART_TOKEN?: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyCouponRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CartView"];
+                };
+            };
+        };
+    };
+    removeCoupon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                CART_TOKEN?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CartView"];
+                };
+            };
+        };
+    };
     speciesDetail: {
         parameters: {
             query?: never;
@@ -3265,6 +3587,74 @@ export interface operations {
             };
         };
     };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCouponView"];
+                };
+            };
+        };
+    };
+    update_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CouponRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCouponView"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     updateColour: {
         parameters: {
             query?: never;
@@ -3401,7 +3791,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -3427,7 +3817,7 @@ export interface operations {
             };
         };
     };
-    delete_1: {
+    delete_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4333,6 +4723,53 @@ export interface operations {
             };
         };
     };
+    list_3: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: "ACTIVE" | "SCHEDULED" | "EXPIRED" | "USED_UP" | "INACTIVE";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCouponView"][];
+                };
+            };
+        };
+    };
+    create_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CouponRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCouponView"];
+                };
+            };
+        };
+    };
     colours: {
         parameters: {
             query?: never;
@@ -4443,7 +4880,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -4463,7 +4900,7 @@ export interface operations {
             };
         };
     };
-    create_2: {
+    create_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -5163,7 +5600,30 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    coupons: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CouponStatsView"];
+                };
+            };
+        };
+    };
+    list_5: {
         parameters: {
             query?: {
                 q?: string;
@@ -5192,7 +5652,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5259,7 +5719,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_6: {
         parameters: {
             query?: {
                 q?: string;
@@ -5284,7 +5744,7 @@ export interface operations {
             };
         };
     };
-    get_2: {
+    get_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -5306,7 +5766,54 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CouponUsageView"];
+                };
+            };
+        };
+    };
+    redemptions: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseCouponRedemptionView"];
+                };
+            };
+        };
+    };
+    list_7: {
         parameters: {
             query?: {
                 status?: "NEW" | "READ" | "ANSWERED" | "SPAM";
@@ -5352,7 +5859,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: {
                 page?: number;

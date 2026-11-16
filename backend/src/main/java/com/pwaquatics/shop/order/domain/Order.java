@@ -6,6 +6,7 @@ import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.common.persistence.AbstractEntity;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
+import com.pwaquatics.shop.pricing.domain.DiscountOutcome;
 import com.pwaquatics.shop.pricing.domain.PriceCalculator;
 import com.pwaquatics.shop.pricing.domain.PricedLine;
 import com.pwaquatics.shop.pricing.domain.Totals;
@@ -87,6 +88,9 @@ public class Order extends AbstractEntity {
     @Column(name = "tax_cents", nullable = false, updatable = false)
     private long taxCents;
 
+    @Column(name = "coupon_code", length = 64, updatable = false)
+    private String couponCode;
+
     @Column(name = "shipping_method_code", nullable = false, length = 50, updatable = false)
     private String shippingMethodCode;
 
@@ -156,7 +160,8 @@ public class Order extends AbstractEntity {
 
     /**
      * Creates a new order awaiting payment. Totals are calculated here from the item
-     * snapshots and the shipping price, with the same calculator the cart and quote use.
+     * snapshots, the shipping price and the coupon's terms, with the same calculator the cart
+     * and quote use; each line keeps its share of the discount.
      */
     public static Order place(NewOrder data, Instant now) {
         if (data.items().isEmpty()) {
@@ -185,12 +190,18 @@ public class Order extends AbstractEntity {
 
         List<PricedLine> lines = new ArrayList<>();
         for (NewOrderItem item : data.items()) {
-            order.items.add(new OrderItem(order, order.items.size(), item));
-            lines.add(new PricedLine(item.unitPriceCents(), item.quantity(), item.taxRateBps()));
+            lines.add(new PricedLine(item.unitPriceCents(), item.quantity(), item.taxRateBps(), item.discountable()));
         }
-        Totals totals = PriceCalculator.totals(lines, data.shippingCents());
+        Totals totals = PriceCalculator.totals(lines, data.shippingCents(), data.discount());
+        for (NewOrderItem item : data.items()) {
+            int position = order.items.size();
+            order.items.add(new OrderItem(order, position, item, totals.lineDiscountCents().get(position)));
+        }
+        // A coupon that does not apply is not recorded on the order.
+        boolean couponApplied = totals.discountOutcome() == DiscountOutcome.APPLIED;
+        order.couponCode = couponApplied ? data.couponCode() : null;
         order.subtotalCents = totals.subtotal().amount();
-        order.discountCents = 0;
+        order.discountCents = totals.discount().amount();
         order.shippingCents = totals.shipping().amount();
         order.totalCents = totals.total().amount();
         order.taxCents = totals.includedTax().amount();
@@ -408,8 +419,18 @@ public class Order extends AbstractEntity {
         return new Money(subtotalCents, currency);
     }
 
+    /** Amount a coupon took off the goods (zero for free-shipping coupons, which waive the shipping). */
+    public Money discount() {
+        return new Money(discountCents, currency);
+    }
+
     public Money shipping() {
         return new Money(shippingCents, currency);
+    }
+
+    /** The coupon used for this order (snapshot), or null. */
+    public String getCouponCode() {
+        return couponCode;
     }
 
     public Money total() {

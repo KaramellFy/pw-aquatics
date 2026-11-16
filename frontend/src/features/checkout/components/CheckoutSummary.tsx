@@ -1,8 +1,11 @@
 import { useTranslation } from 'react-i18next';
+import { Alert } from '@/components/ui/Alert';
 import { Price } from '@/components/ui/Price';
 import { OrderTotalsList, type OrderTotals } from '@/features/account';
 import { ProductImage } from '@/features/catalog';
-import type { QuoteLine } from '../api/checkout';
+import { formatMoney } from '@/lib/format/money';
+import { useIntlLocale } from '@/lib/i18n';
+import type { Quote, QuoteLine } from '../api/checkout';
 
 /** The fields of a line shown in the summary; cart lines and quote lines both fit. */
 export type SummaryLine = Pick<
@@ -17,17 +20,24 @@ export type SummaryLine = Pick<
   | 'lineTotal'
 >;
 
+type CouponState = NonNullable<Quote['coupon']>;
+
 interface CheckoutSummaryProps {
   lines: SummaryLine[];
   /** Goods value from the cart, shown until a quote with shipping exists. */
   subtotal: OrderTotals['subtotal'];
+  /** The cart's coupon discount, shown until a quote exists. */
+  discount: OrderTotals['discount'];
   /** The quote's totals, once address and shipping method are chosen. */
   totals: OrderTotals | undefined;
+  /** The coupon from the cart (as the quote or the cart sees it), or null. */
+  coupon: CouponState | null | undefined;
 }
 
 /** What is being ordered and what it costs — every amount comes from the server. */
-export function CheckoutSummary({ lines, subtotal, totals }: CheckoutSummaryProps) {
+export function CheckoutSummary({ lines, subtotal, discount, totals, coupon }: CheckoutSummaryProps) {
   const { t } = useTranslation();
+  const locale = useIntlLocale();
   return (
     <section
       aria-labelledby="checkout-summary"
@@ -60,7 +70,7 @@ export function CheckoutSummary({ lines, subtotal, totals }: CheckoutSummaryProp
         ))}
       </ul>
       {totals ? (
-        <OrderTotalsList totals={totals} className="mt-6" />
+        <OrderTotalsList totals={totals} couponCode={coupon?.applied ? coupon.code : null} className="mt-6" />
       ) : (
         <dl className="mt-6 space-y-3 text-[0.9375rem]">
           <div className="flex justify-between gap-4">
@@ -69,11 +79,28 @@ export function CheckoutSummary({ lines, subtotal, totals }: CheckoutSummaryProp
               <Price value={subtotal} />
             </dd>
           </div>
+          {coupon?.applied && discount.amount > 0 && (
+            <div className="flex justify-between gap-4">
+              <dt className="text-ink-soft">{t('orders.totals.coupon', { code: coupon.code })}</dt>
+              <dd className="text-success tabular-nums">
+                {t('orders.totals.minus', { amount: formatMoney(discount, locale) })}
+              </dd>
+            </div>
+          )}
           <div className="flex justify-between gap-4">
             <dt className="text-ink-soft">{t('orders.totals.shipping')}</dt>
             <dd className="text-muted">{t('checkout.summary.shippingPending')}</dd>
           </div>
         </dl>
+      )}
+      {coupon && !coupon.applied && (
+        <Alert tone="info" className="mt-6">
+          {t('checkout.summary.couponNotApplied', { code: coupon.code })}{' '}
+          {t(`cart.coupon.problems.${coupon.problem ?? 'COUPON_INVALID'}`, {
+            amount: coupon.minOrder ? formatMoney(coupon.minOrder, locale) : '',
+            defaultValue: t('cart.coupon.problems.COUPON_INVALID'),
+          })}
+        </Alert>
       )}
     </section>
   );

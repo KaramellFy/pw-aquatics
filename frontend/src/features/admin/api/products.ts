@@ -115,8 +115,12 @@ export function useUploadImage(productId: string) {
 }
 
 export function useUpdateAltText(productId: string) {
-  return useProductMutation(({ imageId, altText }: { imageId: string; altText: string }) =>
-    api.patch<AdminProduct>(`${path(productId)}/images/${encodeURIComponent(imageId)}`, { altText }),
+  return useProductMutation(
+    ({ imageId, altText, altTextDe }: { imageId: string; altText: string; altTextDe?: string }) =>
+      api.patch<AdminProduct>(`${path(productId)}/images/${encodeURIComponent(imageId)}`, {
+        altText,
+        altTextDe,
+      }),
   );
 }
 

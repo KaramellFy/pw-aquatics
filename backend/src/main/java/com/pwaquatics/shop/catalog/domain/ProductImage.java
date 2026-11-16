@@ -23,6 +23,10 @@ public class ProductImage extends AbstractEntity {
     @Column(name = "alt_text", nullable = false)
     private String altText;
 
+    /** German alt text, or null (the English one is used). */
+    @Column(name = "alt_text_de")
+    private String altTextDe;
+
     @Column(nullable = false)
     private int width;
 
@@ -43,8 +47,10 @@ public class ProductImage extends AbstractEntity {
         this.sortOrder = sortOrder;
     }
 
-    public void changeAltText(String altText) {
+    /** @param altTextDe the German alt text, or null */
+    public void changeAltText(String altText, String altTextDe) {
         this.altText = altText;
+        this.altTextDe = altTextDe;
     }
 
     void moveTo(int sortOrder) {
@@ -57,6 +63,10 @@ public class ProductImage extends AbstractEntity {
 
     public String getAltText() {
         return altText;
+    }
+
+    public String getAltTextDe() {
+        return altTextDe;
     }
 
     public int getWidth() {

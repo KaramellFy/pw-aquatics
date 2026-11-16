@@ -111,7 +111,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | UI primitives | Radix UI (headless) | Accessible dialogs, menus, popovers |
 | Motion | CSS transitions + `motion` (Motion for React, via `LazyMotion`) | CSS for hover, press and scroll reveals; Motion for exits, shared layout and drag. Respects `prefers-reduced-motion` (ADR-011) |
 | API types | `openapi-typescript` | Generated from the backend OpenAPI spec |
-| i18n | react-i18next | English default, German available |
+| i18n | react-i18next | English default at `/…`, German at `/de/…`; the link decides the language (ADR-012) |
 | Charts (admin) | Own SVG/HTML components | No chart library (see "Dashboard and statistics") |
 | Testing | JUnit 5, Testcontainers, MockMvc; Vitest, Testing Library, Playwright | |
 | Infra | Docker, Docker Compose, Caddy, GitHub Actions | |
@@ -159,15 +159,15 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 
 | Module | Responsibility |
 |---|---|
-| `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation |
+| `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation, `ContentLanguage` (language of owner-written texts per request), `SiteLinks` |
 | `security` | Spring Security config, session/CSRF setup, current-user resolution, rate limiting |
 | `identity` | Users, registration, login, email verification, password reset, roles |
 | `customer` | Profile, saved addresses, account deletion/anonymisation |
 | `catalog` | Products, variants, species, categories, colours, grades, images, search & filters |
 | `inventory` | Stock levels, reservations, stock movements, low-stock alerts |
 | `cart` | Guest and customer carts, merge on login |
-| `pricing` | Price, VAT, coupon and shipping calculation (pure domain logic) |
-| `coupon` | Coupon definitions, validation, redemptions |
+| `pricing` | Price, VAT, discount and shipping arithmetic (pure domain logic, `PriceCalculator`) |
+| `coupon` | Coupon definitions and their validity (dates, limits, status), redemptions; `Coupons` for cart and checkout, `AdminCouponService` for the owner |
 | `shipping` | Shipping methods, countries, dispatch-day rules, shipping pause |
 | `settings` | Shop-wide key/value settings (e.g. the shipping pause), read and written through `ShopSettings` |
 | `order` | Checkout, order placement, order lifecycle, status history |
@@ -176,7 +176,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `notification` | Transactional email via an outbox |
 | `media` | Image upload, processing, storage abstraction |
 | `content` | Gallery, contact messages |
-| `admin` | Dashboard, sales statistics and the customer view (read models); other admin controllers live in their feature modules |
+| `admin` | Dashboard, sales and coupon statistics and the customer view (read models); other admin controllers live in their feature modules |
 | `audit` | Audit log of admin and security-relevant actions |
 
 ### 5.2 Layering inside a module
@@ -237,15 +237,23 @@ The `pricing` module exposes one function used by the cart, the checkout quote
 and order placement:
 
 ```
-Quote = calculate(lines[variantId, qty], shippingMethod, destinationCountry, coupon?)
-  1. Load current variant prices from DB (client prices are never read)
+Totals = PriceCalculator.totals(lines[unitPrice, qty, taxRate, discountable], shipping, discount?)
+  1. The caller loads current variant prices from the DB (client prices are never read);
+     `coupon` checks the coupon itself (active, dates, usage limits) before passing its terms
   2. subtotal   = Σ unit_price × qty
-  3. discount   = coupon rules (validated: active, dates, limits, minimum order)
-  4. shipping   = method price, or 0 if free-shipping threshold / coupon applies
+  3. discount   = coupon terms on the eligible goods (lines not already reduced), if the
+                  goods reach the minimum order value: percentage rounded half-up and
+                  capped, fixed amount at most the eligible goods; split over the eligible
+                  lines in proportion to their value (largest remainder)
+  4. shipping   = method price; 0 if the goods value after the discount reaches the
+                  method's free-shipping threshold, or a free-shipping coupon applies
   5. total      = subtotal − discount + shipping
-  6. tax        = VAT contained in the gross total, per tax rate, discount
-                  allocated proportionally across lines
+  6. tax        = VAT contained in the gross amounts, once per tax rate on the reduced
+                  goods; shipping split over the rates in proportion to the goods
 ```
+
+The outcome says whether the coupon applied or why not (`MIN_ORDER_NOT_MET`,
+`NOTHING_ELIGIBLE`), so the cart and the checkout can tell the customer.
 
 Prices are **gross** (VAT-inclusive), as required for B2C display in Germany.
 The VAT amount is derived for invoices and reporting.
@@ -263,11 +271,13 @@ sequenceDiagram
     S->>DB: lock the customer's cart (queues this customer's requests)
     S->>DB: existing order for (user, idempotency key)? → return it
     S->>DB: lock products FOR UPDATE (ordered by id), then read prices and stock
+    S->>DB: lock the cart's coupon (if any), then check its validity and limits
     S->>S: validate availability, address, shipping method, consents
     S->>S: calculate Quote (server prices)
     S->>DB: decrement stock + write stock_movements
     S->>DB: insert order, items, address snapshots, status history
-    S->>DB: record coupon redemption, clear cart, enqueue email (outbox)
+    S->>DB: count the coupon use (conditional update) + insert redemption
+    S->>DB: clear cart, enqueue email (outbox)
     S-->>API: order (status PENDING_PAYMENT)
     API-->>FE: 201 Created + order summary + payment instructions
 ```
@@ -277,15 +287,16 @@ double click or a retry of the same customer waits and then finds the order by i
 idempotency key. Products are locked in a deterministic order to avoid deadlocks,
 and prices and stock are read only after that lock. A conditional update
 (`... SET stock_units = stock_units - :n WHERE id = :id AND stock_units >= :n`)
-is the final guard against overselling. The total the customer saw is compared with
-the server's (`PRICE_CHANGED`); the checkout never adjusts a cart on its own
-(`CART_CHANGED` sends the customer back to the cart).
+is the final guard against overselling; the coupon's usage counter has the same kind of
+guard. The total the customer saw is compared with the server's (`PRICE_CHANGED`, or the
+coupon's own code when the coupon stopped applying); the checkout never adjusts a cart on
+its own (`CART_CHANGED` sends the customer back to the cart).
 
 Module roles: `order` orchestrates; `cart` hands out the locked cart lines
 (`CartCheckout`); `catalog` owns prices and the stock balance (`CatalogLookup`,
 `CatalogStock`); `inventory` writes the stock ledger; `shipping` decides methods,
-prices and dispatch dates; `payment` supplies the bank-transfer instructions;
-`pricing` adds everything up.
+prices and dispatch dates; `coupon` checks and redeems the code (`Coupons`); `payment`
+supplies the bank-transfer instructions; `pricing` adds everything up.
 
 **Stock strategy:** stock is **decremented when the order is placed**, not when
 it is paid. Unpaid orders expire (bank transfer: configurable, e.g. 7 days;
@@ -331,6 +342,34 @@ not shipped returns stock.
 - The cart does not reserve stock. Stock is taken when the order is placed (Phase 5).
 - Every cart is loaded with a row lock, so parallel requests for the same cart
   run one after the other. Expired guest carts are removed by a daily job.
+
+#### Coupons (Phase 8)
+
+- The cart stores the id of the coupon the visitor entered (`carts.coupon_id`, at most
+  one). `PUT /cart/coupon` accepts a code only if it reduces the cart right now; afterwards
+  it is evaluated again on every read, and a coupon that stops applying stays with the reason
+  (`applied: false`), so nothing changes silently. A guest's coupon moves into the account
+  cart on sign-in unless that cart already has one.
+- `coupon` decides whether a coupon may be used at all (`Coupon.problemAt`: switched off,
+  not started, expired, used up, already used by this customer); `pricing` decides whether
+  and by how much it reduces a basket. Both cart and checkout call the same two steps, so
+  the cart, the quote and the order always agree.
+- At order placement the coupon row is locked after the products, then its use is counted
+  with a conditional update (`times_redeemed < usage_limit_total`) and a redemption is
+  inserted — in the order's transaction. Two customers racing for the last use: one order
+  is placed, the other gets `COUPON_USAGE_LIMIT_REACHED` and nothing of it is kept.
+- The order keeps its own snapshots (`coupon_code`, `discount_cents`, per-line
+  `discount_cents`), so later changes to the coupon never alter an order.
+- Cancelling an order (customer, owner, expiry — all through `OrderCancellation`) releases
+  the redemption: `released_at` is set and the counter goes down.
+- Defaults chosen for v1 (owner may change them, see §12): one code per order; a coupon
+  covers the whole shop; products that are already reduced (compare-at price) are not
+  discounted; a free-shipping coupon covers every shipping method; the goods value after
+  the discount decides free-shipping thresholds; orders with nothing left to pay are not
+  taken online (`ORDER_TOTAL_ZERO`) and card payment needs at least €0.50.
+- The owner manages coupons in `/admin/coupons` (`AdminCouponService`: create, edit, switch
+  on/off, delete while unused; audit-logged) and sees each coupon's orders and what they
+  brought (`admin.infrastructure.CouponQueries`, read only).
 
 #### Admin area (Phase 6)
 
@@ -378,7 +417,7 @@ not shipped returns stock.
   `GET /shop-info` tells every page whether a pause is in force; the public layout shows it
   as a banner.
 
-#### Dashboard and statistics (built ahead of Phase 8)
+#### Dashboard and statistics
 
 - The `admin` module holds the read model for the dashboard: `StatisticsQueries` runs
   aggregate SQL across the order, catalog, inventory and identity tables (read only, no
@@ -389,7 +428,8 @@ not shipped returns stock.
 - The admin start page (`/admin`) shows what needs attention now, then the figures of a chosen
   period: key figures with change against the period before, sales over time (paid vs.
   awaiting payment), best sellers, revenue by category, species and country, orders by weekday
-  and status, stock changes and loss rate, plus a CSV export of daily sales.
+  and status, stock changes and loss rate, coupon use (orders, share, saving, revenue by code),
+  plus a CSV export of daily sales.
 - Charts are small SVG/HTML components in `features/admin/components/charts` (no chart
   library): stacked columns with hover and arrow-key read-out, ranked bars that print every
   value, KPI tiles whose change is shown by arrow and words as well as colour, and a table view
@@ -547,7 +587,7 @@ frontend/src/
 │       ├── pages/Admin{Customers,CustomerDetail}Page        list, detail, lock/unlock
 │       ├── pages/Admin{Gallery,Inbox}Page                   gallery manager, contact inbox
 │       ├── pages/AdminShippingPage                          shipping methods, shipping pause
-│       └── coupons/     list, editor, redemptions (Phase 8)
+│       └── pages/Admin{Coupons,CouponDetail}Page           coupon list, coupon page with orders; CouponDialog
 ├── hooks/                       # Generic hooks (useMediaQuery, useReturnFocus)
 └── styles/
     └── index.css                # Tailwind entry + @theme design tokens
@@ -573,6 +613,10 @@ from each other only through those entry points.
 | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` | Auth | public |
 | `/account`, `/account/orders`, `/account/orders/:orderNumber`, `/account/addresses`, `/account/profile` | Account | customer |
 | `/admin/**` | Admin panel (lazy chunk) | admin |
+
+Every route also exists under `/de` in German (`/de/shop`, `/de/products/:slug`, …; ADR-012).
+The router gets the basename of the page load, so pages and links use language-neutral paths;
+the language switch links to the same page in the other language.
 
 Filters live in the URL (`/shop?species=neocaridina-davidi&colour=blue&grade=high&availability=in-stock&minPrice=500`)
 so results are shareable, bookmarkable and survive reloads.
@@ -637,10 +681,15 @@ design-led studio than a pet-supply store. Tokens live in
 
 ### 6.6 SEO and performance
 
-- A client-rendered SPA is weak for SEO, which matters for a shop. Plan:
-  per-route `<title>`/meta (React 19 metadata support), JSON-LD `Product` and
-  `BreadcrumbList`, backend-generated `sitemap.xml`, and **prerendering of
-  public catalog pages** in Phase 10 (see risk R3).
+- A client-rendered SPA is weak for SEO, which matters for a shop. Built: per-route
+  `<title>`/meta (React 19 metadata support) with canonical link and `hreflang` alternates
+  for both languages (ADR-012), JSON-LD `Product`, and German catalog texts: the owner
+  writes them next to the English ones in the admin, the API answers in the language of the
+  page (`Accept-Language`), and a German product or species page stays out of the index
+  (`noindex`) until its German text is written. Planned (roadmap "SEO", brought forward
+  from Phase 10 at the owner's request): **public pages filled in by the backend** we already run (title, meta, language links, structured data, main text and
+  the page's data, per request — no extra server, owner decision 2026-11-16), backend-generated
+  `sitemap.xml`, `BreadcrumbList`/`Organization` data (see risk R3).
 - Responsive images: backend generates WebP sizes (e.g. 400/800/1200/2000 px);
   `ResponsiveImage` uses `srcset` + `sizes`, lazy loading below the fold,
   explicit width/height to avoid layout shift.
@@ -728,7 +777,7 @@ endpoint (403).
 |---|---|---|---|
 | R1 | **Overselling** when two customers buy the last animals simultaneously | Selling animals we don't have | Row locks in deterministic order + conditional `UPDATE … WHERE stock_units >= n` + `CHECK (stock_units >= 0)`; concurrency test |
 | R2 | **Duplicate orders** from double-clicks or network retries | Double charge / double stock | `Idempotency-Key` header, unique `(user_id, idempotency_key)`; button disabled while pending |
-| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap from day one; prerender public pages at build/deploy; if insufficient, move public pages to React Router framework mode (SSR) — the feature structure keeps that migration contained |
+| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap; language in the link (ADR-012); public pages filled in per request by the existing backend (no extra server — owner decision). Build-time prerendering was dropped: stock and prices change daily through the admin |
 | R4 | **Live-animal shipping constraints:** heat/frost, weekends, carrier T&Cs (many standard parcel services restrict live animals) | Dead animals, refunds, reputation | Shipping methods flagged for live animals; configurable dispatch weekdays (e.g. Mon–Wed); admin "shipping pause" with message; heat/cold packs as options; confirm carrier before building carrier integrations |
 | R5 | **Legal trade restrictions:** some crayfish are on the EU list of invasive alien species and cannot be sold in the EU | Legal liability | `species.trade_restricted` blocks publishing; per-country restrictions possible later; legal review of the species list |
 | R6 | **German/EU e-commerce law:** Impressum, privacy policy, terms, right of withdrawal (live-animal specifics need legal advice), price display incl. VAT and shipping, "zahlungspflichtig bestellen" button, packaging registration (LUCID), invoice retention (up to 10 years) | Fines, cease-and-desist letters (Abmahnungen) | Legal pages managed as content; checkout copy reviewed by a lawyer; legal-text service considered; orders/invoices retained and anonymised rather than deleted |
@@ -762,8 +811,9 @@ endpoint (403).
 | ADR-009 | Outbox for emails | Sending email inside the request |
 | ADR-010 | Hosted payment components; webhook-confirmed payments | Handling card data ourselves |
 | ADR-011 | Motion for React (`motion`) behind `LazyMotion`, CSS for simple effects | CSS only (no exit, shared-layout or drag animations), React Spring, GSAP |
+| ADR-012 | Language in the link: English at `/…`, German at `/de/…` with the same path words | Language only in the browser, `?lang=`, a `.de` domain, German path words |
 
-Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 and ADR-011).
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-012).
 
 ---
 
@@ -778,7 +828,7 @@ printing and automatic tracking status, care-guide blog/CMS, loyalty programme.
 ## 12. Open questions for the owner
 
 1. ~~Target countries for shipping~~ — decided: EU member states and the United Kingdom, shipped from Germany.
-2. ~~Languages~~ — decided: English default, German as second language.
+2. ~~Languages~~ — decided: English default, German as second language; German pages under `/de` with German product texts written by the owner (ADR-012).
 3. Guest checkout at launch, or account required? (Built so far: an account is required.)
 4. ~~Carrier and dispatch weekdays~~ — decided: DHL, dispatch Monday to Wednesday. Still open: shipping prices per destination (Germany, EU, United Kingdom) and any free-shipping threshold.
 5. VAT status: standard VAT registration or small-business (Kleinunternehmer) rule?
@@ -795,3 +845,7 @@ printing and automatic tracking status, care-guide blog/CMS, loyalty programme.
     that handled outside the shop, or should the shop collect anything for it?
 13. Final wording of the checkout confirmations (terms, right of withdrawal,
     live-animal conditions) and the legal texts they link to.
+14. Coupon rules (built with defaults, all changeable): one code per order; coupons apply
+    to the whole shop; already reduced products are excluded; free shipping covers every
+    method. Wanted later: coupons for single categories or products, combining codes,
+    first-order-only codes?

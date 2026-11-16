@@ -20,6 +20,7 @@ final class AdminProductRequests {
      * @param slug optional; derived from the name when empty
      * @param taxRateBps VAT in basis points (1900 = 19 %)
      * @param version required when updating: the version the editor loaded
+     * @param nameDe German texts ({@code …De}) are optional; empty means "not translated yet"
      */
     record ProductRequest(
             @NotBlank @Size(max = 150) String name,
@@ -38,7 +39,13 @@ final class AdminProductRequests {
             @Min(0) @Max(10000) int taxRateBps,
             @Size(max = 160) String seoTitle,
             @Size(max = 320) String seoDescription,
-            @Min(0) Long version) {}
+            @Min(0) Long version,
+            @Size(max = 150) String nameDe,
+            @Size(max = 300) String shortDescriptionDe,
+            @Size(max = 20000) String descriptionDe,
+            @Size(max = 10000) String careNotesDe,
+            @Size(max = 160) String seoTitleDe,
+            @Size(max = 320) String seoDescriptionDe) {}
 
     /**
      * @param priceCents gross price in cents, set by the shop owner
@@ -50,9 +57,11 @@ final class AdminProductRequests {
             @Min(1) @Max(1000) int packSize,
             @Min(0) @Max(10_000_000) long priceCents,
             @Min(1) @Max(10_000_000) Long compareAtPriceCents,
-            boolean active) {}
+            boolean active,
+            @Size(max = 100) String nameDe) {}
 
-    record AltTextRequest(@NotBlank @Size(max = 255) String altText) {}
+    /** @param altTextDe the German alt text (optional) */
+    record AltTextRequest(@NotBlank @Size(max = 255) String altText, @Size(max = 255) String altTextDe) {}
 
     record ImageOrderRequest(@NotEmpty @Size(max = 20) List<@NotNull UUID> imageIds) {}
 

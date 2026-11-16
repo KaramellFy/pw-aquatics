@@ -85,6 +85,20 @@ public class Species extends AbstractEntity {
     @Column(name = "restriction_note")
     private String restrictionNote;
 
+    // German texts (null = not translated; the English text is shown instead).
+
+    @Column(name = "common_name_de", length = 150)
+    private String commonNameDe;
+
+    @Column(name = "description_de")
+    private String descriptionDe;
+
+    @Column(name = "origin_de", length = 150)
+    private String originDe;
+
+    @Column(name = "restriction_note_de")
+    private String restrictionNoteDe;
+
     protected Species() {}
 
     /** Changes all editable fields. Ranges must not be inverted (minimum above maximum). */
@@ -114,6 +128,10 @@ public class Species extends AbstractEntity {
         difficulty = data.difficulty();
         tradeRestricted = data.tradeRestricted();
         restrictionNote = data.tradeRestricted() ? data.restrictionNote() : null;
+        commonNameDe = data.commonNameDe();
+        descriptionDe = data.descriptionDe();
+        originDe = data.originDe();
+        restrictionNoteDe = data.tradeRestricted() ? data.restrictionNoteDe() : null;
     }
 
     private static <T extends Comparable<T>> void requireRange(T min, T max, String what) {
@@ -132,6 +150,22 @@ public class Species extends AbstractEntity {
     public void restrictTrade(String note) {
         this.tradeRestricted = true;
         this.restrictionNote = note;
+    }
+
+    public String getCommonNameDe() {
+        return commonNameDe;
+    }
+
+    public String getDescriptionDe() {
+        return descriptionDe;
+    }
+
+    public String getOriginDe() {
+        return originDe;
+    }
+
+    public String getRestrictionNoteDe() {
+        return restrictionNoteDe;
     }
 
     public String getScientificName() {

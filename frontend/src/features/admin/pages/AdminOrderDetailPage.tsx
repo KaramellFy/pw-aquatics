@@ -177,7 +177,7 @@ function OrderDetail({ order, back }: { order: AdminOrder; back: { to: string; l
                 </li>
               ))}
             </ul>
-            <OrderTotalsList totals={detail.totals} className="mt-5" />
+            <OrderTotalsList totals={detail.totals} couponCode={detail.couponCode} className="mt-5" />
           </AdminCard>
 
           <ShipmentsCard order={order} onCorrect={(shipment) => open('correct', shipment)} />

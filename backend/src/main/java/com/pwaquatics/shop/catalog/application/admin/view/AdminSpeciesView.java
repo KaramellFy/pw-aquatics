@@ -28,4 +28,8 @@ public record AdminSpeciesView(
         @Nullable Difficulty difficulty,
         boolean tradeRestricted,
         @Nullable String restrictionNote,
-        long productCount) {}
+        long productCount,
+        @Nullable String commonNameDe,
+        @Nullable String descriptionDe,
+        @Nullable String originDe,
+        @Nullable String restrictionNoteDe) {}

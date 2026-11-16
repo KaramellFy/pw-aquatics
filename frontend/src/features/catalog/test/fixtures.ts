@@ -100,6 +100,7 @@ export const blueDreamDetail: ProductDetail = {
       lifespanMonths: 18,
       difficulty: 'BEGINNER',
     },
+    languages: ['en'],
   },
   categoryPath: [
     { slug: 'shrimp', name: 'Shrimp' },
@@ -111,6 +112,7 @@ export const blueDreamDetail: ProductDetail = {
   availability: 'LOW_STOCK',
   availableFrom: null,
   liveAnimal: true,
+  languages: ['en', 'de'],
   variants: [
     {
       id: 'v1',

@@ -27,6 +27,7 @@ function variantSchema(t: TFunction) {
   return z
     .object({
       name: z.string().trim().min(1, t('admin.common.required')).max(100, t('admin.common.tooLong')),
+      nameDe: z.string().trim().max(100, t('admin.common.tooLong')),
       packSize: z.string().regex(/^[1-9]\d{0,3}$/, t('admin.common.wholeNumberInvalid')),
       sku: z
         .string()
@@ -58,6 +59,7 @@ type VariantValues = z.infer<ReturnType<typeof variantSchema>>;
 export function toVariantInput(values: VariantValues): VariantInput {
   return {
     name: values.name,
+    nameDe: values.nameDe || undefined,
     packSize: Number(values.packSize),
     sku: values.sku.trim().toUpperCase(),
     priceCents: parseMoneyInput(values.price) ?? 0,
@@ -178,13 +180,22 @@ function VariantForm({
     defaultValues: variant
       ? {
           name: variant.name,
+          nameDe: variant.nameDe ?? '',
           packSize: String(variant.packSize),
           sku: variant.sku,
           price: moneyInputValue(variant.price.amount),
           compareAtPrice: variant.compareAtPrice ? moneyInputValue(variant.compareAtPrice.amount) : '',
           active: variant.active,
         }
-      : { name: '', packSize: '1', sku: `${skuBase}-1`, price: '', compareAtPrice: '', active: true },
+      : {
+          name: '',
+          nameDe: '',
+          packSize: '1',
+          sku: `${skuBase}-1`,
+          price: '',
+          compareAtPrice: '',
+          active: true,
+        },
   });
 
   // A new pack size suggests its SKU from the web address and pack size until the SKU is typed.
@@ -209,6 +220,13 @@ function VariantForm({
         placeholder={t('admin.product.variants.namePlaceholder')}
         error={errors.name?.message}
         {...register('name')}
+      />
+      <TextField
+        label={t('admin.common.inGerman', { label: t('admin.product.variants.name') })}
+        hint={t('admin.common.germanHint')}
+        error={errors.nameDe?.message}
+        lang="de"
+        {...register('nameDe')}
       />
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField

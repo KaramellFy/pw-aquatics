@@ -143,6 +143,9 @@ describe('gallery manager', () => {
     title: `Photo ${id}`,
     caption: null,
     altText: `Shrimp ${id}`,
+    titleDe: null,
+    captionDe: null,
+    altTextDe: null,
     published,
     sortOrder: 0,
     image: {
@@ -193,6 +196,8 @@ describe('shipping settings', () => {
     code: 'DHL_EXPRESS_LIVE',
     name: 'DHL Express',
     description: null,
+    nameDe: null,
+    descriptionDe: null,
     carrier: 'DHL',
     price: money(990),
     freeFrom: money(10000),
