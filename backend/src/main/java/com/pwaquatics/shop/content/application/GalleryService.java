@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.content.application;
 
+import com.pwaquatics.shop.common.text.ContentLanguage;
 import com.pwaquatics.shop.content.application.view.GalleryImageView;
 import com.pwaquatics.shop.content.domain.GalleryImage;
 import com.pwaquatics.shop.content.infrastructure.GalleryImageRepository;
@@ -28,7 +29,10 @@ public class GalleryService {
     }
 
     private GalleryImageView view(GalleryImage image) {
-        return new GalleryImageView(image.getId(), image.getTitle(), image.getCaption(),
-                urls.image(image.getStorageKey(), image.getAltText(), image.getWidth(), image.getHeight()));
+        ContentLanguage lang = ContentLanguage.current();
+        return new GalleryImageView(image.getId(), lang.pick(image.getTitle(), image.getTitleDe()),
+                lang.pick(image.getCaption(), image.getCaptionDe()),
+                urls.image(image.getStorageKey(), lang.pick(image.getAltText(), image.getAltTextDe()), image.getWidth(),
+                        image.getHeight()));
     }
 }

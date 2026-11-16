@@ -21,6 +21,10 @@ public class Colour extends AbstractEntity {
     @Column(name = "hex_code", length = 7)
     private String hexCode;
 
+    /** German name, or null (the English one is shown). */
+    @Column(name = "name_de", length = 60)
+    private String nameDe;
+
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
@@ -37,6 +41,15 @@ public class Colour extends AbstractEntity {
         this.slug = slug;
         this.hexCode = hexCode;
         this.sortOrder = sortOrder;
+    }
+
+    /** Sets the German name (null where not translated). */
+    public void changeGermanName(String nameDe) {
+        this.nameDe = nameDe;
+    }
+
+    public String getNameDe() {
+        return nameDe;
     }
 
     public String getName() {

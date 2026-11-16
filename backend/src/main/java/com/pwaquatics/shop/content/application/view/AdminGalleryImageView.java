@@ -15,4 +15,7 @@ public record AdminGalleryImageView(
         int sortOrder,
         ImageView image,
         Instant createdAt,
-        long version) {}
+        long version,
+        @Nullable String titleDe,
+        @Nullable String captionDe,
+        @Nullable String altTextDe) {}

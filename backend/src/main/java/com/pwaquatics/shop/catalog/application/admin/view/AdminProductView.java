@@ -14,6 +14,7 @@ import java.util.UUID;
  *
  * @param version send it back with an update; a changed version means someone else saved in between
  * @param publishProblems what prevents publishing; empty when the product can go live
+ * @param nameDe German texts ({@code …De}); null where not translated yet
  */
 public record AdminProductView(
         UUID id,
@@ -36,6 +37,12 @@ public record AdminProductView(
         int taxRateBps,
         @Nullable String seoTitle,
         @Nullable String seoDescription,
+        @Nullable String nameDe,
+        @Nullable String shortDescriptionDe,
+        @Nullable String descriptionDe,
+        @Nullable String careNotesDe,
+        @Nullable String seoTitleDe,
+        @Nullable String seoDescriptionDe,
         Availability availability,
         @Nullable Instant publishedAt,
         Instant createdAt,

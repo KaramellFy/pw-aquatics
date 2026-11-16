@@ -71,11 +71,13 @@ class AdminCouponController {
             @Min(1) @Max(1_000_000) Integer usageLimitTotal,
             @Min(1) @Max(1_000) Integer usageLimitPerCustomer,
             boolean active,
-            Long version) {
+            Long version,
+            @Size(max = 255) String descriptionDe) {
 
         CouponInput input() {
             return new CouponInput(trimToNull(description), type, value, minOrderCents == null ? 0 : minOrderCents,
-                    maxDiscountCents, startsOn, endsOn, usageLimitTotal, usageLimitPerCustomer, active);
+                    maxDiscountCents, startsOn, endsOn, usageLimitTotal, usageLimitPerCustomer, active,
+                    trimToNull(descriptionDe));
         }
     }
 

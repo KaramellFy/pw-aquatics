@@ -75,13 +75,15 @@ class AdminShippingController {
             @NotEmpty @Size(max = 60) Set<@NotNull @Pattern(regexp = "[A-Za-z]{2}") String> countries,
             boolean active,
             @Min(0) @Max(10_000) int sortOrder,
-            long version) {
+            long version,
+            @Size(max = 100) String nameDe,
+            @Size(max = 500) String descriptionDe) {
 
         ShippingMethodData data() {
             return new ShippingMethodData(name.strip(), trimToNull(description), trimToNull(carrier), priceCents,
                     freeShippingThresholdCents, liveAnimalsAllowed, dispatchDays, estimatedDaysMin, estimatedDaysMax,
                     countries.stream().map(c -> c.toUpperCase(Locale.ROOT)).collect(Collectors.toSet()), active,
-                    sortOrder);
+                    sortOrder, trimToNull(nameDe), trimToNull(descriptionDe));
         }
     }
 

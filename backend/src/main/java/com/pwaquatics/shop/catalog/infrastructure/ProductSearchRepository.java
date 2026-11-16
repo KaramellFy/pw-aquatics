@@ -10,6 +10,7 @@ import com.pwaquatics.shop.catalog.domain.ProductSort;
 import com.pwaquatics.shop.catalog.domain.ProductStatus;
 import com.pwaquatics.shop.catalog.domain.ProductVariant;
 import com.pwaquatics.shop.catalog.domain.Species;
+import com.pwaquatics.shop.common.text.ContentLanguage;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.AbstractQuery;
@@ -97,13 +98,19 @@ public class ProductSearchRepository {
         Root<Product> root = cq.from(Product.class);
         Filters filters = new Filters(cb, cq, root);
         Join<Product, Species> species = filters.species();
-        cq.select(cb.tuple(species.get("slug"), cb.coalesce(species.get("commonName"), species.get("scientificName")),
-                        cb.countDistinct(root)))
+        cq.select(cb.tuple(species.get("slug"), species.get("commonName"), species.get("commonNameDe"),
+                        species.get("scientificName"), cb.countDistinct(root)))
                 .where(cb.and(filters.build(query, Dimension.SPECIES), cb.isNotNull(species.get("id"))))
-                .groupBy(species.get("slug"), species.get("commonName"), species.get("scientificName"))
+                .groupBy(species.get("slug"), species.get("commonName"), species.get("commonNameDe"),
+                        species.get("scientificName"))
                 .orderBy(cb.asc(species.get("scientificName")));
+        ContentLanguage lang = ContentLanguage.current();
         return em.createQuery(cq).getResultList().stream()
-                .map(t -> new FacetCount(t.get(0, String.class), t.get(1, String.class), null, t.get(2, Long.class)))
+                .map(t -> {
+                    String common = lang.pick(t.get(1, String.class), t.get(2, String.class));
+                    return new FacetCount(t.get(0, String.class), common != null ? common : t.get(3, String.class),
+                            null, t.get(4, Long.class));
+                })
                 .toList();
     }
 
@@ -113,13 +120,16 @@ public class ProductSearchRepository {
         Root<Product> root = cq.from(Product.class);
         Filters filters = new Filters(cb, cq, root);
         Join<Product, Colour> colour = root.join("colours");
-        cq.select(cb.tuple(colour.get("slug"), colour.get("name"), colour.get("hexCode"), cb.countDistinct(root)))
+        cq.select(cb.tuple(colour.get("slug"), colour.get("name"), colour.get("nameDe"), colour.get("hexCode"),
+                        cb.countDistinct(root)))
                 .where(filters.build(query, Dimension.COLOUR))
-                .groupBy(colour.get("slug"), colour.get("name"), colour.get("hexCode"), colour.get("sortOrder"))
+                .groupBy(colour.get("slug"), colour.get("name"), colour.get("nameDe"), colour.get("hexCode"),
+                        colour.get("sortOrder"))
                 .orderBy(cb.asc(colour.get("sortOrder")), cb.asc(colour.get("name")));
+        ContentLanguage lang = ContentLanguage.current();
         return em.createQuery(cq).getResultList().stream()
-                .map(t -> new FacetCount(
-                        t.get(0, String.class), t.get(1, String.class), t.get(2, String.class), t.get(3, Long.class)))
+                .map(t -> new FacetCount(t.get(0, String.class), lang.pick(t.get(1, String.class), t.get(2, String.class)),
+                        t.get(3, String.class), t.get(4, Long.class)))
                 .toList();
     }
 
@@ -129,12 +139,15 @@ public class ProductSearchRepository {
         Root<Product> root = cq.from(Product.class);
         Filters filters = new Filters(cb, cq, root);
         Join<Product, Grade> grade = filters.grade();
-        cq.select(cb.tuple(grade.get("slug"), grade.get("name"), cb.countDistinct(root)))
+        cq.select(cb.tuple(grade.get("slug"), grade.get("name"), grade.get("nameDe"), cb.countDistinct(root)))
                 .where(cb.and(filters.build(query, Dimension.GRADE), cb.isNotNull(grade.get("id"))))
-                .groupBy(grade.get("slug"), grade.get("name"), grade.get("sortOrder"), grade.get("rank"))
+                .groupBy(grade.get("slug"), grade.get("name"), grade.get("nameDe"), grade.get("sortOrder"),
+                        grade.get("rank"))
                 .orderBy(cb.asc(grade.get("sortOrder")), cb.asc(grade.get("rank")));
+        ContentLanguage lang = ContentLanguage.current();
         return em.createQuery(cq).getResultList().stream()
-                .map(t -> new FacetCount(t.get(0, String.class), t.get(1, String.class), null, t.get(2, Long.class)))
+                .map(t -> new FacetCount(t.get(0, String.class), lang.pick(t.get(1, String.class), t.get(2, String.class)),
+                        null, t.get(3, Long.class)))
                 .toList();
     }
 
@@ -188,7 +201,10 @@ public class ProductSearchRepository {
             case NAME_ASC -> { /* name below */ }
             case GRADE_DESC -> orders.add(cb.desc(cb.coalesce(filters.grade().get("rank"), -1)));
         }
-        orders.add(cb.asc(root.get("name")));
+        // By the name the customer sees: the German one where written on German pages.
+        orders.add(cb.asc(ContentLanguage.current() == ContentLanguage.DE
+                ? cb.coalesce(root.<String>get("nameDe"), root.<String>get("name"))
+                : root.<String>get("name")));
         orders.add(cb.asc(root.get("id"))); // stable pagination
         return orders;
     }
@@ -244,10 +260,13 @@ public class ProductSearchRepository {
             }
             if (q.text() != null && !q.text().isBlank()) {
                 String pattern = "%" + escapeLike(q.text().strip().toLowerCase(Locale.ROOT)) + "%";
+                // Either language finds the product.
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("name")), pattern, '\\'),
+                        cb.like(cb.lower(root.get("nameDe")), pattern, '\\'),
                         cb.like(cb.lower(species().get("scientificName")), pattern, '\\'),
-                        cb.like(cb.lower(species().get("commonName")), pattern, '\\')));
+                        cb.like(cb.lower(species().get("commonName")), pattern, '\\'),
+                        cb.like(cb.lower(species().get("commonNameDe")), pattern, '\\')));
             }
             if (exclude != Dimension.SPECIES && !q.species().isEmpty()) {
                 predicates.add(species().get("slug").in(q.species()));

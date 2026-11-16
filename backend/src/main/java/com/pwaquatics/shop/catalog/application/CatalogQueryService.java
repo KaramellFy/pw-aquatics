@@ -19,6 +19,7 @@ import com.pwaquatics.shop.catalog.infrastructure.ProductRepository;
 import com.pwaquatics.shop.catalog.infrastructure.ProductSearchRepository;
 import com.pwaquatics.shop.catalog.infrastructure.ProductSearchRepository.FacetCount;
 import com.pwaquatics.shop.catalog.infrastructure.SpeciesRepository;
+import com.pwaquatics.shop.common.text.ContentLanguage;
 import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.money.Money;
 import java.util.ArrayDeque;
@@ -172,7 +173,9 @@ public class CatalogQueryService {
         List<CategoryNodeView> children = byParent.getOrDefault(category.getId(), List.of()).stream()
                 .map(child -> node(child, byParent))
                 .toList();
-        return new CategoryNodeView(category.getSlug(), category.getName(), category.getDescription(), children);
+        ContentLanguage lang = ContentLanguage.current();
+        return new CategoryNodeView(category.getSlug(), lang.pick(category.getName(), category.getNameDe()),
+                lang.pick(category.getDescription(), category.getDescriptionDe()), children);
     }
 
     private static List<FacetOption> options(List<FacetCount> counts) {

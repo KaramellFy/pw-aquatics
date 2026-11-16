@@ -24,7 +24,9 @@ final class AdminRequests {
             UUID parentId,
             @Size(max = 5000) String description,
             @Min(0) @Max(9999) int sortOrder,
-            boolean active) {}
+            boolean active,
+            @Size(max = 100) String nameDe,
+            @Size(max = 5000) String descriptionDe) {}
 
     /** @param slug optional; derived from the scientific name when empty */
     record SpeciesRequest(
@@ -47,14 +49,19 @@ final class AdminRequests {
             @Min(1) @Max(600) Integer lifespanMonths,
             Difficulty difficulty,
             boolean tradeRestricted,
-            @Size(max = 1000) String restrictionNote) {}
+            @Size(max = 1000) String restrictionNote,
+            @Size(max = 150) String commonNameDe,
+            @Size(max = 10000) String descriptionDe,
+            @Size(max = 150) String originDe,
+            @Size(max = 1000) String restrictionNoteDe) {}
 
     /** @param hexCode swatch colour {@code #RRGGBB}, optional */
     record ColourRequest(
             @NotBlank @Size(max = 60) String name,
             @Size(max = 80) String slug,
             @Pattern(regexp = "#[0-9A-Fa-f]{6}") String hexCode,
-            @Min(0) @Max(9999) int sortOrder) {}
+            @Min(0) @Max(9999) int sortOrder,
+            @Size(max = 60) String nameDe) {}
 
     /** @param rank higher means better */
     record GradeRequest(
@@ -63,5 +70,7 @@ final class AdminRequests {
             @Size(max = 50) String scale,
             @Size(max = 1000) String description,
             @Min(0) @Max(1000) int rank,
-            @Min(0) @Max(9999) int sortOrder) {}
+            @Min(0) @Max(9999) int sortOrder,
+            @Size(max = 60) String nameDe,
+            @Size(max = 1000) String descriptionDe) {}
 }

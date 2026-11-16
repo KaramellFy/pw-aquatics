@@ -36,6 +36,24 @@ texts; no additional server in production.
   order's stored locale).
 - The admin area works under both prefixes; `/admin` is English, `/de/admin` German.
 
+### Addendum: German texts written by the owner (2026-11-16)
+
+- Every text the owner writes gets a German version in a nullable `<column>_de` next to the
+  English one (DATABASE.md §1). One column per language keeps queries, search indexes and
+  `ddl-auto=validate` simple; a separate translations table would only pay off with more
+  languages.
+- The API answers in the language of the request (`Accept-Language`, which the SPA sets from
+  the link). `common.text.ContentLanguage.current().pick(english, german)` chooses the German
+  text where it is written and the English one otherwise, so a page never shows an empty field.
+  Search matches both languages; facets and the name sort use the chosen one; orders keep the
+  names in the customer's language.
+- Public product and species details say which languages their own texts are written in
+  (`languages`). A German page that only shows English text gets `noindex` and no alternates,
+  so search engines do not see a duplicate of the English page; the English page then names
+  only itself.
+- The admin edits both versions side by side ("Name – German"). German inputs carry
+  `lang="de"` (spell checking, screen readers); the labels stay in the admin's language.
+
 ## Consequences
 
 - German pages can be indexed once the page HTML carries the language links before JavaScript

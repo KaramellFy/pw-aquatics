@@ -30,6 +30,10 @@ public class Coupon extends AbstractEntity {
     @Column(length = 255)
     private String description;
 
+    /** German note shown to customers, or null (the English one is shown). */
+    @Column(name = "description_de", length = 255)
+    private String descriptionDe;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private DiscountType type;
@@ -153,6 +157,16 @@ public class Coupon extends AbstractEntity {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getDescriptionDe() {
+        return descriptionDe;
+    }
+
+    /** Sets the German note (null where not translated). */
+    public void changeGermanDescription(String descriptionDe, Instant now) {
+        this.descriptionDe = descriptionDe;
+        this.updatedAt = now;
     }
 
     public DiscountType getType() {

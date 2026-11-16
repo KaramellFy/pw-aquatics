@@ -212,6 +212,8 @@ interface MethodForm {
   code: string;
   name: string;
   description: string;
+  nameDe: string;
+  descriptionDe: string;
   carrier: string;
   price: string;
   freeFrom: string;
@@ -229,6 +231,8 @@ function initialForm(method: AdminShippingMethod | null): MethodForm {
     code: method?.code ?? '',
     name: method?.name ?? '',
     description: method?.description ?? '',
+    nameDe: method?.nameDe ?? '',
+    descriptionDe: method?.descriptionDe ?? '',
     carrier: method?.carrier ?? 'DHL',
     price: method ? moneyInputValue(method.price.amount) : '',
     freeFrom: method?.freeFrom ? moneyInputValue(method.freeFrom.amount) : '',
@@ -295,6 +299,8 @@ function MethodDialog({
           code: existing ? undefined : form.code.trim(),
           name: form.name.trim(),
           description: form.description.trim() || undefined,
+          nameDe: form.nameDe.trim() || undefined,
+          descriptionDe: form.descriptionDe.trim() || undefined,
           carrier: form.carrier.trim() || undefined,
           priceCents: price,
           freeShippingThresholdCents: freeFrom ?? undefined,
@@ -403,6 +409,24 @@ function MethodDialog({
           value={form.description}
           onChange={(event) => set('description', event.target.value)}
         />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TextField
+            label={t('admin.common.inGerman', { label: t('admin.shipping.form.name') })}
+            hint={t('admin.common.germanHint')}
+            maxLength={100}
+            lang="de"
+            value={form.nameDe}
+            onChange={(event) => set('nameDe', event.target.value)}
+          />
+          <TextAreaField
+            label={t('admin.common.inGerman', { label: t('admin.common.description') })}
+            rows={2}
+            maxLength={500}
+            lang="de"
+            value={form.descriptionDe}
+            onChange={(event) => set('descriptionDe', event.target.value)}
+          />
+        </div>
         <TextField
           label={t('admin.shipping.form.countries')}
           hint={t('admin.shipping.form.countriesHint')}

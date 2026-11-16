@@ -1702,6 +1702,10 @@ export interface components {
             difficulty?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
             tradeRestricted?: boolean;
             restrictionNote?: string;
+            commonNameDe?: string;
+            descriptionDe?: string;
+            originDe?: string;
+            restrictionNoteDe?: string;
         };
         AdminSpeciesView: {
             /** Format: uuid */
@@ -1737,6 +1741,10 @@ export interface components {
             restrictionNote: string | null;
             /** Format: int64 */
             productCount: number;
+            commonNameDe: string | null;
+            descriptionDe: string | null;
+            originDe: string | null;
+            restrictionNoteDe: string | null;
         };
         ShippingMethodRequest: {
             code?: string;
@@ -1759,6 +1767,8 @@ export interface components {
             sortOrder?: number;
             /** Format: int64 */
             version?: number;
+            nameDe?: string;
+            descriptionDe?: string;
         };
         AdminShippingMethodView: {
             /** Format: uuid */
@@ -1781,6 +1791,8 @@ export interface components {
             sortOrder: number;
             /** Format: int64 */
             version: number;
+            nameDe: string | null;
+            descriptionDe: string | null;
         };
         ShippingPauseRequest: {
             active?: boolean;
@@ -1820,6 +1832,12 @@ export interface components {
             seoDescription?: string;
             /** Format: int64 */
             version?: number;
+            nameDe?: string;
+            shortDescriptionDe?: string;
+            descriptionDe?: string;
+            careNotesDe?: string;
+            seoTitleDe?: string;
+            seoDescriptionDe?: string;
         };
         AdminImageView: {
             /** Format: uuid */
@@ -1827,6 +1845,7 @@ export interface components {
             url: string;
             srcSet: string;
             altText: string;
+            altTextDe: string | null;
             /** Format: int32 */
             width: number;
             /** Format: int32 */
@@ -1865,6 +1884,12 @@ export interface components {
             taxRateBps: number;
             seoTitle: string | null;
             seoDescription: string | null;
+            nameDe: string | null;
+            shortDescriptionDe: string | null;
+            descriptionDe: string | null;
+            careNotesDe: string | null;
+            seoTitleDe: string | null;
+            seoDescriptionDe: string | null;
             /** @enum {string} */
             availability: "IN_STOCK" | "LOW_STOCK" | "COMING_SOON" | "OUT_OF_STOCK";
             /** Format: date-time */
@@ -1882,6 +1907,7 @@ export interface components {
             id: string;
             sku: string;
             name: string;
+            nameDe: string | null;
             /** Format: int32 */
             packSize: number;
             price: components["schemas"]["Money"];
@@ -1900,6 +1926,7 @@ export interface components {
             /** Format: int64 */
             compareAtPriceCents?: number;
             active?: boolean;
+            nameDe?: string;
         };
         ShipmentCorrection: {
             carrier: string;
@@ -2068,6 +2095,8 @@ export interface components {
             rank?: number;
             /** Format: int32 */
             sortOrder?: number;
+            nameDe?: string;
+            descriptionDe?: string;
         };
         AdminGradeView: {
             /** Format: uuid */
@@ -2082,6 +2111,8 @@ export interface components {
             sortOrder: number;
             /** Format: int64 */
             productCount: number;
+            nameDe: string | null;
+            descriptionDe: string | null;
         };
         GalleryImageRequest: {
             title?: string;
@@ -2090,6 +2121,9 @@ export interface components {
             published?: boolean;
             /** Format: int64 */
             version?: number;
+            titleDe?: string;
+            captionDe?: string;
+            altTextDe?: string;
         };
         AdminGalleryImageView: {
             /** Format: uuid */
@@ -2105,6 +2139,9 @@ export interface components {
             createdAt: string;
             /** Format: int64 */
             version: number;
+            titleDe: string | null;
+            captionDe: string | null;
+            altTextDe: string | null;
         };
         CouponRequest: {
             code?: string;
@@ -2128,12 +2165,14 @@ export interface components {
             active?: boolean;
             /** Format: int64 */
             version?: number;
+            descriptionDe?: string;
         };
         AdminCouponView: {
             /** Format: uuid */
             id: string;
             code: string;
             description: string | null;
+            descriptionDe: string | null;
             /** @enum {string} */
             type: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_SHIPPING";
             /** Format: int32 */
@@ -2167,6 +2206,7 @@ export interface components {
             hexCode?: string;
             /** Format: int32 */
             sortOrder?: number;
+            nameDe?: string;
         };
         AdminColourView: {
             /** Format: uuid */
@@ -2178,6 +2218,7 @@ export interface components {
             sortOrder: number;
             /** Format: int64 */
             productCount: number;
+            nameDe: string | null;
         };
         CategoryRequest: {
             name: string;
@@ -2188,6 +2229,8 @@ export interface components {
             /** Format: int32 */
             sortOrder?: number;
             active?: boolean;
+            nameDe?: string;
+            descriptionDe?: string;
         };
         AdminCategoryView: {
             /** Format: uuid */
@@ -2202,6 +2245,8 @@ export interface components {
             active: boolean;
             /** Format: int64 */
             productCount: number;
+            nameDe: string | null;
+            descriptionDe: string | null;
         };
         ChangePasswordRequest: {
             currentPassword: string;
@@ -2490,6 +2535,7 @@ export interface components {
         };
         AltTextRequest: {
             altText: string;
+            altTextDe?: string;
         };
         ImageOrderRequest: {
             imageIds: string[];
@@ -2569,6 +2615,7 @@ export interface components {
             origin: string | null;
             descriptionHtml: string | null;
             care: components["schemas"]["CareView"];
+            languages: string[];
         };
         ShippingPauseNotice: {
             message: string | null;
@@ -2646,6 +2693,7 @@ export interface components {
             variants: components["schemas"]["VariantView"][];
             images: components["schemas"]["ImageView"][];
             seo: components["schemas"]["SeoView"];
+            languages: string[];
         };
         SeoView: {
             title: string;

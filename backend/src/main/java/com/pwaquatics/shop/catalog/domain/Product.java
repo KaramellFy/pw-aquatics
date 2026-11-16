@@ -103,6 +103,26 @@ public class Product extends AbstractEntity {
     @Column(name = "seo_description", length = 320)
     private String seoDescription;
 
+    // German texts (null = not translated; the English text is shown instead).
+
+    @Column(name = "name_de", length = 150)
+    private String nameDe;
+
+    @Column(name = "short_description_de", length = 300)
+    private String shortDescriptionDe;
+
+    @Column(name = "description_de")
+    private String descriptionDe;
+
+    @Column(name = "care_notes_de")
+    private String careNotesDe;
+
+    @Column(name = "seo_title_de", length = 160)
+    private String seoTitleDe;
+
+    @Column(name = "seo_description_de", length = 320)
+    private String seoDescriptionDe;
+
     @Column(name = "published_at")
     private Instant publishedAt;
 
@@ -172,6 +192,12 @@ public class Product extends AbstractEntity {
         this.taxRateBps = details.taxRateBps();
         this.seoTitle = details.seoTitle();
         this.seoDescription = details.seoDescription();
+        this.nameDe = details.nameDe();
+        this.shortDescriptionDe = details.shortDescriptionDe();
+        this.descriptionDe = details.descriptionDe();
+        this.careNotesDe = details.careNotesDe();
+        this.seoTitleDe = details.seoTitleDe();
+        this.seoDescriptionDe = details.seoDescriptionDe();
         this.category = category;
         this.species = species;
         this.grade = grade;
@@ -180,10 +206,12 @@ public class Product extends AbstractEntity {
         touch(now);
     }
 
-    public ProductVariant addVariant(String sku, String variantName, int packSize, long priceCents, Long compareAtCents) {
+    /** @param variantNameDe the German name of the pack size, or null */
+    public ProductVariant addVariant(
+            String sku, String variantName, String variantNameDe, int packSize, long priceCents, Long compareAtCents) {
         ProductVariant.requireValid(packSize, priceCents, compareAtCents);
-        ProductVariant variant = new ProductVariant(this, sku, variantName, packSize, priceCents, compareAtCents,
-                variants.size());
+        ProductVariant variant = new ProductVariant(this, sku, variantName, variantNameDe, packSize, priceCents,
+                compareAtCents, variants.size());
         variants.add(variant);
         recalculateMinPrice();
         return variant;
@@ -191,10 +219,10 @@ public class Product extends AbstractEntity {
 
     /** Changes a pack size of this product; deactivated pack sizes can no longer be bought. */
     public void updateVariant(
-            ProductVariant variant, String sku, String variantName, int packSize, long priceCents,
-            Long compareAtCents, boolean active, Instant now) {
+            ProductVariant variant, String sku, String variantName, String variantNameDe, int packSize,
+            long priceCents, Long compareAtCents, boolean active, Instant now) {
         requireOwn(variants.contains(variant));
-        variant.update(sku, variantName, packSize, priceCents, compareAtCents, active);
+        variant.update(sku, variantName, variantNameDe, packSize, priceCents, compareAtCents, active);
         recalculateMinPrice();
         touch(now);
     }
@@ -298,15 +326,17 @@ public class Product extends AbstractEntity {
     public Product copyAsDraft(String newSlug, String newName, UnaryOperator<String> skuFor,
             Instant now) {
         Product copy = draft(
+                // The copy gets a new name; its German name is left for the owner to write.
                 new ProductDetails(newName, newSlug, shortDescription, description, careNotes, liveAnimal, false,
-                        lowStockThreshold, availableFrom, taxRateBps, seoTitle, seoDescription),
+                        lowStockThreshold, availableFrom, taxRateBps, seoTitle, seoDescription, null,
+                        shortDescriptionDe, descriptionDe, careNotesDe, seoTitleDe, seoDescriptionDe),
                 category, species, grade, new LinkedHashSet<>(colours), now);
         for (ProductVariant variant : variants) {
             ProductVariant copied = copy.addVariant(skuFor.apply(variant.getSku()), variant.getName(),
-                    variant.getPackSize(), variant.getPriceCents(), variant.getCompareAtPriceCents());
+                    variant.getNameDe(), variant.getPackSize(), variant.getPriceCents(), variant.getCompareAtPriceCents());
             if (!variant.isActive()) {
-                copied.update(copied.getSku(), copied.getName(), copied.getPackSize(), copied.getPriceCents(),
-                        copied.getCompareAtPriceCents(), false);
+                copied.update(copied.getSku(), copied.getName(), copied.getNameDe(), copied.getPackSize(),
+                        copied.getPriceCents(), copied.getCompareAtPriceCents(), false);
             }
         }
         copy.recalculateMinPrice();
@@ -461,6 +491,30 @@ public class Product extends AbstractEntity {
 
     public String getSeoTitle() {
         return seoTitle;
+    }
+
+    public String getNameDe() {
+        return nameDe;
+    }
+
+    public String getShortDescriptionDe() {
+        return shortDescriptionDe;
+    }
+
+    public String getDescriptionDe() {
+        return descriptionDe;
+    }
+
+    public String getCareNotesDe() {
+        return careNotesDe;
+    }
+
+    public String getSeoTitleDe() {
+        return seoTitleDe;
+    }
+
+    public String getSeoDescriptionDe() {
+        return seoDescriptionDe;
     }
 
     public String getSeoDescription() {

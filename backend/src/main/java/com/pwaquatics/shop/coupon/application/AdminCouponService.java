@@ -89,6 +89,7 @@ public class AdminCouponService {
         }
         Instant now = clock.instant();
         Coupon coupon = coupons.save(Coupon.create(normalised, input.data(), actor.userId(), now));
+        coupon.changeGermanDescription(input.descriptionDe(), now);
         audit.record(actor, "COUPON_CREATED", "COUPON", coupon.getId(), details(coupon));
         return view(coupon, now);
     }
@@ -106,6 +107,7 @@ public class AdminCouponService {
         }
         Instant now = clock.instant();
         coupon.update(input.data(), now);
+        coupon.changeGermanDescription(input.descriptionDe(), now);
         coupons.flush();
         audit.record(actor, "COUPON_UPDATED", "COUPON", id, details(coupon));
         return view(coupon, now);
@@ -142,7 +144,8 @@ public class AdminCouponService {
             LocalDate endsOn,
             Integer usageLimitTotal,
             Integer usageLimitPerCustomer,
-            boolean active) {
+            boolean active,
+            String descriptionDe) {
 
         CouponData data() {
             if (startsOn != null && endsOn != null && endsOn.isBefore(startsOn)) {
@@ -178,6 +181,7 @@ public class AdminCouponService {
                 coupon.getId(),
                 coupon.getCode(),
                 coupon.getDescription(),
+                coupon.getDescriptionDe(),
                 coupon.getType(),
                 coupon.getType() == DiscountType.PERCENTAGE ? Math.toIntExact(coupon.getValue()) : null,
                 coupon.getType() == DiscountType.FIXED_AMOUNT ? Money.eur(coupon.getValue()) : null,

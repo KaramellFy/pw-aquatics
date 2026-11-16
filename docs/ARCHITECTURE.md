@@ -159,7 +159,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 
 | Module | Responsibility |
 |---|---|
-| `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation |
+| `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation, `ContentLanguage` (language of owner-written texts per request), `SiteLinks` |
 | `security` | Spring Security config, session/CSRF setup, current-user resolution, rate limiting |
 | `identity` | Users, registration, login, email verification, password reset, roles |
 | `customer` | Profile, saved addresses, account deletion/anonymisation |
@@ -683,9 +683,11 @@ design-led studio than a pet-supply store. Tokens live in
 
 - A client-rendered SPA is weak for SEO, which matters for a shop. Built: per-route
   `<title>`/meta (React 19 metadata support) with canonical link and `hreflang` alternates
-  for both languages (ADR-012), JSON-LD `Product`. Planned (roadmap "SEO", brought forward
-  from Phase 10 at the owner's request): German catalog texts, **public pages filled in by
-  the backend** we already run (title, meta, language links, structured data, main text and
+  for both languages (ADR-012), JSON-LD `Product`, and German catalog texts: the owner
+  writes them next to the English ones in the admin, the API answers in the language of the
+  page (`Accept-Language`), and a German product or species page stays out of the index
+  (`noindex`) until its German text is written. Planned (roadmap "SEO", brought forward
+  from Phase 10 at the owner's request): **public pages filled in by the backend** we already run (title, meta, language links, structured data, main text and
   the page's data, per request — no extra server, owner decision 2026-11-16), backend-generated
   `sitemap.xml`, `BreadcrumbList`/`Organization` data (see risk R3).
 - Responsive images: backend generates WebP sizes (e.g. 400/800/1200/2000 px);

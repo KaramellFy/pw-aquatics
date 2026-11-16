@@ -914,6 +914,8 @@ export const en = {
       required: 'This field is required.',
       tooLong: 'This text is too long.',
       numberInvalid: 'Enter a valid number.',
+      inGerman: '{{label}} – German',
+      germanHint: 'Optional. Leave empty to show the English text on the German pages.',
       wholeNumberInvalid: 'Enter a whole number.',
     },
     status: {
@@ -970,9 +972,12 @@ export const en = {
         texts: 'Descriptions',
         settings: 'Stock display and tax',
         seo: 'Search engines',
+        german: 'German texts',
         variants: 'Pack sizes and prices',
         images: 'Photos',
       },
+      germanIntro:
+        'Shown on the German pages (/de/…). Empty fields show the English text instead. The German product page is offered to Google once the German description or short description is written.',
       fields: {
         name: 'Name',
         category: 'Category',
@@ -1334,7 +1339,10 @@ export const en = {
         names: 'Names and description',
         care: 'Care data',
         trade: 'Trade',
+        german: 'German texts',
       },
+      germanIntro:
+        'Shown on the German species page (/de/species/…). Empty fields show the English text instead; the German page is offered to Google once the German description is written.',
       fields: {
         scientificName: 'Scientific name',
         commonName: 'Common name',

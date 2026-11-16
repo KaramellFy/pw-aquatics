@@ -80,6 +80,8 @@ function categorySchema(t: TFunction) {
     description: z.string().trim().max(5000, t('admin.common.tooLong')),
     sortOrder: wholeNumber(t, 9999),
     active: z.boolean(),
+    nameDe: z.string().trim().max(100, t('admin.common.tooLong')),
+    descriptionDe: z.string().trim().max(5000, t('admin.common.tooLong')),
   });
 }
 type CategoryValues = z.infer<ReturnType<typeof categorySchema>>;
@@ -99,9 +101,18 @@ export function CategoryForm({ category, onDone }: { category?: AdminCategory; o
       description: category?.description ?? '',
       sortOrder: String(category?.sortOrder ?? 0),
       active: category?.active ?? true,
+      nameDe: category?.nameDe ?? '',
+      descriptionDe: category?.descriptionDe ?? '',
     },
   });
-  const onServerError = useServerError(setError, ['name', 'slug', 'description', 'sortOrder']);
+  const onServerError = useServerError(setError, [
+    'name',
+    'slug',
+    'description',
+    'sortOrder',
+    'nameDe',
+    'descriptionDe',
+  ]);
   const errors = formState.errors;
   // A category cannot become a child of itself or of one of its descendants.
   const tree = categoryTree(categories.data ?? []);
@@ -124,6 +135,8 @@ export function CategoryForm({ category, onDone }: { category?: AdminCategory; o
           description: values.description || undefined,
           sortOrder: Number(values.sortOrder),
           active: values.active,
+          nameDe: values.nameDe || undefined,
+          descriptionDe: values.descriptionDe || undefined,
         },
       },
       { onSuccess: onDone, onError: onServerError },
@@ -134,6 +147,13 @@ export function CategoryForm({ category, onDone }: { category?: AdminCategory; o
     <form onSubmit={onSubmit} noValidate className="space-y-5">
       <ErrorNotice error={save.error} />
       <TextField label={t('admin.categories.name')} error={errors.name?.message} {...register('name')} />
+      <TextField
+        label={t('admin.common.inGerman', { label: t('admin.categories.name') })}
+        hint={t('admin.common.germanHint')}
+        error={errors.nameDe?.message}
+        lang="de"
+        {...register('nameDe')}
+      />
       <TextField
         label={t('admin.common.slug')}
         hint={t('admin.common.slugHint')}
@@ -157,6 +177,13 @@ export function CategoryForm({ category, onDone }: { category?: AdminCategory; o
         rows={3}
         error={errors.description?.message}
         {...register('description')}
+      />
+      <TextAreaField
+        label={t('admin.common.inGerman', { label: t('admin.common.description') })}
+        rows={3}
+        error={errors.descriptionDe?.message}
+        lang="de"
+        {...register('descriptionDe')}
       />
       <TextField
         label={t('admin.common.sortOrder')}
@@ -182,6 +209,7 @@ function colourSchema(t: TFunction) {
       .trim()
       .refine((value) => value === '' || /^#[0-9A-Fa-f]{6}$/.test(value), t('admin.colours.hexInvalid')),
     sortOrder: wholeNumber(t, 9999),
+    nameDe: z.string().trim().max(60, t('admin.common.tooLong')),
   });
 }
 type ColourValues = z.infer<ReturnType<typeof colourSchema>>;
@@ -198,9 +226,10 @@ export function ColourForm({ colour, onDone }: { colour?: AdminColour; onDone: (
       slug: colour?.slug ?? '',
       hexCode: colour?.hexCode ?? '',
       sortOrder: String(colour?.sortOrder ?? 0),
+      nameDe: colour?.nameDe ?? '',
     },
   });
-  const onServerError = useServerError(setError, ['name', 'slug', 'hexCode', 'sortOrder']);
+  const onServerError = useServerError(setError, ['name', 'slug', 'hexCode', 'sortOrder', 'nameDe']);
   const errors = formState.errors;
   const hex = useWatch({ control, name: 'hexCode' });
 
@@ -213,6 +242,7 @@ export function ColourForm({ colour, onDone }: { colour?: AdminColour; onDone: (
           slug: values.slug || undefined,
           hexCode: values.hexCode || undefined,
           sortOrder: Number(values.sortOrder),
+          nameDe: values.nameDe || undefined,
         },
       },
       { onSuccess: onDone, onError: onServerError },
@@ -223,6 +253,13 @@ export function ColourForm({ colour, onDone }: { colour?: AdminColour; onDone: (
     <form onSubmit={onSubmit} noValidate className="space-y-5">
       <ErrorNotice error={save.error} />
       <TextField label={t('admin.colours.name')} error={errors.name?.message} {...register('name')} />
+      <TextField
+        label={t('admin.common.inGerman', { label: t('admin.colours.name') })}
+        hint={t('admin.common.germanHint')}
+        error={errors.nameDe?.message}
+        lang="de"
+        {...register('nameDe')}
+      />
       <TextField
         label={t('admin.common.slug')}
         hint={t('admin.common.slugHint')}
@@ -272,6 +309,8 @@ function gradeSchema(t: TFunction) {
     description: z.string().trim().max(1000, t('admin.common.tooLong')),
     rank: wholeNumber(t, 1000),
     sortOrder: wholeNumber(t, 9999),
+    nameDe: z.string().trim().max(60, t('admin.common.tooLong')),
+    descriptionDe: z.string().trim().max(1000, t('admin.common.tooLong')),
   });
 }
 type GradeValues = z.infer<ReturnType<typeof gradeSchema>>;
@@ -290,6 +329,8 @@ export function GradeForm({ grade, onDone }: { grade?: AdminGrade; onDone: () =>
       description: grade?.description ?? '',
       rank: String(grade?.rank ?? 0),
       sortOrder: String(grade?.sortOrder ?? 0),
+      nameDe: grade?.nameDe ?? '',
+      descriptionDe: grade?.descriptionDe ?? '',
     },
   });
   const onServerError = useServerError(setError, [
@@ -299,6 +340,8 @@ export function GradeForm({ grade, onDone }: { grade?: AdminGrade; onDone: () =>
     'description',
     'rank',
     'sortOrder',
+    'nameDe',
+    'descriptionDe',
   ]);
   const errors = formState.errors;
 
@@ -313,6 +356,8 @@ export function GradeForm({ grade, onDone }: { grade?: AdminGrade; onDone: () =>
           description: values.description || undefined,
           rank: Number(values.rank),
           sortOrder: Number(values.sortOrder),
+          nameDe: values.nameDe || undefined,
+          descriptionDe: values.descriptionDe || undefined,
         },
       },
       { onSuccess: onDone, onError: onServerError },
@@ -323,6 +368,13 @@ export function GradeForm({ grade, onDone }: { grade?: AdminGrade; onDone: () =>
     <form onSubmit={onSubmit} noValidate className="space-y-5">
       <ErrorNotice error={save.error} />
       <TextField label={t('admin.grades.name')} error={errors.name?.message} {...register('name')} />
+      <TextField
+        label={t('admin.common.inGerman', { label: t('admin.grades.name') })}
+        hint={t('admin.common.germanHint')}
+        error={errors.nameDe?.message}
+        lang="de"
+        {...register('nameDe')}
+      />
       <TextField
         label={t('admin.common.slug')}
         hint={t('admin.common.slugHint')}
@@ -358,6 +410,13 @@ export function GradeForm({ grade, onDone }: { grade?: AdminGrade; onDone: () =>
         rows={3}
         error={errors.description?.message}
         {...register('description')}
+      />
+      <TextAreaField
+        label={t('admin.common.inGerman', { label: t('admin.common.description') })}
+        rows={3}
+        error={errors.descriptionDe?.message}
+        lang="de"
+        {...register('descriptionDe')}
       />
       <FormButtons pending={save.isPending} onCancel={onDone} />
     </form>

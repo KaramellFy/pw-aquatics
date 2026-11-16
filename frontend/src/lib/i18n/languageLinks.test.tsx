@@ -72,4 +72,25 @@ describe('language links', () => {
     expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();
     expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
   });
+
+  it('keeps a page out of the index in a language its texts are not written in', async () => {
+    const english = renderWithProviders(<PageMeta title="Beta Red" languages={['en']} />, {
+      path: '/products/beta-red',
+    });
+    const head = document.head;
+    expect(head.querySelector('meta[name="robots"]')).toBeNull();
+    expect(head.querySelector('link[hreflang="en"]')).not.toBeNull();
+    expect(head.querySelector('link[hreflang="x-default"]')).not.toBeNull();
+    expect(head.querySelector('link[hreflang="de"]')).toBeNull();
+    english.unmount();
+
+    // The German link shows the English text until the owner writes the German one.
+    await act(() => i18n.changeLanguage('de'));
+    renderWithProviders(<PageMeta title="Beta Red" languages={['en']} />, {
+      path: '/products/beta-red',
+    });
+    expect(head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    expect(head.querySelector('link[rel="canonical"]')).toBeNull();
+    expect(head.querySelector('link[rel="alternate"]')).toBeNull();
+  });
 });

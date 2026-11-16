@@ -18,6 +18,7 @@ const spring: AdminCoupon = {
   id: 'c1',
   code: 'SPRING10',
   description: 'Spring sale',
+  descriptionDe: null,
   type: 'PERCENTAGE',
   percentage: 1000,
   amount: null,

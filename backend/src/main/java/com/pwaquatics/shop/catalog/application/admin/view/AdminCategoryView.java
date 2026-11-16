@@ -12,4 +12,6 @@ public record AdminCategoryView(
         @Nullable String description,
         int sortOrder,
         boolean active,
-        long productCount) {}
+        long productCount,
+        @Nullable String nameDe,
+        @Nullable String descriptionDe) {}

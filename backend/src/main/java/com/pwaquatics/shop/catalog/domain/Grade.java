@@ -23,6 +23,14 @@ public class Grade extends AbstractEntity {
 
     private String description;
 
+    /** German name, or null (the English one is shown). */
+    @Column(name = "name_de", length = 60)
+    private String nameDe;
+
+    /** German description, or null. */
+    @Column(name = "description_de")
+    private String descriptionDe;
+
     @JdbcTypeCode(SqlTypes.SMALLINT)
     @Column(nullable = false)
     private int rank;
@@ -45,6 +53,20 @@ public class Grade extends AbstractEntity {
         this.description = description;
         this.rank = rank;
         this.sortOrder = sortOrder;
+    }
+
+    /** Sets the German texts (null where not translated). */
+    public void changeGermanTexts(String nameDe, String descriptionDe) {
+        this.nameDe = nameDe;
+        this.descriptionDe = descriptionDe;
+    }
+
+    public String getNameDe() {
+        return nameDe;
+    }
+
+    public String getDescriptionDe() {
+        return descriptionDe;
     }
 
     public String getName() {

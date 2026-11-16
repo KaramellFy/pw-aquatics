@@ -2,6 +2,7 @@ package com.pwaquatics.shop.coupon.application;
 
 import com.pwaquatics.shop.common.error.BusinessRuleException;
 import com.pwaquatics.shop.common.money.Money;
+import com.pwaquatics.shop.common.text.ContentLanguage;
 import com.pwaquatics.shop.coupon.application.view.CouponStateView;
 import com.pwaquatics.shop.coupon.application.view.CouponTerms;
 import com.pwaquatics.shop.coupon.domain.Coupon;
@@ -132,7 +133,7 @@ public class Coupons {
         return new CouponTerms(
                 coupon.getId(),
                 coupon.getCode(),
-                coupon.getDescription(),
+                ContentLanguage.current().pick(coupon.getDescription(), coupon.getDescriptionDe()),
                 coupon.discount(),
                 coupon.problemAt(clock.instant(), used).orElse(null));
     }

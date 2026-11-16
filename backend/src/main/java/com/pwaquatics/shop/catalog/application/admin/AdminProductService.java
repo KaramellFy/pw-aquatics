@@ -136,7 +136,7 @@ public class AdminProductService {
     /** Creates an unpublished product without stock; pack sizes and photos are added next. */
     @Transactional
     public AdminProductView create(ProductInput input, Actor actor) {
-        ProductDetails details = withSlug(input.details(),
+        ProductDetails details = input.details().withSlug(
                 AdminSlugs.resolve(input.details().slug(), input.details().name(), SLUG_MAX, products::existsBySlug));
         Product product = Product.draft(details, category(input.categoryId()), species(input.speciesId()),
                 grade(input.gradeId()), colours(input.colourIds()), clock.instant());
@@ -158,7 +158,7 @@ public class AdminProductService {
             throw new ConflictException(
                     "CONFLICT", "This product was changed in the meantime. Please reload it and try again.");
         }
-        ProductDetails details = withSlug(input.details(), AdminSlugs.resolve(input.details().slug(),
+        ProductDetails details = input.details().withSlug(AdminSlugs.resolve(input.details().slug(),
                 input.details().name(), SLUG_MAX, slug -> products.existsBySlugAndIdNot(slug, id)));
         product.updateDetails(details, category(input.categoryId()), species(input.speciesId()),
                 grade(input.gradeId()), colours(input.colourIds()), clock.instant());
@@ -221,10 +221,10 @@ public class AdminProductService {
         if (variants.existsBySkuIgnoreCase(sku)) {
             throw skuTaken();
         }
-        ProductVariant variant = product.addVariant(sku, input.name(), input.packSize(), input.priceCents(),
-                input.compareAtPriceCents());
+        ProductVariant variant = product.addVariant(sku, input.name(), input.nameDe(), input.packSize(),
+                input.priceCents(), input.compareAtPriceCents());
         if (!input.active()) {
-            product.updateVariant(variant, sku, input.name(), input.packSize(), input.priceCents(),
+            product.updateVariant(variant, sku, input.name(), input.nameDe(), input.packSize(), input.priceCents(),
                     input.compareAtPriceCents(), false, clock.instant());
         }
         products.flush();
@@ -249,7 +249,7 @@ public class AdminProductService {
             throw skuTaken();
         }
         long previousPrice = variant.getPriceCents();
-        product.updateVariant(variant, sku, input.name(), input.packSize(), input.priceCents(),
+        product.updateVariant(variant, sku, input.name(), input.nameDe(), input.packSize(), input.priceCents(),
                 input.compareAtPriceCents(), input.active(), clock.instant());
         products.flush();
         audit.record(actor, "VARIANT_UPDATED", "PRODUCT", productId, Map.of(
@@ -282,9 +282,10 @@ public class AdminProductService {
     }
 
     @Transactional
-    public AdminProductView changeAltText(UUID productId, UUID imageId, String altText, Actor actor) {
+    /** @param altTextDe the German alt text, or null */
+    public AdminProductView changeAltText(UUID productId, UUID imageId, String altText, String altTextDe, Actor actor) {
         Product product = load(productId);
-        ownImage(product, imageId).changeAltText(altText);
+        ownImage(product, imageId).changeAltText(altText, altTextDe);
         products.flush();
         audit.record(actor, "IMAGE_UPDATED", "PRODUCT", productId, Map.of("imageId", imageId.toString()));
         return toView(product);
@@ -349,11 +350,6 @@ public class AdminProductService {
                 .orElseThrow(() -> new NotFoundException("Photo not found."));
     }
 
-    private static ProductDetails withSlug(ProductDetails d, String slug) {
-        return new ProductDetails(d.name(), slug, d.shortDescription(), d.description(), d.careNotes(),
-                d.liveAnimal(), d.featured(), d.lowStockThreshold(), d.availableFrom(), d.taxRateBps(),
-                d.seoTitle(), d.seoDescription());
-    }
 
     private static String normaliseSku(String sku) {
         return sku.strip().toUpperCase(Locale.ROOT);
@@ -421,6 +417,12 @@ public class AdminProductService {
                 p.getTaxRateBps(),
                 p.getSeoTitle(),
                 p.getSeoDescription(),
+                p.getNameDe(),
+                p.getShortDescriptionDe(),
+                p.getDescriptionDe(),
+                p.getCareNotesDe(),
+                p.getSeoTitleDe(),
+                p.getSeoDescriptionDe(),
                 p.availability(),
                 p.getPublishedAt(),
                 p.getCreatedAt(),
@@ -428,8 +430,8 @@ public class AdminProductService {
                 p.getVariants().stream()
                         .sorted(Comparator.comparingInt(ProductVariant::getSortOrder)
                                 .thenComparingInt(ProductVariant::getPackSize))
-                        .map(v -> new AdminVariantView(v.getId(), v.getSku(), v.getName(), v.getPackSize(), v.price(),
-                                v.compareAtPrice(), v.isActive(), v.getSortOrder()))
+                        .map(v -> new AdminVariantView(v.getId(), v.getSku(), v.getName(), v.getNameDe(),
+                                v.getPackSize(), v.price(), v.compareAtPrice(), v.isActive(), v.getSortOrder()))
                         .toList(),
                 p.getImages().stream()
                         .sorted(Comparator.comparingInt(ProductImage::getSortOrder))
@@ -440,7 +442,7 @@ public class AdminProductService {
 
     private AdminImageView toImageView(ProductImage image) {
         ImageView view = mediaUrls.image(image.getStorageKey(), image.getAltText(), image.getWidth(), image.getHeight());
-        return new AdminImageView(image.getId(), view.url(), view.srcSet(), image.getAltText(), image.getWidth(),
-                image.getHeight(), image.getSortOrder());
+        return new AdminImageView(image.getId(), view.url(), view.srcSet(), image.getAltText(), image.getAltTextDe(),
+                image.getWidth(), image.getHeight(), image.getSortOrder());
     }
 }

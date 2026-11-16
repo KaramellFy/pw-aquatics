@@ -66,6 +66,10 @@ function speciesSchema(t: TFunction) {
     difficulty: z.string(),
     tradeRestricted: z.boolean(),
     restrictionNote: z.string().trim().max(1000, t('admin.common.tooLong')),
+    commonNameDe: z.string().trim().max(150, t('admin.common.tooLong')),
+    originDe: z.string().trim().max(150, t('admin.common.tooLong')),
+    descriptionDe: z.string().trim().max(10000, t('admin.common.tooLong')),
+    restrictionNoteDe: z.string().trim().max(1000, t('admin.common.tooLong')),
   });
 }
 type SpeciesValues = z.infer<ReturnType<typeof speciesSchema>>;
@@ -96,6 +100,10 @@ function toValues(species?: AdminSpecies): SpeciesValues {
     difficulty: species?.difficulty ?? '',
     tradeRestricted: species?.tradeRestricted ?? false,
     restrictionNote: species?.restrictionNote ?? '',
+    commonNameDe: species?.commonNameDe ?? '',
+    originDe: species?.originDe ?? '',
+    descriptionDe: species?.descriptionDe ?? '',
+    restrictionNoteDe: species?.restrictionNoteDe ?? '',
   };
 }
 
@@ -109,6 +117,10 @@ function toInput(values: SpeciesValues): SpeciesInput {
     difficulty: (values.difficulty || undefined) as SpeciesInput['difficulty'],
     tradeRestricted: values.tradeRestricted,
     restrictionNote: values.tradeRestricted ? values.restrictionNote || undefined : undefined,
+    commonNameDe: values.commonNameDe || undefined,
+    originDe: values.originDe || undefined,
+    descriptionDe: values.descriptionDe || undefined,
+    restrictionNoteDe: values.tradeRestricted ? values.restrictionNoteDe || undefined : undefined,
   };
   for (const field of [...DECIMAL_FIELDS, ...WHOLE_FIELDS]) {
     input[field] = number(values[field]);
@@ -163,6 +175,8 @@ function SpeciesForm({ species }: { species?: AdminSpecies }) {
   const errors = formState.errors;
   const restricted = useWatch({ control, name: 'tradeRestricted' });
   const description = useWatch({ control, name: 'description' });
+  const descriptionDe = useWatch({ control, name: 'descriptionDe' });
+  const german = (label: string) => t('admin.common.inGerman', { label });
 
   const onSubmit = handleSubmit((values) => {
     setSaved(false);
@@ -278,6 +292,41 @@ function SpeciesForm({ species }: { species?: AdminSpecies }) {
             {...register('restrictionNote')}
           />
         )}
+        {restricted && (
+          <TextField
+            label={german(t('admin.species.fields.restrictionNote'))}
+            error={errors.restrictionNoteDe?.message}
+            className="mt-5"
+            lang="de"
+            {...register('restrictionNoteDe')}
+          />
+        )}
+      </AdminCard>
+
+      <AdminCard title={t('admin.species.sections.german')} id="species-german">
+        <p className="mb-5 text-sm text-ink-soft">{t('admin.species.germanIntro')}</p>
+        <div className="grid gap-5 md:grid-cols-2">
+          <TextField
+            label={german(t('admin.species.fields.commonName'))}
+            error={errors.commonNameDe?.message}
+            lang="de"
+            {...register('commonNameDe')}
+          />
+          <TextField
+            label={german(t('admin.species.fields.origin'))}
+            error={errors.originDe?.message}
+            lang="de"
+            {...register('originDe')}
+          />
+          <MarkdownField
+            label={german(t('admin.common.description'))}
+            value={descriptionDe}
+            error={errors.descriptionDe?.message}
+            className="md:col-span-2"
+            lang="de"
+            {...register('descriptionDe')}
+          />
+        </div>
       </AdminCard>
 
       <div className="flex justify-end">

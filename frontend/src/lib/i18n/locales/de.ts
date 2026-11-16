@@ -927,6 +927,8 @@ export const de: Messages = {
       required: 'Dieses Feld ist erforderlich.',
       tooLong: 'Dieser Text ist zu lang.',
       numberInvalid: 'Bitte gib eine gültige Zahl ein.',
+      inGerman: '{{label}} – Deutsch',
+      germanHint: 'Optional. Leer lassen, um auf den deutschen Seiten den englischen Text zu zeigen.',
       wholeNumberInvalid: 'Bitte gib eine ganze Zahl ein.',
     },
     status: {
@@ -983,9 +985,12 @@ export const de: Messages = {
         texts: 'Beschreibungen',
         settings: 'Bestandsanzeige und Steuer',
         seo: 'Suchmaschinen',
+        german: 'Deutsche Texte',
         variants: 'Packungsgrößen und Preise',
         images: 'Fotos',
       },
+      germanIntro:
+        'Erscheinen auf den deutschen Seiten (/de/…). Leere Felder zeigen stattdessen den englischen Text. Die deutsche Produktseite wird Google angeboten, sobald die deutsche Beschreibung oder Kurzbeschreibung geschrieben ist.',
       fields: {
         name: 'Name',
         category: 'Kategorie',
@@ -1348,7 +1353,10 @@ export const de: Messages = {
         names: 'Namen und Beschreibung',
         care: 'Pflegedaten',
         trade: 'Handel',
+        german: 'Deutsche Texte',
       },
+      germanIntro:
+        'Erscheinen auf der deutschen Artseite (/de/species/…). Leere Felder zeigen stattdessen den englischen Text; die deutsche Seite wird Google angeboten, sobald die deutsche Beschreibung geschrieben ist.',
       fields: {
         scientificName: 'Wissenschaftlicher Name',
         commonName: 'Deutscher Name',

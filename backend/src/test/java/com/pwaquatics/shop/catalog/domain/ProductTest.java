@@ -14,8 +14,8 @@ class ProductTest {
 
     private static Product activeProduct(int stock) {
         Product product = new Product("blue-dream", "Blue Dream", null, new Species("Neocaridina davidi", null, "nd"), null);
-        product.addVariant("BD-1", "1 animal", 1, 390, null);
-        product.addVariant("BD-10", "10 animals", 10, 3490, 3900L);
+        product.addVariant("BD-1", "1 animal", null, 1, 390, null);
+        product.addVariant("BD-10", "10 animals", null, 10, 3490, 3900L);
         product.addImage("products/blue-dream/1", "Blue Dream on moss", 1600, 2000, NOW);
         product.adjustStock(stock);
         product.activate(NOW);
@@ -71,7 +71,7 @@ class ProductTest {
         Species invasive = new Species("Procambarus virginalis", "Marbled crayfish", "pv");
         invasive.restrictTrade("EU invasive alien species");
         Product product = new Product("marbled", "Marbled crayfish", null, invasive, null);
-        product.addVariant("PV-1", "1 animal", 1, 1000, null);
+        product.addVariant("PV-1", "1 animal", null, 1, 1000, null);
 
         assertThatThrownBy(() -> product.activate(NOW))
                 .isInstanceOf(BusinessRuleException.class)
@@ -90,7 +90,7 @@ class ProductTest {
                 .extracting("code")
                 .isEqualTo("NO_ACTIVE_VARIANT");
 
-        product.addVariant("E-1", "1 animal", 1, 500, null);
+        product.addVariant("E-1", "1 animal", null, 1, 500, null);
         assertThatThrownBy(() -> product.activate(NOW)).extracting("code").isEqualTo("NO_IMAGE");
 
         product.addImage("products/empty/1", "Photo", 1200, 900, NOW);
@@ -121,16 +121,16 @@ class ProductTest {
     void variantPricesAreValidatedAndKeepTheFromPriceCurrent() {
         Product product = activeProduct(10);
         ProductVariant single = product.getVariants().getFirst();
-        product.updateVariant(single, "BD-1", "1 animal", 1, 450, 500L, true, NOW);
+        product.updateVariant(single, "BD-1", "1 animal", null, 1, 450, 500L, true, NOW);
         assertThat(product.getMinPriceCents()).isEqualTo(450);
 
-        assertThatThrownBy(() -> product.updateVariant(single, "BD-1", "1 animal", 1, 450, 400L, true, NOW))
+        assertThatThrownBy(() -> product.updateVariant(single, "BD-1", "1 animal", null, 1, 450, 400L, true, NOW))
                 .extracting("code").isEqualTo("COMPARE_AT_PRICE_INVALID");
-        assertThatThrownBy(() -> product.addVariant("BD-0", "none", 0, 100, null))
+        assertThatThrownBy(() -> product.addVariant("BD-0", "none", null, 0, 100, null))
                 .extracting("code").isEqualTo("VARIANT_INVALID");
 
         // Deactivating the cheaper pack moves the from-price to the next one.
-        product.updateVariant(single, "BD-1", "1 animal", 1, 450, null, false, NOW);
+        product.updateVariant(single, "BD-1", "1 animal", null, 1, 450, null, false, NOW);
         assertThat(product.getMinPriceCents()).isEqualTo(3490);
     }
 

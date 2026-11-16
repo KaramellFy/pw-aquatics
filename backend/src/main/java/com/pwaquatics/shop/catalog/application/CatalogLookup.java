@@ -6,6 +6,7 @@ import com.pwaquatics.shop.catalog.domain.Product;
 import com.pwaquatics.shop.catalog.domain.ProductImage;
 import com.pwaquatics.shop.catalog.domain.ProductVariant;
 import com.pwaquatics.shop.catalog.infrastructure.ProductVariantRepository;
+import com.pwaquatics.shop.common.text.ContentLanguage;
 import com.pwaquatics.shop.media.application.ImageView;
 import com.pwaquatics.shop.media.application.MediaUrls;
 import java.util.Collection;
@@ -43,7 +44,9 @@ public class CatalogLookup {
                 .collect(Collectors.toMap(VariantSnapshot::variantId, Function.identity()));
     }
 
+    /** Names are in the request's language (orders keep them as the customer saw them). */
     private VariantSnapshot snapshot(ProductVariant variant) {
+        ContentLanguage lang = ContentLanguage.current();
         Product product = variant.getProduct();
         boolean purchasable = product.isPubliclyVisible() && product.isAvailable(variant);
         int maxQuantity = purchasable
@@ -51,7 +54,8 @@ public class CatalogLookup {
                 : 0;
         ImageView image = product.getImages().stream()
                 .min(Comparator.comparingInt(ProductImage::getSortOrder))
-                .map(i -> mediaUrls.image(i.getStorageKey(), i.getAltText(), i.getWidth(), i.getHeight()))
+                .map(i -> mediaUrls.image(i.getStorageKey(), lang.pick(i.getAltText(), i.getAltTextDe()), i.getWidth(),
+                        i.getHeight()))
                 .orElse(null);
         String colourHex = product.getColours().stream()
                 .min(Comparator.comparingInt(Colour::getSortOrder).thenComparing(Colour::getName))
@@ -61,8 +65,8 @@ public class CatalogLookup {
                 variant.getId(),
                 product.getId(),
                 product.getSlug(),
-                product.getName(),
-                variant.getName(),
+                lang.pick(product.getName(), product.getNameDe()),
+                lang.pick(variant.getName(), variant.getNameDe()),
                 variant.getSku(),
                 variant.getPackSize(),
                 variant.price(),
@@ -73,7 +77,7 @@ public class CatalogLookup {
                 maxQuantity,
                 product.getStockUnits(),
                 product.getSpecies() == null ? null : product.getSpecies().getScientificName(),
-                product.getGrade() == null ? null : product.getGrade().getName(),
+                product.getGrade() == null ? null : lang.pick(product.getGrade().getName(), product.getGrade().getNameDe()),
                 product.getCategory().getSlug(),
                 colourHex,
                 image);

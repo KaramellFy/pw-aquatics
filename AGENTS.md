@@ -68,8 +68,10 @@ and some species may not be traded legally.
 
 - **SEO** (from Phase 10, brought forward; ADR-012) is in progress: German pages live under
   `/de/…` with the same path words, the link decides the language, pages carry canonical and
-  `hreflang` links, emails link in the customer's language. Next: German catalog texts,
-  public pages filled in by the backend (no extra server), sitemap and structured data.
+  `hreflang` links, emails link in the customer's language. The owner writes German catalog
+  texts next to the English ones; the API answers in the page's language with English as the
+  fallback. Next: public pages filled in by the backend (no extra server), sitemap and
+  structured data.
 
 - **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
   motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
@@ -190,6 +192,12 @@ working around them.
 - No `System.out`, no swallowed exceptions, no personal data in logs.
 - **Links in emails** go through `common.web.SiteLinks.page(locale, path)`, which adds `/de`
   for German customers; never concatenate `app.base-url` by hand.
+- **Texts in two languages** (ADR-012 addendum): a text the owner writes gets a nullable
+  `<column>_de` next to the English one (no translations table), a `…De` field in the admin
+  request and view, and is shown through `ContentLanguage.current().pick(english, german)`
+  (`ContentLanguage.of(locale)` outside a request, e.g. with a stored locale). Public responses carry one
+  text per field; search covers both columns. Pages that can be untranslated report
+  `languages` (`catalog.application.Translations`).
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
   keeping it, a deletion path (`app.retention.*` job or account deletion via
@@ -258,7 +266,10 @@ working around them.
   `useHref`; the other language's link from `pathInLanguage`. Never write `/de` by hand, and
   don't switch the language with `i18n.changeLanguage` in the app (only tests do): the switch
   loads the page's link in the other language. Indexable pages render `PageMeta` without
-  `noIndex`, which adds canonical and `hreflang` links.
+  `noIndex`, which adds canonical and `hreflang` links; pages with owner-written texts pass
+  the API's `languages`, so an untranslated German page is not indexed. Admin forms show the
+  German version of a text as its own field, labelled `admin.common.inGerman`, with
+  `lang="de"` on the input.
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
 - **Login state** comes from `useSession()` (`GET /auth/me`); nothing auth-related is kept

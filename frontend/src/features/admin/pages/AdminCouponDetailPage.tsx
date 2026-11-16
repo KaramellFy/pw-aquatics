@@ -80,6 +80,7 @@ function CouponView({ coupon, back }: { coupon: AdminCoupon; back: { to: string;
       id: coupon.id,
       input: {
         description: coupon.description ?? undefined,
+        descriptionDe: coupon.descriptionDe ?? undefined,
         type: coupon.type,
         value: coupon.percentage ?? coupon.amount?.amount ?? 0,
         minOrderCents: coupon.minOrder?.amount ?? 0,

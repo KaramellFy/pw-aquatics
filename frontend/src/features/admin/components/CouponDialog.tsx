@@ -14,6 +14,7 @@ const CODE_FORMAT = /^[A-Z0-9][A-Z0-9_-]{2,31}$/;
 interface CouponForm {
   code: string;
   description: string;
+  descriptionDe: string;
   type: CouponType;
   /** Percent ("12,5") or euros ("5,00"), depending on the type. */
   value: string;
@@ -30,6 +31,7 @@ function initialForm(coupon: AdminCoupon | null): CouponForm {
   return {
     code: coupon?.code ?? '',
     description: coupon?.description ?? '',
+    descriptionDe: coupon?.descriptionDe ?? '',
     type: coupon?.type ?? 'PERCENTAGE',
     // Basis points and cents both have two decimals: 1250 → "12.50", 500 → "5.00".
     value:
@@ -105,6 +107,7 @@ export function CouponDialog({
         input: {
           code: existing ? undefined : code,
           description: form.description.trim() || undefined,
+          descriptionDe: form.descriptionDe.trim() || undefined,
           type: form.type,
           value,
           minOrderCents: minOrder ?? 0,
@@ -159,13 +162,6 @@ export function CouponDialog({
               error={errors.code}
             />
           )}
-          <TextField
-            label={`${t('admin.coupons.form.description')} (${t('admin.common.optional')})`}
-            hint={t('admin.coupons.form.descriptionHint')}
-            maxLength={255}
-            value={form.description}
-            onChange={(event) => set('description', event.target.value)}
-          />
           <SelectField
             label={t('admin.coupons.form.type')}
             value={form.type}
@@ -177,6 +173,21 @@ export function CouponDialog({
               </option>
             ))}
           </SelectField>
+          <TextField
+            label={`${t('admin.coupons.form.description')} (${t('admin.common.optional')})`}
+            hint={t('admin.coupons.form.descriptionHint')}
+            maxLength={255}
+            value={form.description}
+            onChange={(event) => set('description', event.target.value)}
+          />
+          <TextField
+            label={t('admin.common.inGerman', { label: t('admin.coupons.form.description') })}
+            hint={t('admin.common.germanHint')}
+            maxLength={255}
+            lang="de"
+            value={form.descriptionDe}
+            onChange={(event) => set('descriptionDe', event.target.value)}
+          />
           {form.type !== 'FREE_SHIPPING' && (
             <TextField
               label={
@@ -210,6 +221,7 @@ export function CouponDialog({
           />
           <TextField
             type="date"
+            className="sm:col-start-1"
             label={`${t('admin.coupons.form.startsOn')} (${t('admin.common.optional')})`}
             value={form.startsOn}
             onChange={(event) => set('startsOn', event.target.value)}

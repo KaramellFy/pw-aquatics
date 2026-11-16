@@ -4,4 +4,5 @@ import jakarta.annotation.Nullable;
 import java.util.UUID;
 
 public record AdminColourView(
-        UUID id, String name, String slug, @Nullable String hexCode, int sortOrder, long productCount) {}
+        UUID id, String name, String slug, @Nullable String hexCode, int sortOrder, long productCount,
+        @Nullable String nameDe) {}

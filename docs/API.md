@@ -19,7 +19,7 @@
 | Timestamps | ISO 8601 UTC, e.g. `"2026-11-20T10:30:00Z"`; dates as `"2026-11-24"` |
 | Money | `{ "amount": 1299, "currency": "EUR" }` — `amount` is an integer in **minor units** (cents), gross incl. VAT |
 | Versioning | URL version (`/v1`). Breaking changes → `/v2`; additive changes are not breaking |
-| Language | `Accept-Language: de` / `en` for localised messages and content |
+| Language | `Accept-Language: de` / `en` (the SPA sends the language of the page) for localised messages and content (§1.7) |
 
 ### 1.2 Authentication and CSRF
 
@@ -103,6 +103,24 @@ The API **ignores** any price, total, discount, tax or stock value sent by a
 client. Requests contain only identifiers and quantities; every amount in a
 response is calculated by the server.
 
+### 1.7 Texts in two languages
+
+Texts the owner writes (products, pack sizes, photo descriptions, categories, species,
+colours, grades, shipping methods, gallery photos, coupon notes) have an English version
+and an optional German one. Public responses carry **one** text per field, chosen by
+`Accept-Language`: the German text where it is written, otherwise the English one
+(docs/adr/012-language-in-links.md). Search (`q`) matches both languages; facets and the
+name sort use the chosen language. Orders keep the names in the customer's language.
+
+Public product and species details add `languages`: the languages their own texts are
+written in (`["en"]` or `["en", "de"]`; German counts once the German description or, for
+products, short description is written). The SPA keeps a German page out of search engines
+(`noindex`) until it is listed there.
+
+Admin responses carry both versions side by side: every text field `x` has an `xDe`
+(`nameDe`, `descriptionDe`, …), `null` while not translated. Requests take the same
+optional `…De` fields with the same length limits; blank values are stored as `null`.
+
 ---
 
 ## 2. Endpoint overview
@@ -149,7 +167,7 @@ response is calculated by the server.
 | GET | `/products/{slug}/related` | Same species / category suggestions |
 | GET | `/categories` | Category tree |
 | GET | `/species` | Species list |
-| GET | `/species/{slug}` | Species profile incl. care parameters |
+| GET | `/species/{slug}` | Species profile incl. care parameters and `languages` (§1.7) |
 | GET | `/colours` | Colour list |
 | GET | `/grades` | Grade list |
 
@@ -205,7 +223,7 @@ within each group featured first, then newest. Invalid values → `400 VALIDATIO
 `descriptionHtml` and `careNotesHtml` (sanitised HTML rendered from Markdown),
 `species` (with `care`: temperature, pH, GH, KH, TDS, size, lifespan, difficulty
 — every value nullable), `categoryPath` (root first, for breadcrumbs),
-`availableFrom`, `images[]`, `seo` and:
+`availableFrom`, `images[]`, `seo`, `languages` (§1.7) and:
 
 ```json
 "variants": [
@@ -698,7 +716,7 @@ the editor always shows what was saved.
 | PUT | `/admin/products/{id}/variants/{variantId}` | Change a pack size; `active: false` stops selling it (pack sizes are never deleted, orders refer to them) |
 | POST | `/admin/products/{id}/images` | Multipart `file` + `altText` → `201` |
 | PATCH | `/admin/products/{id}/images/order` | `{ imageIds: [...] }` – every photo once; the first is the main photo |
-| PATCH | `/admin/products/{id}/images/{imageId}` | `{ altText }` |
+| PATCH | `/admin/products/{id}/images/{imageId}` | `{ altText, altTextDe? }` |
 | DELETE | `/admin/products/{id}/images/{imageId}` | Delete; files are removed after the change is saved. The last photo of a published product → `422 LAST_IMAGE` |
 | POST | `/admin/markdown/preview` | `{ markdown }` → `{ html }` rendered with the shop's sanitiser |
 
@@ -707,11 +725,13 @@ name, lower-case letters, digits and hyphens, unique → `409 SLUG_TAKEN`,
 `422 SLUG_INVALID`), `categoryId`, `speciesId?`, `gradeId?`, `colourIds[]`,
 `shortDescription?` (≤300), `description?` and `careNotes?` (Markdown), `liveAnimal`,
 `featured`, `lowStockThreshold`, `availableFrom?`, `taxRateBps` (1900 = 19 %), `seoTitle?`,
-`seoDescription?`, `version` (update only). Stock is never part of this request; it
-changes only through §3.4, so a sale while the editor is open does not cause a conflict.
+`seoDescription?`, the German versions `nameDe?`, `shortDescriptionDe?`, `descriptionDe?`,
+`careNotesDe?`, `seoTitleDe?`, `seoDescriptionDe?` (§1.7), `version` (update only). Stock is
+never part of this request; it changes only through §3.4, so a sale while the editor is open
+does not cause a conflict. A duplicate keeps the German texts except the German name.
 
 **Pack size fields:** `sku` (letters, digits, `. _ -`, stored upper-case, unique →
-`409 SKU_TAKEN`), `name`, `packSize` (animals, 1–1000), `priceCents` (gross),
+`409 SKU_TAKEN`), `name`, `nameDe?`, `packSize` (animals, 1–1000), `priceCents` (gross),
 `compareAtPriceCents?` (must be higher → `422 COMPARE_AT_PRICE_INVALID`), `active`. The
 owner sets prices here; customer requests never carry prices.
 
@@ -730,17 +750,23 @@ photos per product (`422 IMAGE_LIMIT_REACHED`).
 `/admin/categories`, `/admin/species` (plus `GET /admin/species/{id}`), `/admin/colours`,
 `/admin/grades`. Lists include `productCount`. Slugs follow the product rules.
 
-- **Categories:** `name`, `slug?`, `parentId?`, `description?`, `sortOrder`, `active`
+Each text has an optional German version (§1.7) named in brackets below.
+
+- **Categories:** `name` (`nameDe?`), `slug?`, `parentId?`, `description?`
+  (`descriptionDe?`), `sortOrder`, `active`
   (inactive ones are hidden from the shop navigation). Placing a category inside its own
   branch → `422 CATEGORY_CYCLE`.
-- **Species:** `scientificName` (unique → `409 SCIENTIFIC_NAME_TAKEN`), `commonName?`,
-  `slug?`, `description?` (Markdown), `origin?`, care data (`tempMinC`/`tempMaxC`,
+- **Species:** `scientificName` (unique → `409 SCIENTIFIC_NAME_TAKEN`, the same in every
+  language), `commonName?` (`commonNameDe?`), `slug?`, `description?` (Markdown,
+  `descriptionDe?`), `origin?` (`originDe?`), care data (`tempMinC`/`tempMaxC`,
   `phMin`/`phMax`, `ghMin`/`ghMax`, `khMin`/`khMax`, `tdsMin`/`tdsMax`, `adultSizeMm`,
-  `lifespanMonths`, `difficulty`), `tradeRestricted`, `restrictionNote?`. A minimum above
+  `lifespanMonths`, `difficulty`), `tradeRestricted`, `restrictionNote?`
+  (`restrictionNoteDe?`, both kept only while restricted). A minimum above
   its maximum → `422 RANGE_INVALID`. Marking a species as restricted removes all its
   products from the shop at once.
-- **Colours:** `name`, `slug?`, `hexCode?` (`#RRGGBB`), `sortOrder`.
-- **Grades:** `name`, `slug?`, `scale?`, `description?`, `rank` (0–1000, higher is better),
+- **Colours:** `name` (`nameDe?`), `slug?`, `hexCode?` (`#RRGGBB`), `sortOrder`.
+- **Grades:** `name` (`nameDe?`), `slug?`, `scale?`, `description?` (`descriptionDe?`), `rank`
+  (0–1000, higher is better),
   `sortOrder`.
 
 Deleting something still used by a product (or a category with sub-categories) →
@@ -816,6 +842,7 @@ URL containing `{trackingNumber}`); DHL and DHL Express are preset.
 {
   "code": "SPRING10",
   "description": "Spring sale",
+  "descriptionDe": "Frühlingsaktion",
   "type": "PERCENTAGE",
   "value": 1250,
   "minOrderCents": 3000,
@@ -859,16 +886,16 @@ back: the redemption is kept with `released` and the counter goes down.
 | GET | `/admin/customers/{id}` | Profile (`firstName`, `lastName`, `email`, `phone`, `locale`, `status`, `lockable`, `emailVerified`, `marketingOptIn`, `registeredAt`, `lastLoginAt`), `addresses`, the latest 50 `orders`, `orderCount`, `paidOrderCount`, `lifetimeValue`, `averageOrderValue` (null without paid orders). Administrators and unknown or deleted accounts → `404` |
 | POST | `/admin/customers/{id}/lock` | `{ reason? }` (≤ 500, kept in the audit log) → customer view. The account cannot sign in (`423 ACCOUNT_LOCKED`) and its sessions end at once. Administrator accounts → `409 ACCOUNT_NOT_LOCKABLE`. Locking twice changes nothing |
 | POST | `/admin/customers/{id}/unlock` | → customer view; also clears a temporary lock after failed sign-ins |
-| GET | `/admin/gallery` | Every gallery photo, published or not, in gallery order: `id`, `title`, `caption`, `altText`, `published`, `sortOrder`, `image`, `createdAt`, `version` |
+| GET | `/admin/gallery` | Every gallery photo, published or not, in gallery order: `id`, `title`, `caption`, `altText`, `titleDe`, `captionDe`, `altTextDe`, `published`, `sortOrder`, `image`, `createdAt`, `version` |
 | POST | `/admin/gallery` | Multipart `file` (JPEG, PNG or WebP, ≥ 400 px wide, ≤ 15 MB) + `altText` (required, ≤ 255), `title?` (≤ 150), `caption?` (≤ 500) → `201`, unpublished, at the end. Processed by `media.ImageService` like product photos. Max. 200 photos (`422 IMAGE_LIMIT_REACHED`) |
-| PUT | `/admin/gallery/{id}` | `{ title?, caption?, altText, published, version }` (`409 CONFLICT` for a stale version) |
+| PUT | `/admin/gallery/{id}` | `{ title?, caption?, altText, titleDe?, captionDe?, altTextDe?, published, version }` (`409 CONFLICT` for a stale version). The public gallery shows the German texts on German pages where written (§1.7) |
 | PATCH | `/admin/gallery/order` | `{ imageIds }` — every photo exactly once (`422 IMAGE_ORDER_INVALID`) → the new list |
 | DELETE | `/admin/gallery/{id}` | → `204`; the files are removed after the commit |
 | GET | `/admin/contact-messages?status=&page=&size=` | Inbox, newest first; without `status` everything except spam. Rows: `id`, `name`, `email`, `subject`, `message`, `orderNumber`, `status`, `createdAt` |
 | GET | `/admin/contact-messages/counts` | `{ NEW, READ, ANSWERED, SPAM }` |
 | PATCH | `/admin/contact-messages/{id}` | `{ status: NEW \| READ \| ANSWERED \| SPAM }`. Replies are written in the mail program; messages are deleted after `app.retention.contact-messages` |
-| GET | `/admin/shipping-methods` | All methods, active or not: `id`, `code`, `name`, `description`, `carrier`, `price`, `freeFrom`, `liveAnimalsAllowed`, `dispatchDays` (`MONDAY`…), `estimatedDaysMin/Max`, `countries`, `active`, `sortOrder`, `version` |
-| POST | `/admin/shipping-methods` | `{ code, name, description?, carrier?, priceCents, freeShippingThresholdCents?, liveAnimalsAllowed, dispatchDays, estimatedDaysMin?, estimatedDaysMax?, countries, active, sortOrder }` → `201`. `code` (`[A-Z][A-Z0-9_]{1,49}`) is permanent (`409 CODE_TAKEN`); unknown country codes → `422 COUNTRY_INVALID`; longest delivery time shorter than the shortest → `422 DELIVERY_ESTIMATE_INVALID` |
+| GET | `/admin/shipping-methods` | All methods, active or not: `id`, `code`, `name`, `description`, `nameDe`, `descriptionDe`, `carrier`, `price`, `freeFrom`, `liveAnimalsAllowed`, `dispatchDays` (`MONDAY`…), `estimatedDaysMin/Max`, `countries`, `active`, `sortOrder`, `version` |
+| POST | `/admin/shipping-methods` | `{ code, name, description?, nameDe?, descriptionDe?, carrier?, priceCents, freeShippingThresholdCents?, liveAnimalsAllowed, dispatchDays, estimatedDaysMin?, estimatedDaysMax?, countries, active, sortOrder }` → `201`. `code` (`[A-Z][A-Z0-9_]{1,49}`) is permanent (`409 CODE_TAKEN`); unknown country codes → `422 COUNTRY_INVALID`; longest delivery time shorter than the shortest → `422 DELIVERY_ESTIMATE_INVALID` |
 | PUT | `/admin/shipping-methods/{id}` | Same body with `version` (the code is ignored). Methods are switched off, never deleted: placed orders keep their snapshot |
 | GET | `/admin/settings/shipping-pause` | `{ active, inForce, message, until }` |
 | PUT | `/admin/settings/shipping-pause` | `{ active, message? (≤ 300), until? }` — while active no live animals leave up to and including `until`; without `until` orders with live animals are refused (`SHIPPING_PAUSED`). A last day in the past → `422 DATE_INVALID`; switching off clears the message |

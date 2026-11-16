@@ -24,6 +24,7 @@ coupon codes), `pg_trgm` (fuzzy product search).
 | Booleans | `not null` with a default |
 | Soft delete | Not used generally. Products are **archived** (status), users are **anonymised**. Orders are never deleted. |
 | Snapshots | Orders copy product names, prices and addresses at purchase time; later catalog edits never change past orders |
+| Translations | Texts the owner writes have a German version in a nullable `<column>_de` next to the English column (same type and length). `NULL` means "not translated yet": the API shows the English text instead (§3, ADR-012). English stays required where it was |
 
 ---
 
@@ -69,6 +70,22 @@ erDiagram
 The DDL below is the **reference design**, grouped by topic rather than in
 executable order (some foreign keys point to tables defined further down).
 Migrations will implement it in small steps per roadmap phase (see §5).
+
+**German texts** (`V2026_11_16_1500__add_german_texts.sql`, §1 "Translations"). For brevity
+the DDL below shows only the English columns; each of these has a nullable `_de` twin:
+
+| Table | Columns with a German version |
+|---|---|
+| `products` | `name`, `short_description`, `description`, `care_notes`, `seo_title`, `seo_description` (`name_de` has its own trigram index for search) |
+| `product_variants` | `name` |
+| `product_images` | `alt_text` |
+| `categories` | `name`, `description` |
+| `species` | `common_name`, `description`, `origin`, `restriction_note` (the scientific name is the same in every language) |
+| `colours` | `name` |
+| `grades` | `name`, `description` |
+| `shipping_methods` | `name`, `description` |
+| `gallery_images` | `title`, `caption`, `alt_text` |
+| `coupons` | `description` |
 
 ### 3.1 Identity and customers
 
@@ -887,7 +904,7 @@ redemption per order, coupon usage never above its limit (conditional update).
 | 7 | `shipments`, `order_notes`, `gallery_images`, `shipping_methods.version` |
 | 8 | `coupons`, `coupon_redemptions`, `carts.coupon_id` |
 | 9 | `payments`, `payment_webhook_events` |
-| 10 | `invoices` |
+| 10 | `invoices`; German texts (`…_de` columns, brought forward with SEO, §3) |
 
 A foreign key that points to a table created in a later phase is added by
 that later phase's migration.

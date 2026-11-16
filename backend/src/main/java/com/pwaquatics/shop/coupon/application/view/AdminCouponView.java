@@ -22,6 +22,7 @@ public record AdminCouponView(
         UUID id,
         String code,
         @Nullable String description,
+        @Nullable String descriptionDe,
         DiscountType type,
         @Nullable Integer percentage,
         @Nullable Money amount,

@@ -28,6 +28,15 @@ public class GalleryImage extends AbstractEntity {
     @Column(name = "alt_text", nullable = false, length = GalleryText.ALT_TEXT_MAX)
     private String altText;
 
+    @Column(name = "title_de", length = GalleryText.TITLE_MAX)
+    private String titleDe;
+
+    @Column(name = "caption_de", length = GalleryText.CAPTION_MAX)
+    private String captionDe;
+
+    @Column(name = "alt_text_de", length = GalleryText.ALT_TEXT_MAX)
+    private String altTextDe;
+
     @Column(nullable = false, updatable = false)
     private int width;
 
@@ -83,11 +92,26 @@ public class GalleryImage extends AbstractEntity {
         this.title = text.title();
         this.caption = text.caption();
         this.altText = text.altText();
+        this.titleDe = text.titleDe();
+        this.captionDe = text.captionDe();
+        this.altTextDe = text.altTextDe();
         this.updatedAt = now;
     }
 
     public String getStorageKey() {
         return storageKey;
+    }
+
+    public String getTitleDe() {
+        return titleDe;
+    }
+
+    public String getCaptionDe() {
+        return captionDe;
+    }
+
+    public String getAltTextDe() {
+        return altTextDe;
     }
 
     public String getTitle() {

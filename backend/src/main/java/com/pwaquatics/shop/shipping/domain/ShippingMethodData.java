@@ -23,7 +23,9 @@ public record ShippingMethodData(
         Integer estimatedDaysMax,
         Set<String> countries,
         boolean active,
-        int sortOrder) {
+        int sortOrder,
+        String nameDe,
+        String descriptionDe) {
 
     public ShippingMethodData {
         if (name == null || name.isBlank() || priceCents < 0

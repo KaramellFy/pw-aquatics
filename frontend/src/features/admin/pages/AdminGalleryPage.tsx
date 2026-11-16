@@ -54,6 +54,9 @@ export function AdminGalleryPage() {
         title: image.title ?? undefined,
         caption: image.caption ?? undefined,
         altText: image.altText,
+        titleDe: image.titleDe ?? undefined,
+        captionDe: image.captionDe ?? undefined,
+        altTextDe: image.altTextDe ?? undefined,
         published: !image.published,
         version: image.version,
       },
@@ -294,7 +297,11 @@ function EditDialog({ image, onClose }: { image: GalleryImage | null; onClose: (
   const [title, setTitle] = useState(image?.title ?? '');
   const [caption, setCaption] = useState(image?.caption ?? '');
   const [altText, setAltText] = useState(image?.altText ?? '');
+  const [titleDe, setTitleDe] = useState(image?.titleDe ?? '');
+  const [captionDe, setCaptionDe] = useState(image?.captionDe ?? '');
+  const [altTextDe, setAltTextDe] = useState(image?.altTextDe ?? '');
   const [published, setPublished] = useState(image?.published ?? false);
+  const german = (label: string) => t('admin.common.inGerman', { label });
   const [missingAlt, setMissingAlt] = useState(false);
 
   const onSubmit = (event: FormEvent) => {
@@ -311,6 +318,9 @@ function EditDialog({ image, onClose }: { image: GalleryImage | null; onClose: (
           title: title.trim() || undefined,
           caption: caption.trim() || undefined,
           altText: altText.trim(),
+          titleDe: titleDe.trim() || undefined,
+          captionDe: captionDe.trim() || undefined,
+          altTextDe: altTextDe.trim() || undefined,
           published,
           version: image.version,
         },
@@ -347,6 +357,29 @@ function EditDialog({ image, onClose }: { image: GalleryImage | null; onClose: (
           maxLength={500}
           value={caption}
           onChange={(event) => setCaption(event.target.value)}
+        />
+        <TextField
+          label={german(t('admin.gallery.altText'))}
+          hint={t('admin.common.germanHint')}
+          maxLength={255}
+          lang="de"
+          value={altTextDe}
+          onChange={(event) => setAltTextDe(event.target.value)}
+        />
+        <TextField
+          label={german(t('admin.gallery.titleLabel'))}
+          maxLength={150}
+          lang="de"
+          value={titleDe}
+          onChange={(event) => setTitleDe(event.target.value)}
+        />
+        <TextAreaField
+          label={german(t('admin.gallery.caption'))}
+          rows={3}
+          maxLength={500}
+          lang="de"
+          value={captionDe}
+          onChange={(event) => setCaptionDe(event.target.value)}
         />
         <CheckboxField
           label={t('admin.gallery.showOnPage')}

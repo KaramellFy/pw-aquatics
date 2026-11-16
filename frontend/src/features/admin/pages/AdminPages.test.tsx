@@ -22,6 +22,8 @@ const category: AdminCategory = {
   slug: 'shrimp',
   parentId: null,
   description: null,
+  nameDe: null,
+  descriptionDe: null,
   sortOrder: 0,
   active: true,
   productCount: 3,
@@ -48,6 +50,12 @@ const draft: AdminProduct = {
   taxRateBps: 1900,
   seoTitle: null,
   seoDescription: null,
+  nameDe: null,
+  shortDescriptionDe: null,
+  descriptionDe: null,
+  careNotesDe: null,
+  seoTitleDe: null,
+  seoDescriptionDe: null,
   availability: 'OUT_OF_STOCK',
   publishedAt: null,
   createdAt: '2026-11-10T10:00:00Z',
@@ -62,6 +70,7 @@ const image = (id: string, altText: string, sortOrder: number) => ({
   url: `/media/products/p1/${id}/800.webp`,
   srcSet: `/media/products/p1/${id}/400.webp 400w`,
   altText,
+  altTextDe: null,
   width: 1600,
   height: 1200,
   sortOrder,
@@ -180,6 +189,34 @@ describe('product editor', () => {
     expect(screen.getByRole('button', { name: 'Publish' })).toBeDisabled();
   });
 
+  it('saves German texts next to the English ones', async () => {
+    const fetchMock = mockApi({
+      '/auth/me': owner,
+      ...taxonomy,
+      'POST /admin/products': draft,
+      '/admin/products/p1': draft,
+    });
+    renderRoutes(routes, { path: '/admin/products/new' });
+
+    await userEvent.type(await screen.findByLabelText('Name'), 'Blue Dream');
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'c1');
+    const germanName = screen.getByLabelText('Name – German');
+    expect(germanName).toHaveAttribute('lang', 'de');
+    await userEvent.type(germanName, 'Blaue Garnele');
+    await userEvent.type(screen.getByLabelText('Short description – German'), 'Kräftiges Blau.');
+    await userEvent.click(screen.getByRole('button', { name: 'Create product' }));
+
+    await waitFor(() =>
+      expect(lastBody(fetchMock, 'POST', '/admin/products')).toMatchObject({
+        name: 'Blue Dream',
+        nameDe: 'Blaue Garnele',
+        shortDescriptionDe: 'Kräftiges Blau.',
+      }),
+    );
+    // Empty German fields are left out, so the shop shows the English text there.
+    expect(lastBody(fetchMock, 'POST', '/admin/products')).not.toHaveProperty('descriptionDe');
+  });
+
   it('reads prices typed as 3,90 and suggests the SKU', async () => {
     const withVariant: AdminProduct = {
       ...draft,
@@ -188,6 +225,7 @@ describe('product editor', () => {
           id: 'v1',
           sku: 'BLUE-DREAM-10',
           name: '10 animals',
+          nameDe: null,
           packSize: 10,
           price: money(3490),
           compareAtPrice: money(3900),

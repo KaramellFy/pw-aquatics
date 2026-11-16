@@ -26,4 +26,5 @@ public record ProductDetailView(
         boolean liveAnimal,
         List<VariantView> variants,
         List<ImageView> images,
-        SeoView seo) {}
+        SeoView seo,
+        List<String> languages) {}

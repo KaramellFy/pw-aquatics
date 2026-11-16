@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 /**
  * The editable fields of a species. Optional values may be null.
  *
+ * @param commonNameDe German texts ({@code …De}) are null where not translated
  * @param tradeRestricted the species may not be traded (e.g. on the EU list of invasive
  *     alien species); its products disappear from the shop and cannot be published
  */
@@ -28,4 +29,16 @@ public record SpeciesData(
         Integer lifespanMonths,
         Difficulty difficulty,
         boolean tradeRestricted,
-        String restrictionNote) {}
+        String restrictionNote,
+        String commonNameDe,
+        String descriptionDe,
+        String originDe,
+        String restrictionNoteDe) {
+
+    /** The same data with another slug. */
+    public SpeciesData withSlug(String newSlug) {
+        return new SpeciesData(scientificName, commonName, newSlug, description, origin, tempMinC, tempMaxC, phMin,
+                phMax, ghMin, ghMax, khMin, khMax, tdsMin, tdsMax, adultSizeMm, lifespanMonths, difficulty,
+                tradeRestricted, restrictionNote, commonNameDe, descriptionDe, originDe, restrictionNoteDe);
+    }
+}

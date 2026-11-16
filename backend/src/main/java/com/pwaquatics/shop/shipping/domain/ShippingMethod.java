@@ -36,6 +36,13 @@ public class ShippingMethod extends AbstractEntity {
     @Column(length = 500)
     private String description;
 
+    /** German name and description, or null (the English ones are shown). */
+    @Column(name = "name_de", length = 100)
+    private String nameDe;
+
+    @Column(name = "description_de", length = 500)
+    private String descriptionDe;
+
     @Column(length = 50)
     private String carrier;
 
@@ -97,6 +104,8 @@ public class ShippingMethod extends AbstractEntity {
     private void apply(ShippingMethodData data, Instant now) {
         name = data.name();
         description = data.description();
+        nameDe = data.nameDe();
+        descriptionDe = data.descriptionDe();
         carrier = data.carrier();
         priceCents = data.priceCents();
         freeShippingThresholdCents = data.freeShippingThresholdCents();
@@ -140,6 +149,14 @@ public class ShippingMethod extends AbstractEntity {
 
     public String getCode() {
         return code;
+    }
+
+    public String getNameDe() {
+        return nameDe;
+    }
+
+    public String getDescriptionDe() {
+        return descriptionDe;
     }
 
     public String getName() {

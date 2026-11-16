@@ -236,11 +236,14 @@ function AltTextForm({ productId, image }: { productId: string; image: AdminImag
   const id = useId();
   const save = useUpdateAltText(productId);
   const [text, setText] = useState(image.altText);
-  const changed = text.trim() !== image.altText;
+  const [textDe, setTextDe] = useState(image.altTextDe ?? '');
+  const changed = text.trim() !== image.altText || textDe.trim() !== (image.altTextDe ?? '');
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (text.trim()) save.mutate({ imageId: image.id, altText: text.trim() });
+    if (text.trim()) {
+      save.mutate({ imageId: image.id, altText: text.trim(), altTextDe: textDe.trim() || undefined });
+    }
   };
 
   return (
@@ -260,6 +263,19 @@ function AltTextForm({ productId, image }: { productId: string; image: AdminImag
       <p id={`${id}-hint`} className="sr-only">
         {t('admin.product.images.altTextHint')}
       </p>
+      <label htmlFor={`${id}-de`} className="block text-sm font-medium text-ink-soft">
+        {t('admin.common.inGerman', { label: t('admin.product.images.altText') })}
+      </label>
+      <textarea
+        id={`${id}-de`}
+        rows={2}
+        maxLength={255}
+        lang="de"
+        value={textDe}
+        onChange={(event) => setTextDe(event.target.value)}
+        aria-describedby={`${id}-hint`}
+        className="block w-full resize-y rounded-xl border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-700 focus:ring-4 focus:ring-brand-400/35 focus:outline-none"
+      />
       {changed && (
         <Button type="submit" size="sm" className="min-h-11" disabled={save.isPending || !text.trim()}>
           {t('admin.product.images.saveAltText')}

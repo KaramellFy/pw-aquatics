@@ -156,6 +156,8 @@ public class AdminShippingService {
                 List.copyOf(method.getCountries()),
                 method.isActive(),
                 method.getSortOrder(),
-                method.getVersion());
+                method.getVersion(),
+                method.getNameDe(),
+                method.getDescriptionDe());
     }
 }
