@@ -66,6 +66,11 @@ and some species may not be traded legally.
   confirmation: one code per order, whole shop, reduced products excluded, free shipping
   for every method.
 
+- **SEO** (from Phase 10, brought forward; ADR-012) is in progress: German pages live under
+  `/de/…` with the same path words, the link decides the language, pages carry canonical and
+  `hreflang` links, emails link in the customer's language. Next: German catalog texts,
+  public pages filled in by the backend (no extra server), sitemap and structured data.
+
 - **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
   motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
   pieces in `components/motion`, animated `Dialog`/`Sheet` (see §8 Motion and ADR-011).
@@ -183,6 +188,8 @@ working around them.
 - Side effects (emails) go through the **outbox**, never inside the HTTP request.
 - Configuration via `@ConfigurationProperties` records, validated at startup.
 - No `System.out`, no swallowed exceptions, no personal data in logs.
+- **Links in emails** go through `common.web.SiteLinks.page(locale, path)`, which adds `/de`
+  for German customers; never concatenate `app.base-url` by hand.
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
   keeping it, a deletion path (`app.retention.*` job or account deletion via
@@ -246,6 +253,12 @@ working around them.
   Features import each other only through their `index.ts`. The router
   (`src/app/routes.tsx`) imports page modules directly and lazily, so a
   feature's `index.ts` must not re-export pages (that would defeat code splitting).
+- **Language in links** (ADR-012): pages and `<Link>`s use language-neutral paths (`/shop`); the
+  router's basename adds `/de`. A full link outside the router (e.g. for Stripe) comes from
+  `useHref`; the other language's link from `pathInLanguage`. Never write `/de` by hand, and
+  don't switch the language with `i18n.changeLanguage` in the app (only tests do): the switch
+  loads the page's link in the other language. Indexable pages render `PageMeta` without
+  `noIndex`, which adds canonical and `hreflang` links.
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
 - **Login state** comes from `useSession()` (`GET /auth/me`); nothing auth-related is kept

@@ -1,7 +1,7 @@
 package com.pwaquatics.shop.order.application;
 
-import com.pwaquatics.shop.common.config.AppProperties;
 import com.pwaquatics.shop.common.money.Money;
+import com.pwaquatics.shop.common.web.SiteLinks;
 import com.pwaquatics.shop.notification.domain.EmailMessage;
 import com.pwaquatics.shop.order.domain.Order;
 import com.pwaquatics.shop.order.domain.OrderAddress;
@@ -29,10 +29,10 @@ class OrderEmails {
 
     private static final Locale ENGLISH = Locale.of("en", "IE"); // "€12.34", "16 November 2026"
 
-    private final String baseUrl;
+    private final SiteLinks links;
 
-    OrderEmails(AppProperties properties) {
-        this.baseUrl = properties.baseUrl().replaceAll("/+$", "");
+    OrderEmails(SiteLinks links) {
+        this.links = links;
     }
 
     /**
@@ -307,11 +307,11 @@ class OrderEmails {
     }
 
     private String orderLink(Order order) {
-        return baseUrl + "/account/orders/" + order.getOrderNumber();
+        return links.page(order.getCustomerLocale(), "/account/orders/" + order.getOrderNumber());
     }
 
     private String payLink(Order order) {
-        return baseUrl + "/checkout/pay/" + order.getOrderNumber();
+        return links.page(order.getCustomerLocale(), "/checkout/pay/" + order.getOrderNumber());
     }
 
     private static void appendAddress(StringBuilder body, OrderAddress address) {

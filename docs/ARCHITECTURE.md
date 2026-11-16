@@ -111,7 +111,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | UI primitives | Radix UI (headless) | Accessible dialogs, menus, popovers |
 | Motion | CSS transitions + `motion` (Motion for React, via `LazyMotion`) | CSS for hover, press and scroll reveals; Motion for exits, shared layout and drag. Respects `prefers-reduced-motion` (ADR-011) |
 | API types | `openapi-typescript` | Generated from the backend OpenAPI spec |
-| i18n | react-i18next | English default, German available |
+| i18n | react-i18next | English default at `/…`, German at `/de/…`; the link decides the language (ADR-012) |
 | Charts (admin) | Own SVG/HTML components | No chart library (see "Dashboard and statistics") |
 | Testing | JUnit 5, Testcontainers, MockMvc; Vitest, Testing Library, Playwright | |
 | Infra | Docker, Docker Compose, Caddy, GitHub Actions | |
@@ -614,6 +614,10 @@ from each other only through those entry points.
 | `/account`, `/account/orders`, `/account/orders/:orderNumber`, `/account/addresses`, `/account/profile` | Account | customer |
 | `/admin/**` | Admin panel (lazy chunk) | admin |
 
+Every route also exists under `/de` in German (`/de/shop`, `/de/products/:slug`, …; ADR-012).
+The router gets the basename of the page load, so pages and links use language-neutral paths;
+the language switch links to the same page in the other language.
+
 Filters live in the URL (`/shop?species=neocaridina-davidi&colour=blue&grade=high&availability=in-stock&minPrice=500`)
 so results are shareable, bookmarkable and survive reloads.
 
@@ -677,10 +681,13 @@ design-led studio than a pet-supply store. Tokens live in
 
 ### 6.6 SEO and performance
 
-- A client-rendered SPA is weak for SEO, which matters for a shop. Plan:
-  per-route `<title>`/meta (React 19 metadata support), JSON-LD `Product` and
-  `BreadcrumbList`, backend-generated `sitemap.xml`, and **prerendering of
-  public catalog pages** in Phase 10 (see risk R3).
+- A client-rendered SPA is weak for SEO, which matters for a shop. Built: per-route
+  `<title>`/meta (React 19 metadata support) with canonical link and `hreflang` alternates
+  for both languages (ADR-012), JSON-LD `Product`. Planned (roadmap "SEO", brought forward
+  from Phase 10 at the owner's request): German catalog texts, **public pages filled in by
+  the backend** we already run (title, meta, language links, structured data, main text and
+  the page's data, per request — no extra server, owner decision 2026-11-16), backend-generated
+  `sitemap.xml`, `BreadcrumbList`/`Organization` data (see risk R3).
 - Responsive images: backend generates WebP sizes (e.g. 400/800/1200/2000 px);
   `ResponsiveImage` uses `srcset` + `sizes`, lazy loading below the fold,
   explicit width/height to avoid layout shift.
@@ -768,7 +775,7 @@ endpoint (403).
 |---|---|---|---|
 | R1 | **Overselling** when two customers buy the last animals simultaneously | Selling animals we don't have | Row locks in deterministic order + conditional `UPDATE … WHERE stock_units >= n` + `CHECK (stock_units >= 0)`; concurrency test |
 | R2 | **Duplicate orders** from double-clicks or network retries | Double charge / double stock | `Idempotency-Key` header, unique `(user_id, idempotency_key)`; button disabled while pending |
-| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap from day one; prerender public pages at build/deploy; if insufficient, move public pages to React Router framework mode (SSR) — the feature structure keeps that migration contained |
+| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap; language in the link (ADR-012); public pages filled in per request by the existing backend (no extra server — owner decision). Build-time prerendering was dropped: stock and prices change daily through the admin |
 | R4 | **Live-animal shipping constraints:** heat/frost, weekends, carrier T&Cs (many standard parcel services restrict live animals) | Dead animals, refunds, reputation | Shipping methods flagged for live animals; configurable dispatch weekdays (e.g. Mon–Wed); admin "shipping pause" with message; heat/cold packs as options; confirm carrier before building carrier integrations |
 | R5 | **Legal trade restrictions:** some crayfish are on the EU list of invasive alien species and cannot be sold in the EU | Legal liability | `species.trade_restricted` blocks publishing; per-country restrictions possible later; legal review of the species list |
 | R6 | **German/EU e-commerce law:** Impressum, privacy policy, terms, right of withdrawal (live-animal specifics need legal advice), price display incl. VAT and shipping, "zahlungspflichtig bestellen" button, packaging registration (LUCID), invoice retention (up to 10 years) | Fines, cease-and-desist letters (Abmahnungen) | Legal pages managed as content; checkout copy reviewed by a lawyer; legal-text service considered; orders/invoices retained and anonymised rather than deleted |
@@ -802,8 +809,9 @@ endpoint (403).
 | ADR-009 | Outbox for emails | Sending email inside the request |
 | ADR-010 | Hosted payment components; webhook-confirmed payments | Handling card data ourselves |
 | ADR-011 | Motion for React (`motion`) behind `LazyMotion`, CSS for simple effects | CSS only (no exit, shared-layout or drag animations), React Spring, GSAP |
+| ADR-012 | Language in the link: English at `/…`, German at `/de/…` with the same path words | Language only in the browser, `?lang=`, a `.de` domain, German path words |
 
-Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 and ADR-011).
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-012).
 
 ---
 
@@ -818,7 +826,7 @@ printing and automatic tracking status, care-guide blog/CMS, loyalty programme.
 ## 12. Open questions for the owner
 
 1. ~~Target countries for shipping~~ — decided: EU member states and the United Kingdom, shipped from Germany.
-2. ~~Languages~~ — decided: English default, German as second language.
+2. ~~Languages~~ — decided: English default, German as second language; German pages under `/de` with German product texts written by the owner (ADR-012).
 3. Guest checkout at launch, or account required? (Built so far: an account is required.)
 4. ~~Carrier and dispatch weekdays~~ — decided: DHL, dispatch Monday to Wednesday. Still open: shipping prices per destination (Germany, EU, United Kingdom) and any free-shipping threshold.
 5. VAT status: standard VAT registration or small-business (Kleinunternehmer) rule?

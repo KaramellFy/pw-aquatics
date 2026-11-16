@@ -3,3 +3,7 @@ Disallow: /account
 Disallow: /cart
 Disallow: /checkout
 Disallow: /admin
+Disallow: /de/account
+Disallow: /de/cart
+Disallow: /de/checkout
+Disallow: /de/admin

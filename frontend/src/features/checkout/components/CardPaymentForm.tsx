@@ -3,7 +3,7 @@ import type { StripePaymentElementOptions } from '@stripe/stripe-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useHref, useNavigate } from 'react-router';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { queryKeys } from '@/lib/api/queryKeys';
@@ -38,6 +38,8 @@ export function CardPaymentForm({ orderNumber, amount, billingAddress }: CardPay
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const confirmationPage = `/checkout/complete/${orderNumber}`;
+  // Stripe returns to a full link, so it needs the language prefix ("/de/…") the router adds.
+  const confirmationHref = useHref(confirmationPage);
 
   async function pay(event: FormEvent) {
     event.preventDefault();
@@ -46,7 +48,7 @@ export function CardPaymentForm({ orderNumber, amount, billingAddress }: CardPay
     setMessage(null);
     const result = await stripe.confirmPayment({
       elements,
-      confirmParams: { return_url: new URL(confirmationPage, window.location.origin).href },
+      confirmParams: { return_url: new URL(confirmationHref, window.location.origin).href },
       redirect: 'if_required',
     });
     if (result.error) {

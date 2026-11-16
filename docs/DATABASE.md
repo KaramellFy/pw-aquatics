@@ -921,7 +921,7 @@ adviser.
 | Account lock: time, the admin who locked it and the reason they gave | `users.status`/`locked_until` + audit entries `ACCOUNT_LOCKED_BY_SHOP`/`ACCOUNT_UNLOCKED_BY_SHOP` | Protecting the shop against abuse, Art. 6(1)(f) | Entries stay (IP address erased after 90 days); the reason should be factual and short |
 | Coupon use: which coupon an order used, the customer's user id and what they saved | `coupon_redemptions` (user id only, no email or name; after account deletion it points to the anonymised user row) | Enforcing "once per customer" limits and coupon statistics, Art. 6(1)(b)/(f) | With the order (statutory retention; deleted with it) |
 | Gallery photos (aquariums and animals; no people) | `gallery_images` + files under `media/gallery/` | Presenting the shop, Art. 6(1)(f) | Until the owner deletes the photo (files removed with it) |
-| Language choice | Browser `localStorage` key `pwa.language` (no personal data) | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
+| Language choice | Browser `localStorage` key `pwa.language` (no personal data); only used to open the bare home page `/` in the language chosen last — the link decides the language everywhere else | Requested by the user (§ 25(2) no. 2 TDDDG) | Until the visitor clears it |
 
 **Cookies:** `SESSION` (login), `XSRF-TOKEN` (CSRF protection) and `CART_TOKEN` (guest
 cart) are strictly necessary for services the visitor asks for, so no consent banner is
