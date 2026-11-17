@@ -73,7 +73,7 @@ const placed: AdminOrder = {
     statusTimeline: [{ status: 'PENDING_PAYMENT', at: '2026-11-10T10:00:00Z', message: null }],
     paymentInstructions: null,
     cancellable: true,
-    payableByCard: false,
+    payableOnline: false,
     shipments: [],
   },
   customerId: 'u1',

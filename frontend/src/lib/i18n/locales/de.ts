@@ -718,6 +718,7 @@ export const de: Messages = {
       cancelConfirmText:
         'Die Tiere gehen wieder in den Verkauf. Falls du bereits überwiesen hast, melde dich bitte bei uns – wir erstatten den Betrag.',
       cancelConfirmTextCard: 'Die Tiere gehen wieder in den Verkauf und deine Karte wird nicht belastet.',
+      cancelConfirmTextPayPal: 'Die Tiere gehen wieder in den Verkauf und über PayPal wird nichts abgebucht.',
       cancelConfirm: 'Bestellung stornieren',
       keep: 'Bestellung behalten',
     },
@@ -732,6 +733,11 @@ export const de: Messages = {
       title: 'Zahlung ausstehend',
       text: 'Bitte schließe die Kartenzahlung bis {{time}} Uhr ab. Danach wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf.',
       payNow: 'Jetzt bezahlen',
+    },
+    payPalPayment: {
+      title: 'Zahlung ausstehend',
+      text: 'Bitte schließe die Zahlung mit PayPal bis {{time}} Uhr ab. Danach wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf.',
+      payNow: 'Mit PayPal bezahlen',
     },
     payment: {
       title: 'Per Überweisung bezahlen',
@@ -805,7 +811,8 @@ export const de: Messages = {
           'Visa, Mastercard und weitere Karten – oder Apple Pay und Google Pay, wo dein Gerät sie anbietet. Du bezahlst direkt nach der Bestellung; wir versenden, sobald die Zahlung bestätigt ist.',
         BANK_TRANSFER:
           'Du erhältst unsere Bankverbindung direkt nach der Bestellung und per E-Mail. Wir versenden, sobald deine Zahlung eingegangen ist.',
-        PAYPAL: 'Du bezahlst direkt nach der Bestellung mit deinem PayPal-Konto.',
+        PAYPAL:
+          'Du bezahlst direkt nach der Bestellung mit PayPal, im eigenen Fenster von PayPal. Wir versenden, sobald die Zahlung bestätigt ist.',
       },
       noPayment: 'Derzeit ist keine Zahlungsart verfügbar. Bitte versuche es später erneut.',
       note: 'Anmerkung zur Bestellung (optional)',
@@ -849,6 +856,12 @@ export const de: Messages = {
         payNow: 'Jetzt bezahlen',
         retry: 'Erneut versuchen',
       },
+      paypal: {
+        confirming: 'Wir bestätigen deine Zahlung bei PayPal …',
+        pending:
+          'PayPal prüft deine Zahlung noch. Sobald sie durch ist, schicken wir dir eine E-Mail – du musst nichts weiter tun.',
+        payNow: 'Mit PayPal bezahlen',
+      },
     },
     pay: {
       metaTitle: 'Bezahlung – PW Aquatics',
@@ -867,6 +880,18 @@ export const de: Messages = {
         'Deine Kartendaten gibst du direkt bei unserem Zahlungsdienstleister Stripe ein; sie werden verschlüsselt übertragen. Wir sehen und speichern sie nie.',
       later: 'Du kannst auch später über deine Bestellung bezahlen, solange die Tiere reserviert sind.',
       viewOrder: 'Bestellung ansehen',
+      paypal: {
+        loading: 'PayPal wird geladen …',
+        confirming: 'Wir bestätigen deine Zahlung bei PayPal …',
+        declined:
+          'PayPal konnte die Zahlung auf diesem Weg nicht annehmen. Bitte wähle im PayPal-Fenster eine andere Zahlungsart.',
+        cancelled: 'Du hast PayPal vor dem Bezahlen geschlossen. Du kannst jederzeit neu starten.',
+        failed: 'Die Zahlung mit PayPal konnte nicht abgeschlossen werden. Bitte versuche es erneut.',
+        loadFailed:
+          'PayPal konnte nicht geladen werden. Bitte prüfe deine Internetverbindung – auch Inhaltsblocker können es verhindern – und versuche es erneut.',
+        secure:
+          'Du meldest dich im eigenen Fenster von PayPal an und bezahlst dort. Deine PayPal-Zugangsdaten, Bank- und Kartendaten sehen wir nie.',
+      },
     },
   },
   shippingPause: {
@@ -1516,6 +1541,7 @@ export const de: Messages = {
       refunded: 'Erstattet',
       cancelledAt: 'Storniert am',
       openInStripe: 'In Stripe öffnen',
+      openInPayPal: 'In PayPal öffnen',
       refundReminder: 'Diese Bestellung war bezahlt. Erstatte das Geld in Stripe oder per Überweisung.',
       dialogs: {
         customerMessage: 'Nachricht an die Kundschaft',
@@ -1548,6 +1574,8 @@ export const de: Messages = {
         restock: 'Tiere wieder in den Verkauf geben',
         refundCard:
           'Diese Bestellung wurde per Karte bezahlt. Erstatte danach {{amount}} im Stripe-Dashboard.',
+        refundPayPal:
+          'Diese Bestellung wurde mit PayPal bezahlt. Erstatte danach {{amount}} in deinem PayPal-Konto.',
         refundTransfer: 'Diese Bestellung wurde per Überweisung bezahlt. Überweise danach {{amount}} zurück.',
       },
     },

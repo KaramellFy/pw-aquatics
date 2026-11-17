@@ -11,8 +11,8 @@ import { formatCalendarDate } from '@/lib/format/date';
 import { useIntlLocale } from '@/lib/i18n';
 import { PageMeta } from '@/lib/seo/PageMeta';
 
-/** How long this page waits for Stripe's confirmation of a card payment to reach our server. */
-const CARD_CONFIRMATION_WAIT_MS = 30_000;
+/** How long this page waits for the provider's confirmation of an online payment to reach our server. */
+const ONLINE_CONFIRMATION_WAIT_MS = 30_000;
 
 /** "Thank you" page after an order: the order number, how to pay and what happens next. */
 export function OrderConfirmationPage() {
@@ -22,9 +22,9 @@ export function OrderConfirmationPage() {
   const locale = useIntlLocale();
   // Stripe adds this when it sends the customer back from their bank (3-D Secure).
   const cardFailed = searchParams.get('redirect_status') === 'failed';
-  const [waitUntil] = useState(() => Date.now() + CARD_CONFIRMATION_WAIT_MS);
-  const order = useOrder(orderNumber, { awaitCardPaymentUntil: cardFailed ? undefined : waitUntil });
-  const byCard = order.data?.paymentMethod === 'STRIPE';
+  const [waitUntil] = useState(() => Date.now() + ONLINE_CONFIRMATION_WAIT_MS);
+  const order = useOrder(orderNumber, { awaitOnlinePaymentUntil: cardFailed ? undefined : waitUntil });
+  const online = order.data !== undefined && order.data.paymentMethod !== 'BANK_TRANSFER';
 
   return (
     <>
@@ -55,7 +55,7 @@ export function OrderConfirmationPage() {
 
         {order.data && (
           <>
-            {byCard && <CardPaymentStatus order={order.data} failed={cardFailed} className="mt-10" />}
+            {online && <OnlinePaymentStatus order={order.data} failed={cardFailed} className="mt-10" />}
             {order.data.paymentInstructions && (
               <PaymentInstructionsCard
                 instructions={order.data.paymentInstructions}
@@ -99,10 +99,10 @@ export function OrderConfirmationPage() {
 }
 
 /**
- * Where a card payment stands. The order counts as paid only once our server has Stripe's
- * confirmation; until then this waits and says so.
+ * Where a card or PayPal payment stands. The order counts as paid only once our server has the
+ * provider's confirmation; until then this waits and says so.
  */
-function CardPaymentStatus({
+function OnlinePaymentStatus({
   order,
   failed,
   className,
@@ -114,7 +114,7 @@ function CardPaymentStatus({
   const { t } = useTranslation();
   const [doneWaiting, setDoneWaiting] = useState(false);
   useEffect(() => {
-    const timer = window.setTimeout(() => setDoneWaiting(true), CARD_CONFIRMATION_WAIT_MS);
+    const timer = window.setTimeout(() => setDoneWaiting(true), ONLINE_CONFIRMATION_WAIT_MS);
     return () => window.clearTimeout(timer);
   }, []);
   const payLink = `/checkout/pay/${order.orderNumber}`;
@@ -133,13 +133,28 @@ function CardPaymentStatus({
       </Alert>
     );
   }
+  const paypal = order.paymentMethod === 'PAYPAL';
   if (failed || doneWaiting) {
     return (
       <Alert tone={failed ? 'error' : 'info'} className={className}>
-        <p>{t(failed ? 'checkout.complete.card.failed' : 'checkout.complete.card.pending')}</p>
-        {order.payableByCard && (
+        <p>
+          {t(
+            failed
+              ? 'checkout.complete.card.failed'
+              : paypal
+                ? 'checkout.complete.paypal.pending'
+                : 'checkout.complete.card.pending',
+          )}
+        </p>
+        {order.payableOnline && (
           <ButtonLink to={payLink} variant="secondary" size="sm" className="mt-4">
-            {t(failed ? 'checkout.complete.card.retry' : 'checkout.complete.card.payNow')}
+            {t(
+              failed
+                ? 'checkout.complete.card.retry'
+                : paypal
+                  ? 'checkout.complete.paypal.payNow'
+                  : 'checkout.complete.card.payNow',
+            )}
           </ButtonLink>
         )}
       </Alert>
@@ -147,7 +162,7 @@ function CardPaymentStatus({
   }
   return (
     <p role="status" className={cn('text-ink-soft', className)}>
-      {t('checkout.complete.card.confirming')}
+      {t(paypal ? 'checkout.complete.paypal.confirming' : 'checkout.complete.card.confirming')}
     </p>
   );
 }

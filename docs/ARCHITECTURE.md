@@ -27,7 +27,7 @@ a sale (animal losses), and species that may legally not be traded.
 | Checkout | Address, shipping method, coupon, order review, order placement |
 | Accounts | Register, login/logout, email verification, password reset, profile, saved addresses, order history, order status, parcel tracking |
 | Admin | Dashboard, sales statistics, products, taxonomy, inventory, orders, tracking numbers, coupons, gallery, contact messages |
-| Payments (later) | Stripe (cards, Apple Pay, Google Pay), PayPal. Bank transfer (Vorkasse) as the first, manual method |
+| Payments | Bank transfer (Vorkasse), Stripe (cards, Apple Pay, Google Pay), PayPal |
 
 ### 1.3 Non-functional requirements
 
@@ -68,7 +68,7 @@ flowchart LR
     API --> DB[("PostgreSQL")]
     API --> Media
     API -->|SMTP| Mail["Mail provider"]
-    API <-->|"later: API + webhooks"| PSP["Stripe / PayPal"]
+    API <-->|"API + webhooks"| PSP["Stripe / PayPal"]
 ```
 
 Key decisions:
@@ -172,7 +172,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `settings` | Shop-wide key/value settings (e.g. the shipping pause), read and written through `ShopSettings` |
 | `order` | Checkout, order placement, order lifecycle, status history |
 | `fulfilment` | (folded into `order`: shipments and notes are part of the order aggregate, see §5.4 Admin II) |
-| `payment` | Payment abstraction; bank transfer now, Stripe/PayPal later; webhooks |
+| `payment` | Bank transfer details, Stripe and PayPal payments, verified webhooks; reaches orders only through `PayableOrders` |
 | `notification` | Transactional email via an outbox |
 | `media` | Image upload, processing, storage abstraction |
 | `content` | Gallery, contact messages |
@@ -453,18 +453,23 @@ not shipped returns stock.
 
 ### 5.5 Payment architecture
 
-Bank transfer (Phase 5) and card payment through Stripe (Phase 9) are built; PayPal follows
-the same pattern. See ADR-010.
+Bank transfer (Phase 5) and card payment through Stripe and PayPal (Phase 9) are built.
+See ADR-010 and its PayPal addendum.
 
 ```
 payment module                                 order module
-├── BankTransferPayments  (bank details)       ├── CheckoutService   offers STRIPE / BANK_TRANSFER,
-├── StripePayments        (one PaymentIntent   │                     card orders due after 60 min
-│                          per order)          ├── OrderPayments     startCardPayment(); implements
-├── StripeWebhooks        (verify, store,      │                     PayableOrders (lock, paid, refunded)
-│                          process)            ├── OrderCancellation cancels the PaymentIntent first
+├── BankTransferPayments  (bank details)       ├── CheckoutService   offers STRIPE / PAYPAL /
+├── StripePayments        (one PaymentIntent   │                     BANK_TRANSFER; online
+│                          per order)          │                     orders due after 60 min
+├── StripeWebhooks        (verify, store,      ├── OrderPayments     startCardPayment(),
+│                          process)            │                     start/capturePayPalPayment();
+├── PayPalPayments        (one PayPal order    │                     implements PayableOrders
+│                          per order, capture) │                     (lock, paid, refunded)
+├── PayPalWebhooks        (PayPal confirms,    ├── OrderCancellation stops the open payment first
+│   + PayPalEventProcessor  store, process)    │
 ├── PayableOrders ◄─────── implemented by ─────┘
-└── StripeGateway → StripeApiClient (stripe-java; replaced by a fake in tests)
+├── StripeGateway → StripeApiClient (stripe-java; replaced by a fake in tests)
+└── PayPalGateway → PayPalApiClient (JDK HttpClient, Orders v2; replaced by a fake in tests)
 ```
 
 - The browser talks to Stripe directly through Stripe's Payment Element on the payment
@@ -480,17 +485,31 @@ payment module                                 order module
 - The payment module never depends on the order module: it calls `PayableOrders`, which
   the order module implements. Locks are always taken order first, then payment (checkout,
   expiry, webhook), so concurrent paths cannot deadlock.
-- Unpaid card orders expire after `ORDER_CARD_PAYMENT_MINUTES` (default 60). Expiry and
+- Unpaid card and PayPal orders expire after `ORDER_CARD_PAYMENT_MINUTES` (default 60). Expiry and
   customer cancellation first cancel the PaymentIntent at Stripe; if Stripe already has the
   money or is processing it, the order stays and the webhook marks it paid.
 - Refunds are made in the Stripe Dashboard; `charge.refunded` updates `paymentStatus`.
 - Apple Pay needs the shop's domain verified in the Stripe Dashboard; Google Pay needs HTTPS.
+- **PayPal** (ADR-010 addendum): the server creates one PayPal order per shop order for the
+  stored total (`intent: CAPTURE`, no shipping address). PayPal's script (only on the payment
+  page) shows PayPal's button, which opens that order; after the customer approves, the
+  browser asks our server to capture, and the server decides from **PayPal's answer to the
+  server** whether the order is paid. Webhooks (`CHECKOUT.ORDER.APPROVED`,
+  `PAYMENT.CAPTURE.*`), each confirmed through PayPal's verify-webhook-signature API, cover a
+  customer who never returns, pending captures and refunds. PayPal orders cannot be withdrawn:
+  expiry and cancellation ask PayPal first and keep the order only if the money was taken.
+  Cards are paid through Stripe, so PayPal's card button is switched off.
+- One payment page (`/checkout/pay/:orderNumber`) shows the form for the order's method.
 - **CSP for Stripe** (set by the frontend's Caddy, `frontend/Caddyfile`): `script-src
   https://js.stripe.com https://*.js.stripe.com`, `frame-src https://js.stripe.com
   https://*.js.stripe.com https://hooks.stripe.com`, `connect-src https://api.stripe.com`,
   `img-src https://*.stripe.com`. Checked with a card payment and the 3-D Secure window behind
   Caddy without violations; Stripe's CSP guide lists the current set. Zod is set to `jitless`
   (`lib/validation/zod.ts`) because the policy forbids `eval`.
+- **CSP for PayPal:** `script-src`, `img-src`: `https://*.paypal.com https://*.paypalobjects.com`;
+  `connect-src`, `frame-src`: `https://*.paypal.com` (PayPal's CSP guidance). Checked behind
+  Caddy with a stand-in for PayPal's script at its real address (no violations); PayPal's
+  window itself still needs a sandbox payment behind Caddy before go-live.
 
 ### 5.6 Security architecture
 
@@ -746,8 +765,8 @@ MEDIA_STORAGE=local|s3, MEDIA_LOCAL_PATH, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY,
 # Card payments (all three or none; test and live keys must not be mixed)
 STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, ORDER_CARD_PAYMENT_MINUTES=60
 # The publishable key reaches the browser through the API, so the frontend build needs no Stripe variable.
-# PayPal (later)
-PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
+# PayPal (client id, secret and webhook id: all three or none; online orders share ORDER_CARD_PAYMENT_MINUTES)
+PAYPAL_ENVIRONMENT=sandbox|live, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
 ```
 
 ### 7.3 Environments and delivery

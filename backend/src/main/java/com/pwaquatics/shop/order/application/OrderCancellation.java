@@ -6,6 +6,7 @@ import com.pwaquatics.shop.inventory.application.InventoryService;
 import com.pwaquatics.shop.notification.application.OutboxService;
 import com.pwaquatics.shop.order.domain.Order;
 import com.pwaquatics.shop.order.domain.OrderStatus;
+import com.pwaquatics.shop.payment.application.PayPalPayments;
 import com.pwaquatics.shop.payment.application.StripePayments;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import java.time.Clock;
@@ -15,14 +16,15 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Cancels an unshipped order: stops an open card payment, changes the status, puts the animals
- * back into stock, gives a used coupon back and emails the customer — all in the caller's
- * transaction. The caller must hold the lock on the order.
+ * Cancels an unshipped order: stops an open card or PayPal payment, changes the status, puts the
+ * animals back into stock, gives a used coupon back and emails the customer — all in the
+ * caller's transaction. The caller must hold the lock on the order.
  */
 @Component
 class OrderCancellation {
 
     private final StripePayments stripe;
+    private final PayPalPayments paypal;
     private final InventoryService inventory;
     private final Coupons coupons;
     private final OutboxService outbox;
@@ -31,12 +33,14 @@ class OrderCancellation {
 
     OrderCancellation(
             StripePayments stripe,
+            PayPalPayments paypal,
             InventoryService inventory,
             Coupons coupons,
             OutboxService outbox,
             OrderEmails emails,
             Clock clock) {
         this.stripe = stripe;
+        this.paypal = paypal;
         this.inventory = inventory;
         this.coupons = coupons;
         this.outbox = outbox;
@@ -46,13 +50,14 @@ class OrderCancellation {
 
     /**
      * Cancelled by the shop: also allowed once paid (the owner refunds the money). An open card
-     * payment is stopped first.
+     * or PayPal payment is stopped first.
      *
      * @param reason internal reason
      * @param customerMessage shown to the customer and put in the email, or null
      * @param restock false when the animals cannot go back on sale (e.g. they did not survive)
      * @param notify whether to email the customer
-     * @throws ConflictException {@code ORDER_NOT_CANCELLABLE} while Stripe is processing a card payment
+     * @throws ConflictException {@code ORDER_NOT_CANCELLABLE} while Stripe or PayPal is processing
+     *     the payment
      */
     @Transactional(propagation = Propagation.MANDATORY)
     void cancelByShop(
@@ -61,10 +66,9 @@ class OrderCancellation {
             throw new ConflictException(
                     "INVALID_STATUS_TRANSITION", "An order cannot be cancelled once it has been shipped.");
         }
-        if (order.getPaymentMethod() == PaymentMethod.STRIPE && !order.hasBeenPaid()
-                && !stripe.cancelOpenPayment(order.getId())) {
+        if (!order.hasBeenPaid() && !stopOpenPayment(order)) {
             throw new ConflictException("ORDER_NOT_CANCELLABLE",
-                    "Stripe is processing the card payment of this order. Try again once it is confirmed.");
+                    "The payment provider is processing the payment of this order. Try again once it is confirmed.");
         }
         order.cancel(reason, customerMessage, changedBy, clock.instant());
         if (restock) {
@@ -81,14 +85,14 @@ class OrderCancellation {
      *
      * @param changedBy the acting user, or null for the system
      * @param paymentMissed true when the order expired unpaid (decides the wording of the email)
-     * @return false if the order was left as it is because its card payment can no longer be
-     *     stopped: Stripe already has the money or is processing it, and its webhook will mark
-     *     the order as paid
+     * @return false if the order was left as it is because its online payment can no longer be
+     *     stopped: Stripe or PayPal already has the money or is processing it, and its webhook
+     *     will mark the order as paid
      */
     @Transactional(propagation = Propagation.MANDATORY)
     boolean cancel(Order order, String reason, UUID changedBy, boolean paymentMissed) {
         // First, so that the customer cannot pay for an order that no longer exists.
-        if (order.getPaymentMethod() == PaymentMethod.STRIPE && !stripe.cancelOpenPayment(order.getId())) {
+        if (!stopOpenPayment(order)) {
             return false;
         }
         order.cancel(reason, changedBy, clock.instant());
@@ -96,5 +100,18 @@ class OrderCancellation {
         coupons.release(order.getId());
         outbox.enqueueEmail(emails.cancelled(order, paymentMissed));
         return true;
+    }
+
+    /**
+     * Stops the order's open online payment, if any.
+     *
+     * @return false if the provider already has the money or is processing it
+     */
+    private boolean stopOpenPayment(Order order) {
+        return switch (order.getPaymentMethod()) {
+            case STRIPE -> stripe.cancelOpenPayment(order.getId());
+            case PAYPAL -> paypal.cancelOpenPayment(order.getId());
+            case BANK_TRANSFER -> true;
+        };
     }
 }

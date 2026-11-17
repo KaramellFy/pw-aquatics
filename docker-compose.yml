@@ -64,6 +64,11 @@ services:
       STRIPE_SECRET_KEY:
       STRIPE_PUBLISHABLE_KEY:
       STRIPE_WEBHOOK_SECRET:
+      # PayPal, offered only when client id, secret and webhook id are set in .env (sandbox locally).
+      PAYPAL_ENVIRONMENT:
+      PAYPAL_CLIENT_ID:
+      PAYPAL_CLIENT_SECRET:
+      PAYPAL_WEBHOOK_ID:
       ORDER_CARD_PAYMENT_MINUTES:
     volumes:
       - media:/app/media

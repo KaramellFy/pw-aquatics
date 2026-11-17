@@ -61,6 +61,7 @@ class AdminBootstrapTest {
                 properties.orders(),
                 properties.bankTransfer(),
                 properties.stripe(),
+                properties.paypal(),
                 properties.retention(),
                 new AppProperties.AdminBootstrap(email, password),
                 properties.rateLimits());

@@ -26,14 +26,14 @@ export function useOrders(page: number) {
 
 interface UseOrderOptions {
   /**
-   * Right after paying by card: until this time (epoch ms), ask every two seconds whether the
-   * server has heard from Stripe that the payment went through.
+   * Right after paying by card or PayPal: until this time (epoch ms), ask every two seconds
+   * whether the server has heard from the provider that the payment went through.
    */
-  awaitCardPaymentUntil?: number;
+  awaitOnlinePaymentUntil?: number;
 }
 
 /** One order with everything the server knows about it: status, totals, whether it can be cancelled. */
-export function useOrder(orderNumber: string, { awaitCardPaymentUntil }: UseOrderOptions = {}) {
+export function useOrder(orderNumber: string, { awaitOnlinePaymentUntil }: UseOrderOptions = {}) {
   return useQuery({
     queryKey: queryKeys.order(orderNumber),
     queryFn: ({ signal }) => api.get<Order>(`/account/orders/${encodeURIComponent(orderNumber)}`, signal),
@@ -41,8 +41,8 @@ export function useOrder(orderNumber: string, { awaitCardPaymentUntil }: UseOrde
     refetchOnWindowFocus: true,
     refetchInterval: (query) => {
       const order = query.state.data;
-      const waiting = order?.paymentMethod === 'STRIPE' && order.status === 'PENDING_PAYMENT';
-      return waiting && awaitCardPaymentUntil !== undefined && Date.now() < awaitCardPaymentUntil
+      const waiting = order?.paymentMethod !== 'BANK_TRANSFER' && order?.status === 'PENDING_PAYMENT';
+      return waiting && awaitOnlinePaymentUntil !== undefined && Date.now() < awaitOnlinePaymentUntil
         ? 2000
         : false;
     },

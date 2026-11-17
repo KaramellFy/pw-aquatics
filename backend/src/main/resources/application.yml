@@ -115,7 +115,7 @@ app:
   orders:
     # Unpaid bank-transfer orders are cancelled after this many days and their stock is returned.
     bank-transfer-payment-days: ${ORDER_BANK_TRANSFER_PAYMENT_DAYS:7}
-    # Unpaid card orders are cancelled this many minutes after they were placed.
+    # Unpaid card and PayPal orders are cancelled this many minutes after they were placed.
     card-payment-minutes: ${ORDER_CARD_PAYMENT_MINUTES:60}
   # Bank account shown to customers who pay by bank transfer. Without an IBAN the
   # payment method is not offered and no orders can be placed.
@@ -130,6 +130,15 @@ app:
     secret-key: ${STRIPE_SECRET_KEY:}
     publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  # Payments with PayPal. Offered only when client id, secret and webhook id are set. The webhook
+  # id belongs to the endpoint /api/v1/webhooks/paypal registered for the REST app.
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    webhook-id: ${PAYPAL_WEBHOOK_ID:}
+    # sandbox (test accounts) or live
+    environment: ${PAYPAL_ENVIRONMENT:sandbox}
+    timeout: PT10S
   # How long personal data is kept where no law requires longer (docs/DATABASE.md §6).
   # Orders are not listed here: they are business records with statutory retention.
   retention:
@@ -184,6 +193,10 @@ app:
       period: PT1M
     # Opening the card payment form per customer (each call asks Stripe).
     card-payment:
+      capacity: 20
+      period: PT1M
+    # Opening the PayPal payment and confirming it, per customer (each call asks PayPal).
+    paypal-payment:
       capacity: 20
       period: PT1M
     # Webhook deliveries per client IP, before the signature check.

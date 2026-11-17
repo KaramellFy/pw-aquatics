@@ -506,7 +506,7 @@ function PaymentCard({ order }: { order: AdminOrder }) {
           rel="noopener noreferrer"
           className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
         >
-          {t('admin.orders.openInStripe')}
+          {t(order.payment.provider === 'PAYPAL' ? 'admin.orders.openInPayPal' : 'admin.orders.openInStripe')}
           <ExternalLink aria-hidden className="size-4" />
           <span className="sr-only">{t('common.opensInNewTab')}</span>
         </a>

@@ -1,20 +1,15 @@
 import { Elements } from '@stripe/react-stripe-js';
-import { LockKeyhole } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useParams } from 'react-router';
 import { Alert } from '@/components/ui/Alert';
 import { Button, ButtonLink } from '@/components/ui/Button';
-import { Container } from '@/components/ui/Container';
 import { useOrder, type PostalAddress } from '@/features/account';
 import { ApiError } from '@/lib/api/client';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
-import { formatLocalTime } from '@/lib/format/date';
-import { formatMoney } from '@/lib/format/money';
-import { useIntlLocale } from '@/lib/i18n';
-import { PageMeta } from '@/lib/seo/PageMeta';
 import { useCardPayment, type CardPayment } from '../api/payments';
 import { CardPaymentForm, LoadFailed } from '../components/CardPaymentForm';
+import { FormPlaceholder, PaymentFrame, PaymentSummary } from '../components/PaymentFrame';
 import { getStripe, stripeAppearance, stripeLocale } from '../lib/stripe';
 
 /**
@@ -82,43 +77,21 @@ export function CardPaymentPage() {
   }
 
   return (
-    <>
-      <PageMeta title={t('checkout.pay.metaTitle')} noIndex />
-      <Container className="max-w-2xl pt-12 pb-24 sm:pt-16">
-        <p className="eyebrow text-brand-700">{t('checkout.pay.eyebrow')}</p>
-        <h1 className="mt-3 text-headline">{t('checkout.pay.title')}</h1>
-        {payment.data && <Summary payment={payment.data} />}
-        <div className="mt-8">{content}</div>
-        <p className="mt-8 flex gap-3 text-sm text-ink-soft">
-          <LockKeyhole aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-700" />
-          <span>{t('checkout.pay.secure')}</span>
-        </p>
-        <p className="mt-3 text-sm text-ink-soft">
-          {t('checkout.pay.later')}{' '}
-          <ButtonLink to={orderLink} variant="link" className="text-sm">
-            {t('checkout.pay.viewOrder')}
-          </ButtonLink>
-        </p>
-      </Container>
-    </>
-  );
-}
-
-function Summary({ payment }: { payment: CardPayment }) {
-  const { t } = useTranslation();
-  const locale = useIntlLocale();
-  return (
-    <div className="mt-4 space-y-1 text-lg text-ink-soft">
-      <p>
-        {t('checkout.pay.order', { number: payment.orderNumber })} ·{' '}
-        <strong className="font-medium text-ink tabular-nums">{formatMoney(payment.amount, locale)}</strong>
-      </p>
-      {payment.paymentDueAt && (
-        <p className="text-base">
-          {t('checkout.pay.deadline', { time: formatLocalTime(payment.paymentDueAt, locale) })}
-        </p>
-      )}
-    </div>
+    <PaymentFrame
+      orderNumber={orderNumber}
+      secure={t('checkout.pay.secure')}
+      summary={
+        payment.data && (
+          <PaymentSummary
+            orderNumber={payment.data.orderNumber}
+            amount={payment.data.amount}
+            paymentDueAt={payment.data.paymentDueAt}
+          />
+        )
+      }
+    >
+      {content}
+    </PaymentFrame>
   );
 }
 
@@ -156,16 +129,5 @@ function PaymentForm({ payment, clientSecret, billingAddress }: PaymentFormProps
         billingAddress={billingAddress}
       />
     </Elements>
-  );
-}
-
-/** Keeps the space of the payment form while it loads, so nothing jumps. */
-export function FormPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex min-h-64 items-center justify-center rounded-card border border-line bg-mist">
-      <p role="status" className="text-muted">
-        {label}
-      </p>
-    </div>
   );
 }

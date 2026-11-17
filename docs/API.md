@@ -516,14 +516,15 @@ contains the link to the payment page and the deadline; for bank transfer, the b
 }
 ```
 
-`paymentInstructions` is `null` for card payment: the client continues with §2.7.
+`paymentInstructions` is `null` for card and PayPal payment: the client continues with §2.7.
 
 Unpaid orders expire: a bank-transfer order at the end of the day
-`ORDER_BANK_TRANSFER_PAYMENT_DAYS` (default 7) after it was placed, a card order
+`ORDER_BANK_TRANSFER_PAYMENT_DAYS` (default 7) after it was placed, a card or PayPal order
 `ORDER_CARD_PAYMENT_MINUTES` (default 60) after it was placed (`paymentDueAt`). A job
 (every 15 minutes) cancels it, returns the animals to stock and emails the customer. For a
-card order it first cancels the PaymentIntent at Stripe; if Stripe already has the money or
-is still processing it, the order is kept and the webhook marks it as paid.
+card order it first cancels the PaymentIntent at Stripe; for a PayPal order it asks PayPal
+whether the money was taken. If the provider already has the money or is still processing
+it, the order is kept and the webhook marks it as paid.
 
 ### 2.6 Account — `/api/v1/account` (customer)
 
@@ -564,9 +565,9 @@ purchase; `lineTotal` is before the coupon discount), `totals` (`subtotal`, `dis
 `shippingMethodName`, `shippingCarrier`, `shippingAddress`,
 `billingAddress`, `customerNote`, `containsLiveAnimals`, `statusTimeline`,
 `paymentInstructions` (only while the order waits for a bank transfer, otherwise `null`),
-`cancellable` (whether the customer may cancel right now) and `payableByCard` (whether
-the card payment can be started or resumed right now: an unpaid card order before its
-`paymentDueAt`) — both decided by the server.
+`cancellable` (whether the customer may cancel right now) and `payableOnline` (whether
+the card or PayPal payment can be started or resumed right now: an unpaid card or PayPal order
+before its `paymentDueAt`, with that provider configured) — both decided by the server.
 
 ```json
 "statusTimeline": [
@@ -590,16 +591,16 @@ leaves). `trackingUrl` is built by the server from the carrier's URL template
 
 ### 2.7 Payments
 
-Card payment (including Apple Pay and Google Pay, which Stripe treats as cards) is built
-(Phase 9); PayPal follows.
+Card payment (including Apple Pay and Google Pay, which Stripe treats as cards) and PayPal are
+built (Phase 9).
 
 | Method | Path | Access | Description |
 |---|---|---|---|
 | POST | `/payments/stripe/intents` | customer (CSRF) | Start or resume the card payment of one of the customer's own orders (below) |
 | POST | `/webhooks/stripe` | Stripe | Payment events; signature-verified, idempotent, no session, CSRF-exempt |
-| POST | `/payments/paypal/orders` | customer | *Later:* `{ orderNumber }` → PayPal order ID |
-| POST | `/payments/paypal/orders/{paypalOrderId}/capture` | customer | *Later:* capture after approval; final confirmation still via webhook |
-| POST | `/webhooks/paypal` | PayPal | *Later:* signature-verified, idempotent, CSRF-exempt |
+| POST | `/payments/paypal/orders` | customer (CSRF) | Start or resume the PayPal payment of one of the customer's own orders (below) |
+| POST | `/payments/paypal/captures` | customer (CSRF) | After the customer approved in PayPal's window: the server takes the money and answers whether the order is paid |
+| POST | `/webhooks/paypal` | PayPal | Payment events; confirmed by PayPal, idempotent, no session, CSRF-exempt |
 
 **`POST /payments/stripe/intents`**
 
@@ -662,6 +663,65 @@ for `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.pay
 **Local development:** Stripe cannot reach `localhost`. Forward events with the Stripe CLI
 (`stripe listen --forward-to localhost:8080/api/v1/webhooks/stripe`, then use the
 `whsec_…` it prints as `STRIPE_WEBHOOK_SECRET`).
+
+**`POST /payments/paypal/orders`** — `{ "orderNumber": "PW-2027-000123" }`
+
+```json
+{
+  "orderNumber": "PW-2027-000123",
+  "amount": { "amount": 1770, "currency": "EUR" },
+  "paymentDueAt": "2027-03-01T10:12:00Z",
+  "paypalOrderId": "5O190127TN364715T",
+  "clientId": "A…",
+  "alreadyPaid": false
+}
+```
+
+- The first call creates the PayPal order for the **stored order total** (one per order,
+  `PayPal-Request-Id: order-<id>`, `intent: CAPTURE`, no shipping address asked for or
+  returned, PayPal's pages in the customer's language); later calls return the same one.
+  Amounts in the request are ignored.
+- `clientId` loads PayPal's script (public by design); the button opens `paypalOrderId`.
+- `alreadyPaid: true` (and `paypalOrderId: null`): PayPal has the money or is still checking it.
+- Refusals as for card payment: `404`, `400`, `409 ORDER_ALREADY_PAID`, `409 ORDER_NOT_PAYABLE`,
+  `409 PAYMENT_METHOD_UNAVAILABLE` (not a PayPal order, or PayPal not configured),
+  `503 PAYMENT_PROVIDER_UNAVAILABLE`, `429 RATE_LIMITED`.
+
+**`POST /payments/paypal/captures`** — `{ "orderNumber": "PW-2027-000123" }` →
+`{ "orderNumber": "…", "status": "PAID" | "PENDING" | "DECLINED" }`
+
+- The server captures the PayPal order (`PayPal-Request-Id: order-<id>-capture`, so a repeated
+  call takes nothing twice) and reads the result **from PayPal**. `PAID`: the order is paid now
+  (the customer gets the "payment received" email). `PENDING`: PayPal or the bank still checks
+  the payment; the webhook completes it, and the order can neither be cancelled nor expire
+  meanwhile. `DECLINED`: nothing was taken (the funding source was declined, or the customer
+  has not approved yet); the browser lets the customer choose another way to pay in PayPal's
+  window. The decline reason is kept (`INSTRUMENT_DECLINED`, `ORDER_NOT_APPROVED`).
+- Refusals as above, plus `409 PAYMENT_NOT_STARTED` (no PayPal order yet).
+
+**`POST /webhooks/paypal`** — registered for the REST app (developer.paypal.com → Apps &
+Credentials → the app → Webhooks) for `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`,
+`PAYMENT.CAPTURE.PENDING`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.DECLINED`,
+`PAYMENT.CAPTURE.REFUNDED` and `PAYMENT.CAPTURE.REVERSED`; its id is `PAYPAL_WEBHOOK_ID`.
+
+- PayPal confirms each delivery: the `PAYPAL-*` headers and the body exactly as received go to
+  PayPal's verify-webhook-signature API with our webhook id; missing headers or anything but
+  `SUCCESS` → `400 WEBHOOK_SIGNATURE_INVALID`. A body that is not exactly one JSON event →
+  `400 WEBHOOK_INVALID`. Bodies over 256 KB are refused. Without PayPal configured → `404`.
+- Stored once per PayPal event id, reduced to ids, amounts and statuses (no payer name or email),
+  processed in one transaction with its effect on the order; a failure answers `500` and PayPal
+  delivers again.
+- `CHECKOUT.ORDER.APPROVED`: captured as above if the order still waits for payment (covers a
+  customer whose browser never came back); otherwise noted as `order not awaiting payment`.
+- `PAYMENT.CAPTURE.COMPLETED`: the amount and currency must equal the stored payment (otherwise
+  noted as `amount mismatch`); the order turns `PAID` once. `…PENDING` keeps it waiting;
+  `…DENIED`/`…DECLINED` record the reason. A capture completed for a cancelled order leaves it
+  cancelled and tells the shop inbox, as for Stripe.
+- `PAYMENT.CAPTURE.REFUNDED`/`REVERSED` (refunds are made in the PayPal account) set
+  `paymentStatus` to `PARTIALLY_REFUNDED` or `REFUNDED` from the total refunded so far.
+
+**Local development:** PayPal cannot reach `localhost`; a payment completes without webhooks
+because the server captures it. To try webhooks, register a public address (e.g. a tunnel).
 
 ---
 

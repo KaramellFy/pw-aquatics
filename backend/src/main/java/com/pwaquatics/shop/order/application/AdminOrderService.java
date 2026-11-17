@@ -19,6 +19,7 @@ import com.pwaquatics.shop.order.domain.ShipmentData;
 import com.pwaquatics.shop.order.infrastructure.AdminOrderQueries;
 import com.pwaquatics.shop.order.infrastructure.OrderNoteRepository;
 import com.pwaquatics.shop.order.infrastructure.OrderRepository;
+import com.pwaquatics.shop.payment.application.PayPalPayments;
 import com.pwaquatics.shop.payment.application.StripePayments;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.shipping.application.ShippingService;
@@ -63,6 +64,7 @@ public class AdminOrderService {
     private final OrderEmails emails;
     private final OutboxService outbox;
     private final StripePayments stripe;
+    private final PayPalPayments paypal;
     private final UserDirectory users;
     private final AuditService audit;
     private final AppProperties.Shipping shipping;
@@ -77,6 +79,7 @@ public class AdminOrderService {
             OrderEmails emails,
             OutboxService outbox,
             StripePayments stripe,
+            PayPalPayments paypal,
             UserDirectory users,
             AuditService audit,
             AppProperties properties,
@@ -89,6 +92,7 @@ public class AdminOrderService {
         this.emails = emails;
         this.outbox = outbox;
         this.stripe = stripe;
+        this.paypal = paypal;
         this.users = users;
         this.audit = audit;
         this.shipping = properties.shipping();
@@ -316,7 +320,11 @@ public class AdminOrderService {
                         .map(note -> new AdminOrderView.InternalNote(note.getId(), note.getBody(), note.getCreatedAt(),
                                 note.getAuthorId() == null ? null : names.get(note.getAuthorId())))
                         .toList(),
-                order.getPaymentMethod() == PaymentMethod.STRIPE ? stripe.summary(order.getId()).orElse(null) : null,
+                switch (order.getPaymentMethod()) {
+                    case STRIPE -> stripe.summary(order.getId()).orElse(null);
+                    case PAYPAL -> paypal.summary(order.getId()).orElse(null);
+                    case BANK_TRANSFER -> null;
+                },
                 shipping.carriers().stream().map(AppProperties.Carrier::name).toList(),
                 new AdminOrderView.OrderActions(
                         status == OrderStatus.PENDING_PAYMENT && order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER,

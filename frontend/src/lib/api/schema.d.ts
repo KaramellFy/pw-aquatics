@@ -323,6 +323,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payments/paypal/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start (or resume) the PayPal payment of an order; returns what PayPal's button needs */
+        post: operations["startPayPalPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/paypal/captures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take the PayPal payment the customer approved; the server reads the result from PayPal */
+        post: operations["capturePayPalPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contact": {
         parameters: {
             query?: never;
@@ -2003,7 +2037,7 @@ export interface components {
             statusTimeline: components["schemas"]["OrderStatusEntryView"][];
             paymentInstructions: components["schemas"]["PaymentInstructionsView"] | null;
             cancellable: boolean;
-            payableByCard: boolean;
+            payableOnline: boolean;
             shipments: components["schemas"]["ShipmentView"][];
         };
         OrderHistoryEntry: {
@@ -2302,6 +2336,23 @@ export interface components {
             clientSecret: string | null;
             publishableKey: string;
             alreadyPaid: boolean;
+        };
+        PayPalPaymentRequest: {
+            orderNumber: string;
+        };
+        PayPalPaymentView: {
+            orderNumber: string;
+            amount: components["schemas"]["Money"];
+            /** Format: date-time */
+            paymentDueAt: string | null;
+            paypalOrderId: string | null;
+            clientId: string;
+            alreadyPaid: boolean;
+        };
+        PayPalCaptureView: {
+            orderNumber: string;
+            /** @enum {string} */
+            status: "PAID" | "PENDING" | "DECLINED";
         };
         ContactMessageRequest: {
             name: string;
@@ -3883,6 +3934,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CardPaymentView"];
+                };
+            };
+        };
+    };
+    startPayPalPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayPalPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PayPalPaymentView"];
+                };
+            };
+        };
+    };
+    capturePayPalPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayPalPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PayPalCaptureView"];
                 };
             };
         };

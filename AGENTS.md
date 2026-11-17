@@ -56,7 +56,13 @@ and some species may not be traded legally.
   Apple Pay / Google Pay as wallets) next to bank transfer, payment page with Stripe's Payment
   Element (`/checkout/pay/:orderNumber`), PaymentIntents from the stored total
   (`POST /api/v1/payments/stripe/intents`), signed and idempotent webhook
-  (`POST /api/v1/webhooks/stripe`), 60-minute expiry of unpaid card orders. PayPal follows.
+  (`POST /api/v1/webhooks/stripe`), 60-minute expiry of unpaid card orders.
+- **PayPal** (from Phase 9, built early; ADR-010 addendum) is built: PayPal as a third choice,
+  PayPal's button on the same payment page, one PayPal order per shop order from the stored
+  total (`POST /api/v1/payments/paypal/orders`), capture by the server after the customer
+  approved (`POST /api/v1/payments/paypal/captures`), webhooks confirmed by PayPal
+  (`POST /api/v1/webhooks/paypal`), the same 60-minute expiry. Optional: without
+  `PAYPAL_*` credentials it is not offered. Not yet tried against PayPal's sandbox.
 - **Phase 8 (coupons & statistics)** is built end to end: coupon field in the cart
   (`PUT`/`DELETE /api/v1/cart/coupon`), discount in the quote, order, emails and order pages,
   redemption in the order transaction (released on cancellation), admin coupons under
@@ -244,13 +250,17 @@ working around them.
   `identity.AccountLocking` and ends its sessions with `SessionManager`. DTO records must have
   unique simple names (springdoc schema names; `ArchitectureTest` checks this).
 - **Payment rules** (ADR-010): an order becomes paid only through a signature-verified
-  webhook (`StripeWebhooks`), never because the browser says so. The amount always comes from
-  the stored order. Calls to Stripe go through `StripeGateway` (tests use `FakeStripeGateway`).
+  webhook (`StripeWebhooks`, `PayPalWebhooks`) or, for PayPal, the server's own capture call
+  answered by PayPal (`PayPalPayments.capture`) — never because the browser says so. The amount
+  always comes from the stored order. Calls to Stripe go through `StripeGateway`, calls to
+  PayPal through `PayPalGateway` (tests use `FakeStripeGateway` / `FakePayPalGateway`).
   The payment module never imports the order module: it calls `PayableOrders`, which
   `OrderPayments` implements. Take locks in the order order → payment. Webhook payloads are
   reduced to ids, amounts and statuses before they are stored; never log or store card or
-  billing details. Cancelling an unpaid card order cancels its PaymentIntent first
-  (`OrderCancellation`).
+  billing details (PayPal: no payer name or email either). Cancelling an unpaid card order
+  cancels its PaymentIntent first; a PayPal order is asked first whether the money was taken
+  (`OrderCancellation`). A payment the webhook may still capture must check
+  `PayableOrders.isAwaitingPayment` first.
 - **Coupon rules:** whether a coupon may be used at all is decided in `coupon`
   (`Coupon.problemAt`, through `Coupons`); whether and by how much it reduces a basket only
   in `PriceCalculator` (`Discount`, `DiscountOutcome`). Cart and checkout always run both
@@ -317,6 +327,11 @@ working around them.
   `@stripe/stripe-js/pure`), with the publishable key from the API. The page calls
   `confirmPayment` and moves on; whether the order is paid comes from the API (the
   confirmation page polls the order). Never show an order as paid from Stripe's browser result.
+- **PayPal:** PayPal's script is loaded only on the payment page (`features/checkout/lib/paypal.ts`,
+  `@paypal/paypal-js`), with the client id from the API. `PaymentPage` shows the form for the
+  order's `paymentMethod` (one route for both). PayPal's button opens the order the server
+  created; `onApprove` only asks the server to capture, and the server's answer decides
+  (`PAID`, `PENDING`, `DECLINED` → `actions.restart()`). Never capture in the browser.
 - **Admin:** pages live in `features/admin`, routed under `/admin` with `RequireAdmin` and
   `AdminLayout`; each page is a lazy chunk and nothing from it is imported by the shop.
   Prices typed by the owner are parsed with `parseMoneyInput` ("3,90" → 390); what blocks
@@ -345,7 +360,7 @@ working around them.
   validation errors too. Import `z` from `@/lib/validation/zod` (never from `zod`; ESLint
   enforces it): it keeps Zod from trying `eval`, which our Content-Security-Policy forbids.
 - **Content-Security-Policy** is set in `frontend/Caddyfile`. A new third-party script, frame or
-  API host (e.g. PayPal) needs its hosts added there, checked in a browser behind Caddy.
+  API host needs its hosts added there, checked in a browser behind Caddy (Stripe and PayPal are listed).
 - Styling: Tailwind utilities and design tokens only; build variants in
   `components/ui` instead of one-off styles. No inline hex colours.
 - Accessibility: semantic HTML, labels for every input, visible focus, keyboard

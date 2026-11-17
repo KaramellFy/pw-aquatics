@@ -34,6 +34,10 @@ public class Payment extends AbstractEntity {
     @Column(name = "provider_reference", unique = true, updatable = false)
     private String providerReference;
 
+    /** PayPal: the id of the capture that took the money (refunds name only this one). */
+    @Column(name = "capture_reference", unique = true, length = 100)
+    private String captureReference;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PaymentState status;
@@ -77,6 +81,35 @@ public class Payment extends AbstractEntity {
         payment.createdAt = now;
         payment.updatedAt = now;
         return payment;
+    }
+
+    /** A PayPal order created for the stored total of an order. */
+    public static Payment paypal(UUID orderId, String paypalOrderId, Money amount, Instant now) {
+        Payment payment = new Payment();
+        payment.orderId = orderId;
+        payment.provider = PaymentMethod.PAYPAL;
+        payment.providerReference = paypalOrderId;
+        payment.status = PaymentState.CREATED;
+        payment.amountCents = amount.amount();
+        payment.currency = amount.currency();
+        payment.createdAt = now;
+        payment.updatedAt = now;
+        return payment;
+    }
+
+    /**
+     * Records the provider's capture of this payment (PayPal). A payment has one capture; a
+     * different one is refused.
+     *
+     * @throws IllegalArgumentException if another capture was recorded before
+     */
+    public void capturedAs(String captureId, Instant now) {
+        if (captureReference == null) {
+            captureReference = captureId;
+            updatedAt = now;
+        } else if (!captureReference.equals(captureId)) {
+            throw new IllegalArgumentException("The payment already has another capture");
+        }
     }
 
     /** The provider is processing the payment (e.g. waiting for the bank). */
@@ -158,6 +191,10 @@ public class Payment extends AbstractEntity {
 
     public String getProviderReference() {
         return providerReference;
+    }
+
+    public String getCaptureReference() {
+        return captureReference;
     }
 
     public PaymentState getStatus() {

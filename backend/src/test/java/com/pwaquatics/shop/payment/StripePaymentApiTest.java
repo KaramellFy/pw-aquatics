@@ -130,7 +130,7 @@ class StripePaymentApiTest {
         mvc.perform(json(post("/api/v1/checkout/quote"), """
                         {"shippingAddressId": "%s", "shippingMethodCode": "%s"}
                         """.formatted(customer.addressId(), LIVE)).cookie(customer.session()))
-                .andExpect(jsonPath("$.paymentMethods").value(contains("STRIPE", "BANK_TRANSFER")));
+                .andExpect(jsonPath("$.paymentMethods").value(contains("STRIPE", "PAYPAL", "BANK_TRANSFER")));
 
         // The order: reserved for about an hour, no bank details, a link to pay in the email.
         Instant before = Instant.now();
@@ -146,7 +146,7 @@ class StripePaymentApiTest {
         String confirmation = auth.emailsTo(customer.email()).getLast().getPayload().body();
         assertThat(confirmation).contains("Payment by card", "/checkout/pay/" + order).doesNotContain("IBAN");
         detail(customer, order)
-                .andExpect(jsonPath("$.payableByCard").value(true))
+                .andExpect(jsonPath("$.payableOnline").value(true))
                 .andExpect(jsonPath("$.paymentInstructions").doesNotExist());
 
         // Starting the payment: the amount is the stored total, whatever the request says.
@@ -176,7 +176,7 @@ class StripePaymentApiTest {
                 .andExpect(jsonPath("$.status").value("PAID"))
                 .andExpect(jsonPath("$.paymentStatus").value("PAID"))
                 .andExpect(jsonPath("$.paymentDueAt").doesNotExist())
-                .andExpect(jsonPath("$.payableByCard").value(false))
+                .andExpect(jsonPath("$.payableOnline").value(false))
                 .andExpect(jsonPath("$.cancellable").value(false));
         assertThat(paymentRow(order)).containsEntry("status", "SUCCEEDED").containsEntry("method_detail", "card");
         Map<String, Object> stored = jdbc.queryForMap(
@@ -231,7 +231,7 @@ class StripePaymentApiTest {
                 .containsEntry("failure_code", "insufficient_funds");
         detail(customer, order)
                 .andExpect(jsonPath("$.status").value("PENDING_PAYMENT"))
-                .andExpect(jsonPath("$.payableByCard").value(true));
+                .andExpect(jsonPath("$.payableOnline").value(true));
         // The customer can try another card with the same PaymentIntent.
         assertThat(startPayment(customer, order).clientSecret()).isEqualTo(payment.clientSecret());
 
@@ -269,7 +269,7 @@ class StripePaymentApiTest {
         startPaymentRequest(customer, bankTransfer, "")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PAYMENT_METHOD_UNAVAILABLE"));
-        detail(customer, bankTransfer).andExpect(jsonPath("$.payableByCard").value(false));
+        detail(customer, bankTransfer).andExpect(jsonPath("$.payableOnline").value(false));
 
         stripe.setDown(true);
         startPaymentRequest(customer, order, "")
@@ -312,7 +312,7 @@ class StripePaymentApiTest {
         assertThat(paymentRow(startedOrder)).containsEntry("status", "CANCELLED");
         detail(started, startedOrder)
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
-                .andExpect(jsonPath("$.payableByCard").value(false));
+                .andExpect(jsonPath("$.payableOnline").value(false));
         assertThat(auth.emailsTo(started.email()).getLast().getPayload().body())
                 .contains("card payment was not completed in time", "Your card has not been charged");
         startPaymentRequest(started, startedOrder, "")

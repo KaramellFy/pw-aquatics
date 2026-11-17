@@ -37,7 +37,8 @@ class OrderEmails {
 
     /**
      * Confirmation with all items and totals, sent as soon as the order is placed. For bank
-     * transfer it carries the payment details; for card payment, the link to pay and the deadline.
+     * transfer it carries the payment details; for card and PayPal payment, the link to pay and the
+     * deadline.
      */
     EmailMessage confirmation(Order order, PaymentInstructionsView payment) {
         boolean german = german(order);
@@ -96,8 +97,11 @@ class OrderEmails {
             body.append(german
                     ? "Geht bis dahin keine Zahlung ein, wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf.\n\n"
                     : "If no payment has arrived by then, the order is cancelled automatically and the animals go back on sale.\n\n");
-        } else if (order.getPaymentMethod() == PaymentMethod.STRIPE && order.getPaymentDueAt() != null) {
-            body.append(german ? "Zahlung mit Karte\n" : "Payment by card\n");
+        } else if (order.getPaymentMethod() != PaymentMethod.BANK_TRANSFER && order.getPaymentDueAt() != null) {
+            boolean paypal = order.getPaymentMethod() == PaymentMethod.PAYPAL;
+            body.append(german
+                    ? (paypal ? "Zahlung mit PayPal\n" : "Zahlung mit Karte\n")
+                    : (paypal ? "Payment with PayPal\n" : "Payment by card\n"));
             body.append(german
                     ? "Falls du die Zahlung noch nicht abgeschlossen hast, kannst du das bis %s (deutsche Zeit) hier tun:\n"
                             .formatted(dateTime(order.getPaymentDueAt(), locale))
@@ -122,7 +126,7 @@ class OrderEmails {
         return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
     }
 
-    /** The card payment has been confirmed by Stripe; the order is paid. */
+    /** The card or PayPal payment has been confirmed by the provider; the order is paid. */
     EmailMessage paymentReceived(Order order) {
         boolean german = german(order);
         Locale locale = locale(order);
@@ -148,15 +152,17 @@ class OrderEmails {
     }
 
     /**
-     * For the shop owner: a card payment was confirmed for an order that had already been
-     * cancelled. The animals may be sold again, so the owner decides whether to refund
-     * (in the Stripe Dashboard) or to reinstate the order. Contains no customer details.
+     * For the shop owner: a card or PayPal payment was confirmed for an order that had already
+     * been cancelled. The animals may be sold again, so the owner decides whether to refund (in
+     * the Stripe Dashboard or PayPal account) or to reinstate the order. Contains no customer details.
      */
     EmailMessage paymentForCancelledOrder(Order order, String shopInbox) {
-        String body = "Stripe has confirmed a card payment of %s for order %s, but the order had already been cancelled.\n\n"
-                        .formatted(money(order.total(), ENGLISH), order.getOrderNumber())
-                + "Please check whether the animals are still available. Then either refund the payment in the Stripe "
-                + "Dashboard or get in touch with the customer.\n";
+        boolean paypal = order.getPaymentMethod() == PaymentMethod.PAYPAL;
+        String body = "%s has confirmed a %s payment of %s for order %s, but the order had already been cancelled.\n\n"
+                        .formatted(paypal ? "PayPal" : "Stripe", paypal ? "PayPal" : "card",
+                                money(order.total(), ENGLISH), order.getOrderNumber())
+                + "Please check whether the animals are still available. Then either refund the payment in "
+                + (paypal ? "your PayPal account" : "the Stripe Dashboard") + " or get in touch with the customer.\n";
         return new EmailMessage(shopInbox, null, "Payment for cancelled order " + order.getOrderNumber(), body);
     }
 
@@ -167,12 +173,17 @@ class OrderEmails {
     EmailMessage cancelled(Order order, boolean paymentMissed) {
         boolean german = german(order);
         boolean card = order.getPaymentMethod() == PaymentMethod.STRIPE;
+        boolean paypal = order.getPaymentMethod() == PaymentMethod.PAYPAL;
         String firstName = order.billingAddress().getFirstName();
         String reason;
         if (paymentMissed && card) {
             reason = german
                     ? "die Kartenzahlung wurde nicht rechtzeitig abgeschlossen. Wir haben deine Bestellung %s deshalb storniert."
                     : "the card payment was not completed in time, so your order %s has been cancelled.";
+        } else if (paymentMissed && paypal) {
+            reason = german
+                    ? "die Zahlung mit PayPal wurde nicht rechtzeitig abgeschlossen. Wir haben deine Bestellung %s deshalb storniert."
+                    : "the PayPal payment was not completed in time, so your order %s has been cancelled.";
         } else if (paymentMissed) {
             reason = german
                     ? "bis zum Zahlungsziel ist keine Zahlung bei uns eingegangen. Wir haben deine Bestellung %s deshalb storniert."
@@ -187,6 +198,10 @@ class OrderEmails {
             money = german
                     ? "Die Tiere sind wieder im Shop verfügbar. Deine Karte wurde nicht belastet.\n\n"
                     : "The animals are available in the shop again. Your card has not been charged.\n\n";
+        } else if (paypal) {
+            money = german
+                    ? "Die Tiere sind wieder im Shop verfügbar. Über PayPal wurde nichts abgebucht.\n\n"
+                    : "The animals are available in the shop again. Nothing has been taken through PayPal.\n\n";
         } else {
             money = german
                     ? "Die Tiere sind wieder im Shop verfügbar. Falls du bereits überwiesen hast, melde dich bitte bei uns – wir erstatten den Betrag.\n\n"

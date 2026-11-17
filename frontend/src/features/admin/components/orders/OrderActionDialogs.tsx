@@ -335,7 +335,9 @@ export function CancelOrderDialog({ order, open, onOpenChange }: DialogProps) {
           {t(
             order.order.paymentMethod === 'STRIPE'
               ? 'admin.orders.dialogs.refundCard'
-              : 'admin.orders.dialogs.refundTransfer',
+              : order.order.paymentMethod === 'PAYPAL'
+                ? 'admin.orders.dialogs.refundPayPal'
+                : 'admin.orders.dialogs.refundTransfer',
             { amount: formatMoney(order.order.totals.total, locale) },
           )}
         </Alert>

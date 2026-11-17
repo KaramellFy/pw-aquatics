@@ -68,7 +68,7 @@ const order: Order = {
     amount: money(1770),
   },
   cancellable: true,
-  payableByCard: false,
+  payableOnline: false,
   shipments: [],
 };
 const cancelled: Order = {
@@ -190,7 +190,7 @@ describe('OrderDetailPage', () => {
       paymentMethod: 'STRIPE',
       paymentDueAt: '2026-11-10T11:00:00Z',
       paymentInstructions: null,
-      payableByCard: true,
+      payableOnline: true,
     };
     mockApi({ '/account/orders/PW-2026-000042': cardOrder });
     renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
@@ -203,6 +203,27 @@ describe('OrderDetailPage', () => {
     expect(screen.queryByRole('region', { name: 'Pay by bank transfer' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Cancel order' }));
     expect(screen.getByRole('dialog')).toHaveTextContent('nothing is charged to your card');
+  });
+
+  it('offers to pay a PayPal order on the same payment page', async () => {
+    const payPalOrder: Order = {
+      ...order,
+      paymentMethod: 'PAYPAL',
+      paymentDueAt: '2026-11-10T11:00:00Z',
+      paymentInstructions: null,
+      payableOnline: true,
+    };
+    mockApi({ '/account/orders/PW-2026-000042': payPalOrder });
+    renderRoutes(routes, { path: '/account/orders/PW-2026-000042' });
+
+    const section = await screen.findByRole('region', { name: 'Payment outstanding' });
+    expect(section).toHaveTextContent('complete your PayPal payment');
+    expect(within(section).getByRole('link', { name: 'Pay with PayPal' })).toHaveAttribute(
+      'href',
+      '/checkout/pay/PW-2026-000042',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel order' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('nothing is taken through PayPal');
   });
 
   it('does not offer card payment once the server says no', async () => {

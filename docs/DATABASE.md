@@ -643,26 +643,27 @@ CREATE INDEX idx_shipments_order      ON shipments (order_id);
 CREATE INDEX idx_shipments_tracking   ON shipments (tracking_number);
 CREATE INDEX idx_shipments_created_by ON shipments (created_by);
 
--- Phase 9 (payments; built for Stripe). Never contains card data — only provider references.
+-- Phase 9 (payments; built for Stripe and PayPal). Never contains card data — only provider references.
 CREATE TABLE payments (
     id                   uuid PRIMARY KEY,
     order_id             uuid         NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
     provider             varchar(20)  NOT NULL CHECK (provider IN ('BANK_TRANSFER', 'STRIPE', 'PAYPAL')),
     provider_reference   varchar(255) UNIQUE,     -- Stripe PaymentIntent id (pi_…) / PayPal order ID
+    capture_reference    varchar(100) UNIQUE,     -- PayPal capture id (refund events name only the capture)
     status               varchar(20)  NOT NULL CHECK (status IN (
                              'CREATED', 'PENDING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'REFUNDED', 'PARTIALLY_REFUNDED')),
     amount_cents         bigint       NOT NULL CHECK (amount_cents >= 0),   -- the order total when created
     refunded_cents       bigint       NOT NULL DEFAULT 0 CHECK (refunded_cents >= 0),
     currency             char(3)      NOT NULL DEFAULT 'EUR',
-    method_detail        varchar(50),             -- e.g. 'card' (never card numbers)
-    failure_code         varchar(100),            -- last decline reason, e.g. 'card_declined'
+    method_detail        varchar(50),             -- 'card' or 'paypal' (never card numbers or PayPal accounts)
+    failure_code         varchar(100),            -- last decline reason, e.g. 'card_declined', 'INSTRUMENT_DECLINED'
     created_at           timestamptz  NOT NULL DEFAULT now(),
     updated_at           timestamptz  NOT NULL DEFAULT now(),
     version              bigint       NOT NULL DEFAULT 0,
     CHECK (refunded_cents <= amount_cents)
 );
 CREATE INDEX idx_payments_order ON payments (order_id);
--- One payment per order and provider: a second card attempt reuses the same PaymentIntent.
+-- One payment per order and provider: a second attempt reuses the same PaymentIntent / PayPal order.
 CREATE UNIQUE INDEX uq_payments_order_provider ON payments (order_id, provider);
 
 CREATE TABLE payment_webhook_events (
@@ -696,8 +697,10 @@ quantity − discount_cents`. An order number is `PW-<year>-<6 digits>` from
 `order_number_seq` (gaps are fine). `UNIQUE (user_id, idempotency_key)` backs the
 idempotent placement. Orders are locked `FOR UPDATE` when they are cancelled or expire.
 
-Notes on payments (built in Phase 9 for Stripe): a row is created with the PaymentIntent
-for the stored order total, and only Stripe's signed webhook moves it to `SUCCEEDED`; a
+Notes on payments (built in Phase 9 for Stripe and PayPal): a row is created with the
+PaymentIntent or PayPal order for the stored order total. Only Stripe's signed webhook moves a
+card payment to `SUCCEEDED`; a PayPal payment gets there through PayPal's answer to the
+server's capture call or a webhook PayPal confirmed (`capture_reference` is set then). A
 different amount is never accepted. Bank transfers don't use this table: the owner marks
 them paid in the admin order view, which sets `orders.paid_at` and writes the status history.
 Every path that touches both takes the order's lock first and
@@ -932,7 +935,8 @@ adviser.
 | Contact form messages: name, email, message | `contact_messages` (+ the email to the shop inbox) | Answering the enquiry, Art. 6(1)(b)/(f) | 365 days (`app.retention.contact-messages`); copies in the shop mailbox follow the mailbox's own rules |
 | Audit log: who did what, when; IP address | `audit_log` | Security, Art. 6(1)(f) | IP address erased after 90 days (`app.retention.audit-ip-addresses`); entries stay |
 | Card payments: Stripe PaymentIntent id, amount, status, refunded amount, method (`card`), decline code — no card or billing details | `payments` | Contract Art. 6(1)(b); accounting Art. 6(1)(c) | With the order (statutory retention) |
-| Stripe webhook deliveries: event id and type, reduced to ids, amounts and statuses | `payment_webhook_events` | Recognising repeated deliveries, tracing payment problems, Art. 6(1)(f) | 90 days (`app.retention.payment-webhook-events`) |
+| PayPal payments: PayPal order and capture ids, amount, status, refunded amount, decline reason — no PayPal account, payer name or email | `payments` | Contract Art. 6(1)(b); accounting Art. 6(1)(c) | With the order (statutory retention) |
+| Stripe and PayPal webhook deliveries: event id and type, reduced to ids, amounts and statuses | `payment_webhook_events` | Recognising repeated deliveries, tracing payment problems, Art. 6(1)(f) | 90 days (`app.retention.payment-webhook-events`) |
 | Internal order notes and status-change notes written by the shop (may mention the customer) | `order_notes`, `order_status_history.note` | Running the order, Art. 6(1)(b)/(f) | With the order (statutory retention) |
 | Shipments: carrier, tracking number, tracking link, shipping and delivery time | `shipments` | Delivering the order and answering where it is, Art. 6(1)(b) | With the order (statutory retention) |
 | Account lock: time, the admin who locked it and the reason they gave | `users.status`/`locked_until` + audit entries `ACCOUNT_LOCKED_BY_SHOP`/`ACCOUNT_UNLOCKED_BY_SHOP` | Protecting the shop against abuse, Art. 6(1)(f) | Entries stay (IP address erased after 90 days); the reason should be factual and short |
@@ -944,10 +948,11 @@ adviser.
 cart) are strictly necessary for services the visitor asks for, so no consent banner is
 needed (§ 25(2) no. 2 TDDDG). Adding analytics, tracking, external fonts, maps or videos
 would change that. Fonts are self-hosted; the only third-party requests are made by
-Stripe.js, and only on the card payment page (`/checkout/pay/…`): Stripe sets its own
-cookies there for fraud prevention, which we treat as necessary for the payment the
-customer asked for (to be confirmed by the legal adviser). The privacy policy must name
-Stripe (Stripe Payments Europe, Ltd.) as the recipient of payment data for card payments.
+Stripe.js or PayPal's script, and only on the payment page (`/checkout/pay/…`) of an order
+paid that way: Stripe and PayPal set their own cookies there for fraud prevention, which we
+treat as necessary for the payment the customer asked for (to be confirmed by the legal
+adviser). The privacy policy must name Stripe (Stripe Payments Europe, Ltd.) and PayPal
+(PayPal (Europe) S.à r.l. et Cie, S.C.A.) as recipients of payment data for their methods.
 
 **Payment data:** no card or bank details of customers are stored. Bank transfers go to
 the shop's account (configured in the environment, not in the database). For card payment
@@ -956,7 +961,10 @@ reach our servers (PCI DSS SAQ A). The shop keeps only the PaymentIntent id, amo
 status and decline code; webhook payloads are reduced to ids, amounts and statuses before
 they are stored, because Stripe's events also carry names, addresses and the last digits of
 cards. Stripe's "Link" (saving card details in a Stripe account) is switched off in the
-payment form.
+payment form. With PayPal the customer signs in at PayPal; the shop sends PayPal only the
+order number and amount (no address: `NO_SHIPPING`) and keeps the PayPal order and capture
+ids, amounts, status and decline reason. PayPal's answers and events carry the payer's name
+and email; neither is stored or logged.
 
 **Account deletion:** the user row is anonymised (`status = 'ANONYMISED'`, email
 replaced with a placeholder, names and phone cleared, password hash and newsletter

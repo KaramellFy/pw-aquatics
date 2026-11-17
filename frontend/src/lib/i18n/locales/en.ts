@@ -706,6 +706,7 @@ export const en = {
       cancelConfirmText:
         'The animals go back on sale. If you have already transferred the money, please contact us and we will refund it.',
       cancelConfirmTextCard: 'The animals go back on sale and nothing is charged to your card.',
+      cancelConfirmTextPayPal: 'The animals go back on sale and nothing is taken through PayPal.',
       cancelConfirm: 'Cancel order',
       keep: 'Keep order',
     },
@@ -720,6 +721,11 @@ export const en = {
       title: 'Payment outstanding',
       text: 'Please complete your card payment by {{time}}. After that the order is cancelled automatically and the animals go back on sale.',
       payNow: 'Pay now',
+    },
+    payPalPayment: {
+      title: 'Payment outstanding',
+      text: 'Please complete your PayPal payment by {{time}}. After that the order is cancelled automatically and the animals go back on sale.',
+      payNow: 'Pay with PayPal',
     },
     payment: {
       title: 'Pay by bank transfer',
@@ -791,7 +797,8 @@ export const en = {
           'Visa, Mastercard and other cards – or Apple Pay and Google Pay where your device offers them. You pay right after ordering; we ship once the payment is confirmed.',
         BANK_TRANSFER:
           'You receive our bank details right after ordering and by email. We ship once your payment has arrived.',
-        PAYPAL: 'You pay with your PayPal account right after ordering.',
+        PAYPAL:
+          'You pay with PayPal right after ordering, in PayPal’s own window. We ship once the payment is confirmed.',
       },
       noPayment: 'No payment method is available at the moment. Please try again later.',
       note: 'Note for your order (optional)',
@@ -836,6 +843,12 @@ export const en = {
         payNow: 'Pay now',
         retry: 'Try again',
       },
+      paypal: {
+        confirming: 'We are confirming your PayPal payment …',
+        pending:
+          'PayPal is still checking your payment. As soon as it is through, we will email you – there is nothing more you need to do.',
+        payNow: 'Pay with PayPal',
+      },
     },
     pay: {
       metaTitle: 'Payment – PW Aquatics',
@@ -853,6 +866,18 @@ export const en = {
         'You enter your card details directly with Stripe, our payment provider, and they are sent encrypted. We never see or store them.',
       later: 'You can also pay later from your order page while the animals are reserved.',
       viewOrder: 'View order',
+      paypal: {
+        loading: 'Loading PayPal …',
+        confirming: 'Confirming your payment with PayPal …',
+        declined:
+          'PayPal could not take the payment this way. Please choose another way to pay in the PayPal window.',
+        cancelled: 'You closed PayPal before paying. You can start again whenever you like.',
+        failed: 'The payment with PayPal could not be completed. Please try again.',
+        loadFailed:
+          'PayPal could not be loaded. Please check your internet connection – content blockers can also prevent it – and try again.',
+        secure:
+          'You sign in and pay in PayPal’s own window. We never see your PayPal login or your bank or card details.',
+      },
     },
   },
   shippingPause: {
@@ -1499,6 +1524,7 @@ export const en = {
       refunded: 'Refunded',
       cancelledAt: 'Cancelled on',
       openInStripe: 'Open in Stripe',
+      openInPayPal: 'Open in PayPal',
       refundReminder: 'This order was paid. Refund the money in Stripe or by bank transfer.',
       dialogs: {
         customerMessage: 'Message to the customer',
@@ -1528,6 +1554,7 @@ export const en = {
         reasonHint: 'Kept with the order; the customer does not see it.',
         restock: 'Put the animals back on sale',
         refundCard: 'This order was paid by card. Refund {{amount}} in the Stripe Dashboard afterwards.',
+        refundPayPal: 'This order was paid with PayPal. Refund {{amount}} in your PayPal account afterwards.',
         refundTransfer: 'This order was paid by bank transfer. Transfer {{amount}} back afterwards.',
       },
     },
