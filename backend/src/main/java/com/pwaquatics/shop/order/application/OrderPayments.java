@@ -5,6 +5,7 @@ import com.pwaquatics.shop.common.config.AppProperties;
 import com.pwaquatics.shop.common.error.ConflictException;
 import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.error.RateLimitedException;
+import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.notification.application.OutboxService;
 import com.pwaquatics.shop.order.application.view.CardPaymentView;
 import com.pwaquatics.shop.order.application.view.PayPalCaptureView;
@@ -224,13 +225,27 @@ public class OrderPayments implements PayableOrders {
     @Transactional(propagation = Propagation.MANDATORY)
     public void paymentRefunded(PaymentRefunded refund) {
         Order order = order(refund.orderId());
-        if (order.recordRefund(refund.full(), clock.instant())) {
+        if (order.recordRefund(refund.full(), refund.any(), clock.instant())) {
             audit.record(null, "ORDER_REFUNDED", "ORDER", order.getId(),
                     Map.of("orderNumber", order.getOrderNumber(),
                             "refundedCents", refund.totalRefunded().amount(),
                             "full", refund.full()),
                     null);
         }
+    }
+
+    /**
+     * A refund the provider had accepted failed afterwards: the customer has not got the money
+     * back. The shop inbox is told, so the owner can pay it back another way.
+     */
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void refundFailed(UUID orderId, Money amount) {
+        Order order = order(orderId);
+        log.warn("A refund for order {} failed at the payment provider; the shop inbox has been told", order.getId());
+        outbox.enqueueEmail(emails.refundFailed(order, amount, shopInbox));
+        audit.record(null, "ORDER_REFUND_FAILED", "ORDER", order.getId(),
+                Map.of("orderNumber", order.getOrderNumber(), "amountCents", amount.amount()), null);
     }
 
     private Order order(UUID orderId) {

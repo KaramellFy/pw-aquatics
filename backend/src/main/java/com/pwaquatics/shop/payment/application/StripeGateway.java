@@ -27,6 +27,30 @@ public interface StripeGateway {
     }
 
     /**
+     * A refund at Stripe. {@code status} is Stripe's value: {@code succeeded}, {@code pending},
+     * {@code requires_action}, {@code failed} or {@code canceled}.
+     */
+    record RefundData(String id, String status, Money amount) {}
+
+    /**
+     * Stripe would not make the refund, e.g. {@code charge_already_refunded} or
+     * {@code amount_too_large} (Stripe's error code).
+     */
+    final class RefundRefused extends RuntimeException {
+
+        private final String code;
+
+        public RefundRefused(String code) {
+            super("Stripe refused the refund: " + code);
+            this.code = code;
+        }
+
+        public String code() {
+            return code;
+        }
+    }
+
+    /**
      * Creates the PaymentIntent for an order, for card payments (which include Apple Pay and
      * Google Pay). Repeating the call for the same order returns the same PaymentIntent.
      *
@@ -41,4 +65,12 @@ public interface StripeGateway {
      * succeeded or is being processed is returned unchanged instead.
      */
     PaymentIntentData cancelPaymentIntent(String paymentIntentId);
+
+    /**
+     * Pays money of a PaymentIntent back to the customer. Repeating the call with the same
+     * {@code idempotencyKey} returns the same refund instead of making another one.
+     *
+     * @throws RefundRefused if Stripe refuses the refund
+     */
+    RefundData refund(String paymentIntentId, Money amount, String idempotencyKey);
 }

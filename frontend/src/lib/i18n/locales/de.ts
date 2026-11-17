@@ -423,6 +423,14 @@ export const de: Messages = {
       'Dieser Gutschein wurde schon eingelöst und bleibt deshalb erhalten. Schalte ihn stattdessen ab.',
     ORDER_TOTAL_ZERO:
       'Eine Bestellung ohne zu zahlenden Betrag kann nicht online aufgegeben werden. Bitte melde dich bei uns.',
+    NOT_REFUNDABLE:
+      'Hier gibt es nichts zu erstatten: Die Zahlung ist nicht eingegangen oder schon vollständig erstattet.',
+    REFUNDS_CHANGED:
+      'Der noch erstattbare Betrag hat sich inzwischen geändert. Bitte prüfe den neuen Betrag.',
+    REFUND_AMOUNT_INVALID: 'Erstatte mindestens 0,01 und höchstens den noch erstattbaren Betrag.',
+    REFUND_REFUSED: 'Der Zahlungsanbieter hat die Erstattung abgelehnt. Es wurde nichts zurückgezahlt.',
+    IDEMPOTENCY_KEY_REUSED:
+      'Diese Erstattung passt nicht zu deinem vorherigen Versuch. Bitte lade die Bestellung neu.',
     FORBIDDEN: 'Dazu bist du nicht berechtigt.',
     generic: 'Etwas ist schiefgelaufen. Bitte versuche es gleich noch einmal.',
   },
@@ -1551,6 +1559,7 @@ export const de: Messages = {
         addParcel: 'Weiteres Paket erfassen',
         markDelivered: 'Als zugestellt markieren',
         cancel: 'Bestellung stornieren',
+        refund: 'Erstatten',
       },
       sku: 'Artikelnr. {{sku}}',
       parcels: 'Pakete',
@@ -1581,7 +1590,17 @@ export const de: Messages = {
       cancelledAt: 'Storniert am',
       openInStripe: 'In Stripe öffnen',
       openInPayPal: 'In PayPal öffnen',
-      refundReminder: 'Diese Bestellung war bezahlt. Erstatte das Geld in Stripe oder per Überweisung.',
+      refundReminder: 'Diese Bestellung war bezahlt. Erstatte das Geld unten mit „Erstatten“.',
+      refundReminderTransfer:
+        'Diese Bestellung war bezahlt. Überweise das Geld zurück und notiere es bei der Bestellung.',
+      refunds: 'Erstattungen',
+      refundBy: 'von {{name}}',
+      refundFailedBecause: 'Beim Anbieter fehlgeschlagen: {{code}}',
+      refundStatuses: {
+        PENDING: 'Unterwegs',
+        SUCCEEDED: 'Erstattet',
+        FAILED: 'Fehlgeschlagen',
+      },
       dialogs: {
         customerMessage: 'Nachricht an die Kundschaft',
         customerMessageHint: 'Steht in der E-Mail und bei der Bestellung.',
@@ -1611,11 +1630,21 @@ export const de: Messages = {
         reason: 'Grund (intern)',
         reasonHint: 'Bleibt bei der Bestellung; die Kundschaft sieht ihn nicht.',
         restock: 'Tiere wieder in den Verkauf geben',
-        refundCard:
-          'Diese Bestellung wurde per Karte bezahlt. Erstatte danach {{amount}} im Stripe-Dashboard.',
-        refundPayPal:
-          'Diese Bestellung wurde mit PayPal bezahlt. Erstatte danach {{amount}} in deinem PayPal-Konto.',
+        refundOnline:
+          'Diese Bestellung ist bezahlt. Erstatte danach {{amount}} mit „Erstatten“ auf der Bestellseite.',
         refundTransfer: 'Diese Bestellung wurde per Überweisung bezahlt. Überweise danach {{amount}} zurück.',
+        refundTitle: 'Bestellung {{number}} erstatten',
+        refundTextCard:
+          'Das Geld geht über Stripe auf die Karte zurück, mit der bezahlt wurde. Eine Erstattung lässt sich nicht rückgängig machen.',
+        refundTextPayPal:
+          'Das Geld geht auf das PayPal-Konto der Kundschaft zurück. Eine Erstattung lässt sich nicht rückgängig machen.',
+        refundSummary: 'Bezahlt {{paid}} · bisher erstattet {{refunded}}',
+        refundAmount: 'Zu erstattender Betrag',
+        refundAmountHint: 'Höchstens {{max}}. Für eine Teilerstattung verringern.',
+        refundAmountInvalid: 'Gib einen Betrag von 0,01 bis {{max}} ein.',
+        refundReason: 'Interner Grund',
+        refundReasonHint: 'Bleibt bei der Erstattung; die Kundschaft sieht ihn nicht.',
+        refundConfirm: '{{amount}} erstatten',
       },
     },
     packingSlip: {

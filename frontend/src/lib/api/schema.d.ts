@@ -717,6 +717,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders/{orderNumber}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pay all or part of a card or PayPal payment back through the provider (repeating a request with the same Idempotency-Key makes no second refund) */
+        post: operations["refund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders/{orderNumber}/notes": {
         parameters: {
             query?: never;
@@ -2066,6 +2083,7 @@ export interface components {
             markDelivered: boolean;
             cancel: boolean;
             removeShipment: boolean;
+            refund: boolean;
         };
         OrderAddressView: {
             firstName: string;
@@ -2154,6 +2172,19 @@ export interface components {
             reference: string;
             amount: components["schemas"]["Money"];
         };
+        PaymentRefundView: {
+            /** Format: uuid */
+            id: string;
+            amount: components["schemas"]["Money"];
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED";
+            /** Format: date-time */
+            createdAt: string;
+            reference: string | null;
+            reason: string | null;
+            failureCode: string | null;
+            requestedBy: string | null;
+        };
         PaymentSummaryView: {
             /** @enum {string} */
             provider: "BANK_TRANSFER" | "STRIPE" | "PAYPAL";
@@ -2162,6 +2193,8 @@ export interface components {
             status: "CREATED" | "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "REFUNDED" | "PARTIALLY_REFUNDED";
             amount: components["schemas"]["Money"];
             refunded: components["schemas"]["Money"];
+            refundable: components["schemas"]["Money"];
+            refunds: components["schemas"]["PaymentRefundView"][];
             methodDetail: string | null;
             failureCode: string | null;
             dashboardUrl: string;
@@ -2559,6 +2592,15 @@ export interface components {
             trackingNumber: string;
             /** Format: date */
             shippedOn?: string;
+            customerMessage?: string;
+            notifyCustomer?: boolean;
+        };
+        RefundRequest: {
+            /** Format: int64 */
+            amountCents?: number;
+            /** Format: int64 */
+            expectedRefundableCents?: number;
+            reason?: string;
             customerMessage?: string;
             notifyCustomer?: boolean;
         };
@@ -4612,6 +4654,34 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminOrderView"];
+                };
+            };
+        };
+    };
+    refund: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                orderNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundRequest"];
             };
         };
         responses: {

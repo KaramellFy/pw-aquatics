@@ -29,11 +29,18 @@ public class StripePayments {
     private final StripeGateway stripe;
     private final PaymentRepository payments;
     private final AppProperties.Stripe account;
+    private final RefundHistory history;
     private final Clock clock;
 
-    StripePayments(StripeGateway stripe, PaymentRepository payments, AppProperties properties, Clock clock) {
+    StripePayments(
+            StripeGateway stripe,
+            PaymentRepository payments,
+            RefundHistory history,
+            AppProperties properties,
+            Clock clock) {
         this.stripe = stripe;
         this.payments = payments;
+        this.history = history;
         this.account = properties.stripe();
         this.clock = clock;
     }
@@ -47,6 +54,8 @@ public class StripePayments {
                 payment.getStatus(),
                 payment.amount(),
                 payment.refunded(),
+                payment.refundable(),
+                history.of(payment),
                 payment.getMethodDetail(),
                 payment.getFailureCode(),
                 "https://dashboard.stripe.com/" + (account.isTestMode() ? "test/" : "") + "payments/"

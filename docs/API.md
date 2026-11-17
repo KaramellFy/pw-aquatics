@@ -79,8 +79,8 @@ stable `code` the frontend can switch on:
 | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS` |
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
-| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `COUPON_IN_USE`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `CONFIRMATION_REQUIRED`, `LAST_SIGN_IN_METHOD`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `COUPON_IN_USE`, `NOT_REFUNDABLE`, `REFUNDS_CHANGED`, `IDEMPOTENCY_KEY_REUSED`, `CONFLICT` (optimistic lock), `DUPLICATE` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `CONFIRMATION_REQUIRED`, `LAST_SIGN_IN_METHOD`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED`, `REFUND_AMOUNT_INVALID`, `REFUND_REFUSED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
@@ -678,7 +678,9 @@ the server has heard from Stripe.
 
 **`POST /webhooks/stripe`** — configured in the Stripe Dashboard (Developers → Webhooks)
 for `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.payment_failed`,
-`payment_intent.canceled` and `charge.refunded`; its signing secret is `STRIPE_WEBHOOK_SECRET`.
+`payment_intent.canceled`, `charge.refunded`, `refund.updated` and `refund.failed`
+(older API versions send `charge.refund.updated` instead, which is handled the same); its
+signing secret is `STRIPE_WEBHOOK_SECRET`.
 
 - The `Stripe-Signature` header is checked against the raw body (5 minutes tolerance);
   missing or wrong → `400 WEBHOOK_SIGNATURE_INVALID`. A signed body that is not an event →
@@ -694,8 +696,14 @@ for `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.pay
   the meantime it stays cancelled and the shop inbox is told, so the owner can refund.
 - `payment_intent.payment_failed` records the decline reason; the order stays open and
   can be paid with another card until `paymentDueAt`.
-- `charge.refunded` (refunds are made in the Stripe Dashboard) sets `paymentStatus` to
-  `PARTIALLY_REFUNDED` or `REFUNDED`; the order status stays for the owner to decide.
+- `charge.refunded` (refunds from the admin order page or the Stripe Dashboard) sets
+  `paymentStatus` to `PARTIALLY_REFUNDED` or `REFUNDED` from Stripe's total; the order status
+  stays for the owner to decide. A refund the admin page already counted changes nothing.
+- `refund.updated` / `refund.failed` / `charge.refund.updated` for a refund made from the admin
+  page: `succeeded` marks it as refunded; `failed` or `canceled` (e.g. the card account was
+  closed, also after it had succeeded) takes the amount back off the refunded total, records
+  Stripe's `failure_reason`, and tells the shop inbox so the owner can pay it back another way.
+  Refunds made in the Dashboard are not listed and only count through `charge.refunded`.
 - Events for PaymentIntents the shop did not create, and other event types, are
   acknowledged (`204`) and ignored.
 
@@ -756,8 +764,10 @@ Credentials → the app → Webhooks) for `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CA
   noted as `amount mismatch`); the order turns `PAID` once. `…PENDING` keeps it waiting;
   `…DENIED`/`…DECLINED` record the reason. A capture completed for a cancelled order leaves it
   cancelled and tells the shop inbox, as for Stripe.
-- `PAYMENT.CAPTURE.REFUNDED`/`REVERSED` (refunds are made in the PayPal account) set
-  `paymentStatus` to `PARTIALLY_REFUNDED` or `REFUNDED` from the total refunded so far.
+- `PAYMENT.CAPTURE.REFUNDED`/`REVERSED` (refunds from the admin order page or the PayPal
+  account) set `paymentStatus` to `PARTIALLY_REFUNDED` or `REFUNDED` from the total refunded so
+  far. For a refund made from the admin page, `COMPLETED` marks it as refunded (it may have been
+  `PENDING` until then).
 
 **Local development:** PayPal cannot reach `localhost`; a payment completes without webhooks
 because the server captures it. To try webhooks, register a public address (e.g. a tunnel).
@@ -891,28 +901,34 @@ simultaneous changes), a ledger entry and an audit record in one transaction.
 | GET | `/admin/orders/{orderNumber}` | Admin order view (below) |
 | POST | `/admin/orders/{orderNumber}/mark-paid` | Bank transfer received `{ paidOn?, note?, notifyCustomer = true }`. `paidOn` is the day the money arrived (default today; not in the future, not more than a day before the order → `422 DATE_INVALID`). Card orders → `409 PAID_BY_PROVIDER` (only Stripe's webhook marks them). Emails "payment received" |
 | POST | `/admin/orders/{orderNumber}/status` | `{ status: PROCESSING \| DELIVERED, note?, customerMessage?, notifyCustomer = true }` — being packed, or arrived (sets `deliveredAt` on every parcel). Other statuses have their own action → `409 INVALID_STATUS_TRANSITION`; so does any move the state machine refuses |
-| POST | `/admin/orders/{orderNumber}/cancel` | `{ reason, customerMessage?, restock = true, notifyCustomer = true }` — until shipped (later → `409 INVALID_STATUS_TRANSITION`). `restock: false` keeps the animals off sale (e.g. lost). An unpaid card order's PaymentIntent is cancelled first (`409 ORDER_NOT_CANCELLABLE` while Stripe processes it). Paid orders can be cancelled too; the refund is made in the Stripe Dashboard or by bank transfer (refunds via the API follow in Phase 9). The reason stays internal; the customer message goes into the email |
+| POST | `/admin/orders/{orderNumber}/cancel` | `{ reason, customerMessage?, restock = true, notifyCustomer = true }` — until shipped (later → `409 INVALID_STATUS_TRANSITION`). `restock: false` keeps the animals off sale (e.g. lost). An unpaid card order's PaymentIntent is cancelled first (`409 ORDER_NOT_CANCELLABLE` while Stripe processes it). Paid orders can be cancelled too; refund them afterwards with `/refunds` (card and PayPal) or by bank transfer. The reason stays internal; the customer message goes into the email |
 | POST | `/admin/orders/{orderNumber}/notes` | `{ body }` (1–2000 characters) — internal note, never shown to the customer |
 | POST | `/admin/orders/{orderNumber}/shipments` | `{ carrier, trackingNumber, shippedOn?, customerMessage?, notifyCustomer = true }`. `carrier` must be one of `carriers` (`422 CARRIER_UNKNOWN`); `trackingNumber` 4–40 letters, digits and spaces (spaces are dropped); `shippedOn` defaults to today (`422 DATE_INVALID` if before the order or in the future). The first parcel moves a paid order to `SHIPPED` (through `PROCESSING` if packing was not recorded) and emails the tracking link; later parcels of a split order are only added. Unpaid or cancelled orders → `409 INVALID_STATUS_TRANSITION` |
 | PUT | `/admin/orders/{orderNumber}/shipments/{id}` | `{ carrier, trackingNumber }` — correct a parcel (no email) |
 | DELETE | `/admin/orders/{orderNumber}/shipments/{id}` | Remove a parcel entered by mistake; the only parcel of a shipped order stays → `422 LAST_SHIPMENT` |
-| POST | `/admin/orders/{orderNumber}/refunds` | Phase 9: `{ amount, reason }` via payment provider |
+| POST | `/admin/orders/{orderNumber}/refunds` | Pays all or part of a card or PayPal payment back through the provider, in any order status. Header `Idempotency-Key` (16–100 of `A-Z a-z 0-9 _ -`, required); body `{ amountCents, expectedRefundableCents, reason?, customerMessage?, notifyCustomer = true }`. `expectedRefundableCents` is the `payment.refundable` the owner saw; if it changed meanwhile (another refund here or in the provider's dashboard) → `409 REFUNDS_CHANGED`. `amountCents` from 1 to what is left (`422 REFUND_AMOUNT_INVALID`). Bank transfers, unpaid or fully refunded payments → `409 NOT_REFUNDABLE`; provider not set up → `409 PAYMENT_METHOD_UNAVAILABLE`; the provider says no (e.g. disputed, past PayPal's time limit) → `422 REFUND_REFUSED` with the provider's code in `detail`, and nothing is recorded; provider unreachable → `503 PAYMENT_PROVIDER_UNAVAILABLE`. Repeating a request with the same key returns the order without a second refund, email or audit entry; the same key with another amount → `409 IDEMPOTENCY_KEY_REUSED`. The key is passed on to the provider (`refund-<key>`). A refund counts as refunded as soon as the provider accepts it (`SUCCEEDED`, or `PENDING` while the provider pays it out). Emails the customer the amount and where the money goes (card or PayPal account) with the optional message |
 | GET | `/admin/orders/export?from=&to=` | CSV export (later) |
 
 Every action locks the order, answers with the full admin order view and is written to the
 audit log (`ORDER_MARKED_PAID`, `ORDER_STATUS_CHANGED`, `ORDER_CANCELLED_BY_SHOP`,
-`ORDER_NOTE_ADDED`, `ORDER_SHIPPED`, `SHIPMENT_CORRECTED`, `SHIPMENT_REMOVED`).
+`ORDER_NOTE_ADDED`, `ORDER_SHIPPED`, `SHIPMENT_CORRECTED`, `SHIPMENT_REMOVED`,
+`ORDER_REFUNDED_BY_SHOP`). Changes the providers report are written by the system
+(`ORDER_PAID`, `ORDER_REFUNDED`, `ORDER_REFUND_FAILED`).
 An order number that does not match `PW-yyyy-nnnnnn` → `400`; unknown → `404`.
 
 **Admin order view:** `order` (the customer's order detail, §2.6, including `shipments`),
 `customerId` (null for a deleted account), `customerEmail`, `customerLocale`, `paidAt`,
 `cancelledAt`, `cancellationReason`, `history` (`from`, `to`, `at`, `note` — internal,
 `customerMessage`, `changedBy` — a name, or null for the system), `notes` (`id`, `body`,
-`at`, `author`), `payment` (card orders: `provider`, `reference`, `status`, `amount`,
-`refunded`, `methodDetail`, `failureCode`, `dashboardUrl`; `null` for bank transfers),
-`carriers` (names for the shipment form) and `actions` — which steps are possible right
-now, decided by the server: `markPaid`, `startProcessing`, `ship`, `markDelivered`,
-`cancel`, `removeShipment`.
+`at`, `author`), `payment` (card and PayPal orders: `provider`, `reference`, `status`,
+`amount`, `refunded` — everything refunded so far, `refundable` — what is left, zero until the
+money has arrived, `refunds` — refunds made from this page, oldest first: `id`, `amount`,
+`status` (`PENDING`, `SUCCEEDED`, `FAILED`), `createdAt`, `reference`, `reason`,
+`failureCode`, `requestedBy` (a name); `methodDetail`, `failureCode`, `dashboardUrl`; `null`
+for bank transfers), `carriers` (names for the shipment form) and `actions` — which steps are
+possible right now, decided by the server: `markPaid`, `startProcessing`, `ship`,
+`markDelivered`, `cancel`, `removeShipment`, `refund` (something left to refund and the
+provider set up).
 
 **Packing slip:** a printable page in the admin app (`/admin/orders/{orderNumber}/packing-slip`)
 built from the admin order view: delivery address, shipping method and dispatch day,

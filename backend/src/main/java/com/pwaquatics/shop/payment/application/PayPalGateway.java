@@ -63,6 +63,30 @@ public interface PayPalGateway {
         }
     }
 
+    /**
+     * A refund of a capture. {@code status} is PayPal's value: {@code COMPLETED}, {@code PENDING},
+     * {@code FAILED} or {@code CANCELLED}.
+     */
+    record Refund(String id, String status, Money amount) {}
+
+    /**
+     * PayPal would not make the refund, e.g. {@code REFUND_AMOUNT_EXCEEDED},
+     * {@code CAPTURE_FULLY_REFUNDED} or {@code REFUND_TIME_LIMIT_EXCEEDED} (PayPal's issue code).
+     */
+    final class RefundRefused extends RuntimeException {
+
+        private final String issue;
+
+        public RefundRefused(String issue) {
+            super("PayPal refused the refund: " + issue);
+            this.issue = issue;
+        }
+
+        public String issue() {
+            return issue;
+        }
+    }
+
     /** The headers PayPal sends with a webhook delivery; PayPal checks them against the body. */
     record WebhookSignature(
             @Nullable String authAlgo,
@@ -105,4 +129,12 @@ public interface PayPalGateway {
      * @param payload the request body exactly as received
      */
     boolean isGenuine(WebhookSignature signature, String payload);
+
+    /**
+     * Pays money of a capture back to the customer. Repeating the call with the same
+     * {@code idempotencyKey} returns the same refund instead of making another one.
+     *
+     * @throws RefundRefused if PayPal refuses the refund
+     */
+    Refund refund(String captureId, Money amount, String idempotencyKey);
 }

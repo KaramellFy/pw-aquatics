@@ -73,8 +73,32 @@ the browser never decides that an order is paid — with PayPal's own flow:
 
 Consequences: PayPal's script sets cookies and contacts PayPal hosts on the payment page only
 (CSP: `*.paypal.com`, `*.paypalobjects.com`); the privacy policy must name PayPal. Production
-needs the webhook registered for the REST app. Refunds are made in the PayPal account; the shop
-records them from the refund events.
+needs the webhook registered for the REST app. Refunds are made from the admin order page (see
+the refunds addendum); refunds made in the PayPal account are recorded from the refund events.
+
+## Addendum (2026-11-17): Refunds from the admin
+
+The owner refunds card and PayPal payments, all or part, from the admin order page; the shop
+asks the provider that took the money (Stripe's Refunds API, PayPal's capture refund).
+
+- **The amount comes from the stored payment:** at most what is left (`amount − refunded`),
+  checked under the order's and the payment's locks. The request also carries the refundable
+  amount the owner saw; if a refund was made meanwhile (another tab, the provider's dashboard)
+  the server answers `REFUNDS_CHANGED` instead of refunding against a stale figure.
+- **Never twice:** every request carries an idempotency key, stored with the refund and passed
+  on to the provider (`refund-<key>`). A repeat returns the first refund; the admin app keeps
+  the key until the server has answered.
+- **Counted when accepted:** a refund counts as refunded as soon as the provider accepts it,
+  pending ones included, as Stripe and PayPal count them, so the shop's total agrees with the
+  provider's refund events. A refusal (or a refund failed at once) rolls the transaction back.
+- **Later failures are taken back:** Stripe can fail a refund afterwards (e.g. a closed card
+  account). `refund.updated`/`refund.failed` then subtract it again, mark it failed and tell the
+  shop inbox; the order's payment status follows (back to paid if nothing is left refunded).
+- **Bank transfers** are paid back by the owner's own transfer, outside the shop.
+
+Accepted risk: if the provider's answer is lost after it made the refund (a timeout), nothing
+is recorded locally; the provider's refund event still updates the total, and repeating the
+request with the same key returns the provider's refund.
 
 ## Alternatives considered
 
@@ -97,4 +121,6 @@ records them from the refund events.
   policy must name Stripe, and a CSP must allow Stripe's hosts.
 - Production needs the webhook endpoint registered in the Stripe Dashboard, and Apple Pay
   needs domain verification. Locally, the Stripe CLI forwards events.
-- Refunds are made in the Stripe Dashboard; the shop records them from `charge.refunded`.
+- Refunds are made from the admin order page (addendum above); refunds made in the Stripe
+  Dashboard are recorded from `charge.refunded`. The webhook needs `refund.updated` and
+  `refund.failed` as well.

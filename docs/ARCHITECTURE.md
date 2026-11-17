@@ -398,7 +398,7 @@ not shipped returns stock.
   The list is a JDBC read model (`AdminOrderQueries`), so the search never loads entities.
 - **Marking paid** is for bank transfers only; card orders are paid by Stripe's webhook alone
   (`PAID_BY_PROVIDER`). Cancelling by the shop reuses `OrderCancellation` (PaymentIntent
-  first, then stock back unless the animals are lost); refunds stay manual until Phase 9.
+  first, then stock back unless the animals are lost). Refunds are their own action (below).
 - **Shipments** belong to the order aggregate (no separate `fulfilment` module: a parcel
   has no life of its own). The first parcel moves a paid order on to `SHIPPED` and emails
   the tracking link through the outbox; carriers and their tracking URL templates are
@@ -467,7 +467,9 @@ payment module                                 order module
 ├── PayPalPayments        (one PayPal order    │                     implements PayableOrders
 │                          per order, capture) │                     (lock, paid, refunded)
 ├── PayPalWebhooks        (PayPal confirms,    ├── OrderCancellation stops the open payment first
-│   + PayPalEventProcessor  store, process)    │
+│   + PayPalEventProcessor  store, process)    ├── AdminOrderService.refund() → PaymentRefunds
+├── PaymentRefunds        (admin refunds via   │
+│                          Stripe or PayPal)   │
 ├── PayableOrders ◄─────── implemented by ─────┘
 ├── StripeGateway → StripeApiClient (stripe-java; replaced by a fake in tests)
 └── PayPalGateway → PayPalApiClient (JDK HttpClient, Orders v2; replaced by a fake in tests)
@@ -489,7 +491,15 @@ payment module                                 order module
 - Unpaid card and PayPal orders expire after `ORDER_CARD_PAYMENT_MINUTES` (default 60). Expiry and
   customer cancellation first cancel the PaymentIntent at Stripe; if Stripe already has the
   money or is processing it, the order stays and the webhook marks it paid.
-- Refunds are made in the Stripe Dashboard; `charge.refunded` updates `paymentStatus`.
+- **Refunds** (all or part, card and PayPal) are made from the admin order page:
+  `AdminOrderService.refund` locks the order and calls `PaymentRefunds`, which locks the
+  payment, checks the amount against what is left (and against what the owner saw, so a refund
+  made meanwhile is noticed), asks the provider (`StripeGateway.refund` / `PayPalGateway.refund`,
+  the admin request's idempotency key passed on) and records the answer in `payment_refunds`
+  in the same transaction. A refund counts as refunded once the provider accepts it; a refused
+  one rolls everything back. Webhooks finish pending refunds and take back one that fails later
+  (shop inbox told). Refunds made in the provider's dashboard still arrive through
+  `charge.refunded` / `PAYMENT.CAPTURE.REFUNDED`. Bank transfers are paid back by hand.
 - Apple Pay needs the shop's domain verified in the Stripe Dashboard; Google Pay needs HTTPS.
 - **PayPal** (ADR-010 addendum): the server creates one PayPal order per shop order for the
   stored total (`intent: CAPTURE`, no shipping address). PayPal's script (only on the payment

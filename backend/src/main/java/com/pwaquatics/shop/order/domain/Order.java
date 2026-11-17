@@ -345,17 +345,23 @@ public class Order extends AbstractEntity {
     }
 
     /**
-     * Records money paid back to the customer (refunds are made in the payment provider's
-     * dashboard). The status is left as it is: whether the order is cancelled is the owner's
-     * decision.
+     * Records how much of the payment has gone back to the customer (refunds from the admin
+     * order page or the provider's dashboard; back to paid when the only refund failed). The
+     * status is left as it is: whether the order is cancelled is the owner's decision.
      *
-     * @return false if the order was never paid, so there is nothing to record
+     * @param full the whole payment has been refunded
+     * @param any anything at all is refunded
+     * @return false if the order was never paid or nothing changed
      */
-    public boolean recordRefund(boolean full, Instant now) {
+    public boolean recordRefund(boolean full, boolean any, Instant now) {
         if (paymentStatus == PaymentStatus.UNPAID || paymentStatus == PaymentStatus.FAILED) {
             return false;
         }
-        paymentStatus = full ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
+        PaymentStatus next = full ? PaymentStatus.REFUNDED : any ? PaymentStatus.PARTIALLY_REFUNDED : PaymentStatus.PAID;
+        if (next == paymentStatus) {
+            return false;
+        }
+        paymentStatus = next;
         updatedAt = now;
         return true;
     }

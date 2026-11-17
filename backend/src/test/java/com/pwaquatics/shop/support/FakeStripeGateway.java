@@ -3,10 +3,12 @@ package com.pwaquatics.shop.support;
 import com.pwaquatics.shop.common.error.ServiceUnavailableException;
 import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.payment.application.StripeGateway;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.context.annotation.Primary;
 
@@ -25,7 +27,14 @@ public class FakeStripeGateway implements StripeGateway {
     private final Map<String, PaymentIntentData> intents = new ConcurrentHashMap<>();
     private final AtomicInteger sequence = new AtomicInteger();
     private final AtomicInteger createCalls = new AtomicInteger();
+    private final Map<String, RefundData> refundsByKey = new ConcurrentHashMap<>();
+    private final List<RefundCall> refundCalls = new CopyOnWriteArrayList<>();
+    private volatile String nextRefundRefusal;
+    private volatile String refundStatus = "succeeded";
     private volatile boolean down;
+
+    /** A refund the shop asked Stripe for. */
+    public record RefundCall(String paymentIntentId, Money amount, String idempotencyKey) {}
 
     @Override
     public PaymentIntentData createPaymentIntent(UUID orderId, String orderNumber, Money amount) {
@@ -55,7 +64,47 @@ public class FakeStripeGateway implements StripeGateway {
         return setStatus(paymentIntentId, "canceled");
     }
 
+    /** Like Stripe: the same idempotency key returns the first refund. */
+    @Override
+    public RefundData refund(String paymentIntentId, Money amount, String idempotencyKey) {
+        checkUp();
+        refundCalls.add(new RefundCall(paymentIntentId, amount, idempotencyKey));
+        RefundData earlier = refundsByKey.get(idempotencyKey);
+        if (earlier != null) {
+            return earlier;
+        }
+        String refusal = nextRefundRefusal;
+        if (refusal != null) {
+            nextRefundRefusal = null;
+            throw new RefundRefused(refusal);
+        }
+        RefundData refund = new RefundData("re_test_%06d".formatted(sequence.incrementAndGet()), refundStatus, amount);
+        refundsByKey.put(idempotencyKey, refund);
+        return refund;
+    }
+
     // ------------------------------------------------------------------ test controls
+
+    /** The next refund is refused, e.g. with {@code charge_disputed}. */
+    public void refuseNextRefund(String code) {
+        nextRefundRefusal = code;
+    }
+
+    /** What the next refunds report: {@code succeeded} (default), {@code pending} or {@code failed}. */
+    public void setRefundStatus(String status) {
+        refundStatus = status;
+    }
+
+    public List<RefundCall> refundCalls() {
+        return List.copyOf(refundCalls);
+    }
+
+    /** Back to normal refunds after a test that changed them. */
+    public void resetRefunds() {
+        nextRefundRefusal = null;
+        refundStatus = "succeeded";
+        down = false;
+    }
 
     /** What the customer's browser and Stripe did, e.g. {@code succeeded} or {@code processing}. */
     public PaymentIntentData setStatus(String paymentIntentId, String status) {

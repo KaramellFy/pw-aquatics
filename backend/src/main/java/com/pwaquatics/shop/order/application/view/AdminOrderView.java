@@ -52,6 +52,8 @@ public record AdminOrderView(
      * @param markDelivered the parcels have arrived
      * @param cancel cancel before shipping
      * @param removeShipment remove a parcel entered by mistake (only while there is more than one)
+     * @param refund pay money back through the provider (card or PayPal payments with something
+     *     left to refund, while that provider is set up)
      */
     public record OrderActions(
             boolean markPaid,
@@ -59,5 +61,6 @@ public record AdminOrderView(
             boolean ship,
             boolean markDelivered,
             boolean cancel,
-            boolean removeShipment) {}
+            boolean removeShipment,
+            boolean refund) {}
 }

@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,6 +47,7 @@ class AdminOrderController {
 
     private static final String ORDER_NUMBER = "PW-[0-9]{4}-[0-9]{6,12}";
     private static final String TRACKING_NUMBER = "[A-Za-z0-9 ]{4,40}";
+    private static final String IDEMPOTENCY_KEY = "[A-Za-z0-9_-]{16,100}";
 
     private final AdminOrderService orders;
 
@@ -72,6 +74,20 @@ class AdminOrderController {
             Boolean notifyCustomer) {}
 
     record NoteRequest(@NotBlank @Size(max = 2000) String body) {}
+
+    /**
+     * @param amountCents what to pay back
+     * @param expectedRefundableCents the refundable amount the owner saw ({@code payment.refundable});
+     *     if it changed in the meantime, the answer is {@code REFUNDS_CHANGED}
+     * @param reason internal reason
+     * @param customerMessage added to the refund email
+     */
+    record RefundRequest(
+            @Min(1) @Max(10_000_000) long amountCents,
+            @Min(0) @Max(10_000_000) long expectedRefundableCents,
+            @Size(max = 500) String reason,
+            @Size(max = 1000) String customerMessage,
+            Boolean notifyCustomer) {}
 
     record ShipmentRequest(
             @NotBlank @Size(max = 50) String carrier,
@@ -139,6 +155,20 @@ class AdminOrderController {
         return orders.cancel(orderNumber, request.reason().strip(), trimToNull(request.customerMessage()),
                 !Boolean.FALSE.equals(request.restock()), !Boolean.FALSE.equals(request.notifyCustomer()),
                 actor(principal, http));
+    }
+
+    @Operation(summary = "Pay all or part of a card or PayPal payment back through the provider "
+            + "(repeating a request with the same Idempotency-Key makes no second refund)")
+    @PostMapping("/{orderNumber}/refunds")
+    AdminOrderView refund(
+            @PathVariable @Pattern(regexp = ORDER_NUMBER) String orderNumber,
+            @RequestHeader("Idempotency-Key") @Pattern(regexp = IDEMPOTENCY_KEY) String idempotencyKey,
+            @Valid @RequestBody RefundRequest request,
+            @AuthenticationPrincipal ShopUserPrincipal principal,
+            HttpServletRequest http) {
+        return orders.refund(orderNumber, request.amountCents(), request.expectedRefundableCents(),
+                trimToNull(request.reason()), trimToNull(request.customerMessage()),
+                !Boolean.FALSE.equals(request.notifyCustomer()), idempotencyKey, actor(principal, http));
     }
 
     @Operation(summary = "Add an internal note (never shown to the customer)")

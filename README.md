@@ -40,7 +40,8 @@ stripe listen --forward-to localhost:8080/api/v1/webhooks/stripe
 Put the `whsec_…` it prints into `.env` as `STRIPE_WEBHOOK_SECRET` and restart the API. Pay
 with Stripe's test cards, e.g. `4242 4242 4242 4242` (success), `4000 0000 0000 0002`
 (declined) or `4000 0025 0000 3155` (3-D Secure), any future date and any CVC. Without the
-keys, the shop offers bank transfer only.
+keys, the shop offers bank transfer only. Refunds are made from the admin order page
+("Refund"); Stripe's test refunds succeed straight away.
 
 **PayPal (optional):** create a REST app in the PayPal Developer Dashboard (sandbox) and put
 `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_WEBHOOK_ID` into `.env`

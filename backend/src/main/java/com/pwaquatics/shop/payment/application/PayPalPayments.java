@@ -51,11 +51,18 @@ public class PayPalPayments {
     private final PayPalGateway paypal;
     private final PaymentRepository payments;
     private final AppProperties.PayPal account;
+    private final RefundHistory history;
     private final Clock clock;
 
-    PayPalPayments(PayPalGateway paypal, PaymentRepository payments, AppProperties properties, Clock clock) {
+    PayPalPayments(
+            PayPalGateway paypal,
+            PaymentRepository payments,
+            RefundHistory history,
+            AppProperties properties,
+            Clock clock) {
         this.paypal = paypal;
         this.payments = payments;
+        this.history = history;
         this.account = properties.paypal();
         this.clock = clock;
     }
@@ -75,6 +82,8 @@ public class PayPalPayments {
                 payment.getStatus(),
                 payment.amount(),
                 payment.refunded(),
+                payment.refundable(),
+                history.of(payment),
                 payment.getMethodDetail(),
                 payment.getFailureCode(),
                 payment.getCaptureReference() != null

@@ -33,6 +33,7 @@ const noActions = {
   markDelivered: false,
   cancel: false,
   removeShipment: false,
+  refund: false,
 };
 
 const placed: AdminOrder = {
@@ -294,6 +295,104 @@ describe('order detail', () => {
       }),
     );
     expect(await screen.findByText('This order is cancelled. Nothing more to do.')).toBeInTheDocument();
+  });
+
+  it('refunds part of a card payment with a request key and lists the refund', async () => {
+    const cardPayment = {
+      provider: 'STRIPE' as const,
+      reference: 'pi_123',
+      status: 'SUCCEEDED' as const,
+      amount: money(1770),
+      refunded: money(0),
+      refundable: money(1770),
+      refunds: [],
+      methodDetail: 'card',
+      failureCode: null,
+      dashboardUrl: 'https://dashboard.stripe.com/test/payments/pi_123',
+    };
+    const paidByCard: AdminOrder = {
+      ...paid,
+      order: { ...paid.order, paymentMethod: 'STRIPE' },
+      payment: cardPayment,
+      actions: { ...paid.actions, refund: true },
+    };
+    const refunded: AdminOrder = {
+      ...paidByCard,
+      order: { ...paidByCard.order, paymentStatus: 'PARTIALLY_REFUNDED' },
+      payment: {
+        ...cardPayment,
+        status: 'PARTIALLY_REFUNDED',
+        refunded: money(500),
+        refundable: money(1270),
+        refunds: [
+          {
+            id: 'r1',
+            amount: money(500),
+            status: 'SUCCEEDED',
+            createdAt: '2026-11-17T10:00:00Z',
+            reference: 're_1',
+            reason: 'Arrived dead',
+            failureCode: null,
+            requestedBy: 'Phil',
+          },
+        ],
+      },
+    };
+    let attempts = 0;
+    const fetchMock = mockApi({
+      '/auth/me': owner,
+      '/admin/orders/PW-2026-000042': paidByCard,
+      'POST /admin/orders/PW-2026-000042/refunds': () =>
+        ++attempts === 1
+          ? problem(422, 'REFUND_REFUSED', { detail: 'Stripe refused the refund (charge_disputed).' })
+          : refunded,
+    });
+    renderRoutes(routes, { path: '/admin/orders/PW-2026-000042' });
+
+    const payment = await screen.findByRole('region', { name: 'Payment' });
+    await userEvent.click(within(payment).getByRole('button', { name: 'Refund' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Refund order PW-2026-000042' });
+    expect(dialog).toHaveTextContent('Paid €17.70 · refunded so far €0.00');
+    const amount = within(dialog).getByLabelText('Amount to refund');
+    expect(amount).toHaveValue('17.70');
+
+    // More than is left is caught before asking the server.
+    await userEvent.clear(amount);
+    await userEvent.type(amount, '20');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Refund' }));
+    expect(within(dialog).getByText('Enter an amount from 0.01 to €17.70.')).toBeInTheDocument();
+    expect(attempts).toBe(0);
+
+    await userEvent.clear(amount);
+    await userEvent.type(amount, '5,00');
+    await userEvent.type(within(dialog).getByLabelText(/Internal reason/), 'Arrived dead');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Refund €5.00' }));
+    expect(
+      await within(dialog).findByText('The payment provider refused the refund. Nothing was paid back.'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('Stripe refused the refund (charge_disputed).')).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Refund €5.00' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(lastBody(fetchMock, 'POST', '/admin/orders/PW-2026-000042/refunds')).toEqual({
+      amountCents: 500,
+      expectedRefundableCents: 1770,
+      reason: 'Arrived dead',
+      notifyCustomer: true,
+    });
+    // The refused attempt was answered, so the next one is a new request with a new key.
+    const keys = fetchMock.mock.calls
+      .filter(([input, init]) => String(input).endsWith('/refunds') && init?.method === 'POST')
+      .map(([, init]) => (init?.headers as Record<string, string>)['Idempotency-Key']);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(keys[1]).not.toBe(keys[0]);
+
+    const refunds = within(payment).getByRole('region', { name: 'Refunds' });
+    expect(refunds).toHaveTextContent('€5.00');
+    expect(refunds).toHaveTextContent('Refunded');
+    expect(refunds).toHaveTextContent('by Phil');
+    expect(refunds).toHaveTextContent('Arrived dead');
   });
 
   it('prints a packing slip without prices', async () => {

@@ -32,7 +32,7 @@ public class StripeWebhooks {
 
     static final String PROVIDER = "STRIPE";
 
-    private static final List<String> TEXT_FIELDS = List.of("object", "id", "status", "currency", "payment_intent");
+    private static final List<String> TEXT_FIELDS = List.of("object", "id", "status", "currency", "payment_intent", "failure_reason");
     private static final List<String> NUMBER_FIELDS = List.of("amount", "amount_received", "amount_refunded");
 
     private final RateLimiter rateLimiter;
