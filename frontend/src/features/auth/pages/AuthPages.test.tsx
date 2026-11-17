@@ -86,6 +86,47 @@ describe('sign in', () => {
   });
 });
 
+describe('sign in with Google', () => {
+  it('offers Google above the password form and comes back to the page the visitor wanted', async () => {
+    mockApi({ '/auth/me': anonymous, '/auth/sign-in-options': { google: true } });
+    renderRoutes(routes, { path: '/login?redirect=%2Fcheckout' });
+
+    const google = await screen.findByRole('link', { name: 'Continue with Google' });
+    // A page load through the server, which sends the browser to Google.
+    expect(google).toHaveAttribute('href', '/api/v1/auth/google?returnTo=%2Fcheckout&intent=sign-in');
+    expect(screen.getByText(/Google shares your name and email address/)).toBeInTheDocument();
+  });
+
+  it('is offered on the registration page too', async () => {
+    mockApi({ '/auth/me': anonymous, '/auth/sign-in-options': { google: true } });
+    renderRoutes(routes, { path: '/register' });
+    expect(await screen.findByRole('link', { name: 'Continue with Google' })).toHaveAttribute(
+      'href',
+      '/api/v1/auth/google?returnTo=%2Faccount&intent=sign-in',
+    );
+  });
+
+  it('is not shown while the shop does not offer it', async () => {
+    mockApi({ '/auth/me': anonymous, '/auth/sign-in-options': { google: false } });
+    renderRoutes(routes, { path: '/login' });
+    await screen.findByRole('heading', { name: 'Welcome back' });
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'Continue with Google' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it.each([
+    ['unverified', 'Google has not confirmed the email address of this Google account'],
+    ['password_only', 'Please sign in to this account with your password.'],
+    ['cancelled', 'You cancelled signing in with Google.'],
+    ['something-new', 'Signing in with Google did not work. Please try again.'],
+  ])('explains why Google sign-in ended without a session (%s)', async (code, text) => {
+    mockApi({ '/auth/me': anonymous, '/auth/sign-in-options': { google: true } });
+    renderRoutes(routes, { path: `/login?redirect=%2Faccount&google=${code}` });
+    expect(await screen.findByText(new RegExp(text.replace(/[.()]/g, '\\$&')))).toBeInTheDocument();
+  });
+});
+
 describe('registration', () => {
   it('validates input, then asks the visitor to check their inbox', async () => {
     const fetchMock = mockApi({ '/auth/me': anonymous, 'POST /auth/register': () => undefined });

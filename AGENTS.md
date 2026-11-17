@@ -63,6 +63,13 @@ and some species may not be traded legally.
   approved (`POST /api/v1/payments/paypal/captures`), webhooks confirmed by PayPal
   (`POST /api/v1/webhooks/paypal`), the same 60-minute expiry. Optional: without
   `PAYPAL_*` credentials it is not offered. Not yet tried against PayPal's sandbox.
+- **Sign in with Google** (addition to Phase 3; ADR-014) is built: "Continue with Google" on the
+  sign-in and registration pages (`GET /api/v1/auth/google` → Google → `/auth/google/callback`),
+  accounts linked by Google's subject id, automatic linking for Google-verified addresses,
+  accounts without password (confirm with Google before changing the email or deleting the
+  account; `DELETE /api/v1/account/google` to disconnect). Optional: without
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` it is not offered. Not yet tried against Google.
+  Apple: later.
 - **Phase 8 (coupons & statistics)** is built end to end: coupon field in the cart
   (`PUT`/`DELETE /api/v1/cart/coupon`), discount in the quote, order, emails and order pages,
   redemption in the order transaction (released on cancellation), admin coupons under
@@ -224,6 +231,15 @@ working around them.
   querying. Responses must not reveal whether an account exists (see docs/API.md §2.1).
   After a password change, reset or account deletion, end the user's sessions via
   `SessionManager`. Record security-relevant actions with `AuditService`.
+- **Sign in with Google** (ADR-014): the OIDC flow runs on the server (`GoogleAuthorizationFlow`
+  in `identity.api`, Spring Security's OAuth 2 client parts; never `oauth2Login()` or Google's
+  script in the browser). A Google account is found by its subject id (`user_identities`), never
+  by its address; it is connected to an existing account only when Google says the address is
+  verified, and `User.confirmEmailThroughProvider` removes a password that was never proven.
+  Administrators sign in with their password only. Accounts can have no password: sensitive
+  changes take the password or a recent confirmation with Google (`SessionManager.confirmation`,
+  `AccountService.CONFIRMATION_WINDOW`). The `returnTo` of a Google round trip must be a path on
+  this site (`GoogleSignInController.origin`). Tests use `FakeGoogle`, never Google.
 - **Cart rules:** a module reads catalog data only through `CatalogLookup`
   (never the catalog repositories). Money arithmetic happens only in
   `pricing.domain.PriceCalculator`. Random tokens and their hashes come from
@@ -327,6 +343,11 @@ working around them.
   `@stripe/stripe-js/pure`), with the publishable key from the API. The page calls
   `confirmPayment` and moves on; whether the order is paid comes from the API (the
   confirmation page polls the order). Never show an order as paid from Stripe's browser result.
+- **Sign in with Google:** `GoogleButton` (features/auth) is a plain link to the API that leaves the
+  app (`googleSignInUrl` with `useHref` for `returnTo`); the app never talks to Google. Whether it
+  is offered comes from `useSignInOptions()`; the `?google=` code the server sends back is shown
+  with `googleProblem`. The account page decides between password field and "Confirm with Google"
+  from the server's `hasPassword` and `confirmedUntil` only.
 - **PayPal:** PayPal's script is loaded only on the payment page (`features/checkout/lib/paypal.ts`,
   `@paypal/paypal-js`), with the client id from the API. `PaymentPage` shows the form for the
   order's `paymentMethod` (one route for both). PayPal's button opens the order the server

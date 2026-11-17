@@ -348,6 +348,8 @@ export const de: Messages = {
     TOKEN_INVALID: 'Dieser Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.',
     PASSWORD_TOO_WEAK: 'Dieses Passwort ist zu leicht zu erraten. Bitte wähle ein anderes.',
     CURRENT_PASSWORD_INVALID: 'Das aktuelle Passwort ist nicht korrekt.',
+    CONFIRMATION_REQUIRED: 'Bitte bestätige zuerst mit deinem Google-Konto.',
+    LAST_SIGN_IN_METHOD: 'Bitte lege zuerst ein Passwort fest, sonst könntest du dich nicht mehr anmelden.',
     EMAIL_TAKEN: 'Diese E-Mail-Adresse wird bereits verwendet.',
     EMAIL_UNCHANGED: 'Das ist bereits deine E-Mail-Adresse.',
     ADDRESS_LIMIT_REACHED: 'Du kannst bis zu 10 Adressen speichern. Bitte lösche zuerst eine.',
@@ -457,6 +459,25 @@ export const de: Messages = {
       resend: 'Bestätigungs-E-Mail erneut senden',
       resent: 'Falls deine Adresse noch bestätigt werden muss, ist eine neue E-Mail unterwegs.',
     },
+    google: {
+      continue: 'Weiter mit Google',
+      or: 'oder',
+      hint: 'Google teilt uns deinen Namen und deine E-Mail-Adresse mit – sonst nichts.',
+      problems: {
+        cancelled: 'Du hast die Anmeldung mit Google abgebrochen.',
+        failed: 'Die Anmeldung mit Google hat nicht geklappt. Bitte versuche es noch einmal.',
+        expired:
+          'Die Anmeldung mit Google hat zu lange gedauert oder wurde in einem anderen Fenster gestartet. Bitte versuche es noch einmal.',
+        unverified:
+          'Google hat die E-Mail-Adresse dieses Google-Kontos nicht bestätigt, deshalb kann es hier nicht zur Anmeldung verwendet werden.',
+        locked: 'Dieses Konto wurde gesperrt. Bitte melde dich bei uns.',
+        passwordOnly: 'Bitte melde dich bei diesem Konto mit deinem Passwort an.',
+        otherAccount:
+          'Dieses Konto ist bereits mit einem anderen Google-Konto verbunden. Bitte melde dich mit deinem Passwort oder mit diesem Google-Konto an.',
+        tooMany: 'Zu viele Versuche. Bitte warte eine Minute und versuche es dann noch einmal.',
+        notConnected: 'Dieses Google-Konto ist nicht das, das mit deinem Kundenkonto verbunden ist.',
+      },
+    },
     register: {
       metaTitle: 'Konto erstellen – PW Aquatics',
       title: 'Konto erstellen',
@@ -553,6 +574,24 @@ export const de: Messages = {
       deleteConfirmTitle: 'Konto wirklich löschen?',
       deleteConfirmText: 'Das kann nicht rückgängig gemacht werden. Gib zur Bestätigung dein Passwort ein.',
       deleteConfirm: 'Konto endgültig löschen',
+      signInTitle: 'Anmeldung',
+      googleConnected: 'Dein Konto ist mit Google verbunden ({{email}}). Du kannst dich damit anmelden.',
+      googleDisconnect: 'Verbindung zu Google trennen',
+      googleAvailable:
+        'Du kannst dich auch mit Google anmelden – mit einem Google-Konto mit der Adresse {{email}}.',
+      googleDisconnected:
+        'Google ist nicht mehr verbunden. Melde dich mit deiner E-Mail-Adresse und deinem Passwort an.',
+      googleNeedsPassword: 'Um die Verbindung zu Google zu trennen, lege zuerst ein Passwort fest.',
+      noPassword:
+        'Du meldest dich mit Google an. Wenn du dich auch mit einem Passwort anmelden möchtest, schicken wir dir einen Link, um eins festzulegen.',
+      setPassword: 'Link per E-Mail senden',
+      setPasswordSent: 'Wir haben einen Link an {{email}} geschickt.',
+      confirmNeeded: 'Du meldest dich mit Google an. Bitte bestätige deshalb zuerst mit deinem Google-Konto.',
+      confirmWithGoogle: 'Mit Google bestätigen',
+      confirmedUntil: 'Mit Google bestätigt bis {{time}} Uhr.',
+      confirmedNotice:
+        'Mit Google bestätigt. Bis {{time}} Uhr kannst du ohne Passwort deine E-Mail-Adresse ändern oder dein Konto löschen.',
+      deleteConfirmTextConfirmed: 'Das kann nicht rückgängig gemacht werden.',
       cancel: 'Abbrechen',
     },
   },

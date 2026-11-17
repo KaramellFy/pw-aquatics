@@ -36,8 +36,8 @@ class AccountController {
 
     @Operation(summary = "Own profile")
     @GetMapping("/profile")
-    ProfileView profile(@AuthenticationPrincipal ShopUserPrincipal principal) {
-        return accounts.profile(principal.userId());
+    ProfileView profile(@AuthenticationPrincipal ShopUserPrincipal principal, HttpServletRequest http) {
+        return accounts.profile(principal.userId(), sessions.confirmation(http));
     }
 
     @Operation(summary = "Update name, phone, newsletter preference and language")
@@ -54,6 +54,7 @@ class AccountController {
                         request.phone() == null || request.phone().isBlank() ? null : request.phone().strip(),
                         request.marketingOptIn(),
                         request.locale()),
+                sessions.confirmation(http),
                 http.getRemoteAddr());
     }
 
@@ -72,8 +73,12 @@ class AccountController {
     @Operation(summary = "Request an email change; a confirmation link is sent to the new address")
     @PutMapping("/email")
     ResponseEntity<Void> changeEmail(
-            @AuthenticationPrincipal ShopUserPrincipal principal, @Valid @RequestBody ChangeEmailRequest request) {
-        accounts.requestEmailChange(principal.userId(), request.newEmail(), request.currentPassword());
+            @AuthenticationPrincipal ShopUserPrincipal principal,
+            @Valid @RequestBody ChangeEmailRequest request,
+            HttpServletRequest http) {
+        accounts.requestEmailChange(
+                principal.userId(), request.newEmail(), request.currentPassword(), sessions.confirmation(http));
+        sessions.clearConfirmation(http);
         return ResponseEntity.accepted().build();
     }
 
@@ -84,7 +89,8 @@ class AccountController {
             @Valid @RequestBody DeleteAccountRequest request,
             HttpServletRequest http,
             HttpServletResponse response) {
-        accounts.deleteAccount(principal.userId(), request.currentPassword(), http.getRemoteAddr());
+        accounts.deleteAccount(
+                principal.userId(), request.currentPassword(), sessions.confirmation(http), http.getRemoteAddr());
         sessions.endAllSessions(principal.userId());
         sessions.logout(http, response);
         return ResponseEntity.noContent().build();

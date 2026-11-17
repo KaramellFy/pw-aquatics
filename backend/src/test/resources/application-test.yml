@@ -25,6 +25,10 @@ app:
     client-secret: test-paypal-client-secret
     webhook-id: TEST-WEBHOOK-ID
     environment: sandbox
+  # Sign in with Google: the tests replace Google with a local stand-in (support/FakeGoogle).
+  google:
+    client-id: test-google-client-id
+    client-secret: test-google-client-secret
 
 springdoc:
   api-docs:

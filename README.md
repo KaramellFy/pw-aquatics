@@ -50,6 +50,13 @@ because the shop's server takes the money itself after the customer approves. To
 webhooks, register `https://<public address>/api/v1/webhooks/paypal` (e.g. through a tunnel)
 and use that webhook's id; otherwise any placeholder id will do locally.
 
+**Sign in with Google (optional):** in the Google Cloud console create an OAuth client of type
+"Web application" (APIs & Services → Credentials), add the authorised redirect URI
+`<APP_BASE_URL>/api/v1/auth/google/callback` (locally `http://localhost:5173/api/v1/auth/google/callback`)
+and put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` into `.env`. While the consent screen is in
+"Testing", only the test users listed there can sign in. See
+[ADR-014](docs/adr/014-sign-in-with-google.md).
+
 **Pages for search engines:** in production the frontend's Caddy asks the backend to fill in
 public pages (title, language links, text) before JavaScript runs, see
 [ADR-013](docs/adr/013-pages-filled-in-by-the-backend.md). Nothing to set up for `npm run dev`:

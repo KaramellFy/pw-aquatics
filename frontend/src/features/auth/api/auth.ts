@@ -20,6 +20,15 @@ export function useSession() {
   });
 }
 
+/** Whether the shop offers signing in with Google (set up by the owner). */
+export function useSignInOptions() {
+  return useQuery({
+    queryKey: queryKeys.signInOptions,
+    queryFn: ({ signal }) => api.get<Schemas['SignInOptionsView']>('/auth/sign-in-options', signal),
+    staleTime: 60 * 60_000,
+  });
+}
+
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({

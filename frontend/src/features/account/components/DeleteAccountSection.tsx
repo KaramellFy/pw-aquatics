@@ -6,10 +6,21 @@ import { Dialog } from '@/components/ui/Dialog';
 import { PasswordField } from '@/features/auth';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
 import { useDeleteAccount } from '../api/account';
+import { GoogleConfirmation } from './GoogleConfirmation';
 
-/** Account deletion behind a confirmation dialog that asks for the password. */
-export function DeleteAccountSection() {
+interface DeleteAccountSectionProps {
+  hasPassword: boolean;
+  /** Set while a confirmation with Google stands in for the password (from the server). */
+  confirmedUntil: string | null;
+}
+
+/**
+ * Account deletion behind a confirmation dialog that asks for the password — or, for customers
+ * who sign in with Google, for a confirmation with Google.
+ */
+export function DeleteAccountSection({ hasPassword, confirmedUntil }: DeleteAccountSectionProps) {
   const { t } = useTranslation();
+  const askPassword = hasPassword && !confirmedUntil;
   const remove = useDeleteAccount();
   const errorMessage = useApiErrorMessage();
   const [open, setOpen] = useState(false);
@@ -22,7 +33,7 @@ export function DeleteAccountSection() {
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    remove.mutate({ currentPassword: password });
+    remove.mutate({ currentPassword: askPassword ? password : undefined });
   };
 
   return (
@@ -40,17 +51,23 @@ export function DeleteAccountSection() {
         open={open}
         onOpenChange={(next) => (next ? setOpen(true) : close())}
         title={t('account.profile.deleteConfirmTitle')}
-        description={t('account.profile.deleteConfirmText')}
+        description={t(
+          askPassword ? 'account.profile.deleteConfirmText' : 'account.profile.deleteConfirmTextConfirmed',
+        )}
       >
         <form onSubmit={onSubmit} className="space-y-5">
           {remove.isError && <Alert tone="error">{errorMessage(remove.error)}</Alert>}
-          <PasswordField
-            label={t('auth.fields.currentPassword')}
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          {askPassword ? (
+            <PasswordField
+              label={t('auth.fields.currentPassword')}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          ) : (
+            <GoogleConfirmation confirmedUntil={confirmedUntil} />
+          )}
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={close}>
               {t('account.profile.cancel')}
@@ -58,7 +75,7 @@ export function DeleteAccountSection() {
             <Button
               type="submit"
               className="bg-danger hover:bg-danger/90"
-              disabled={remove.isPending || password.length === 0}
+              disabled={remove.isPending || (askPassword ? password.length === 0 : !confirmedUntil)}
             >
               {t('account.profile.deleteConfirm')}
             </Button>

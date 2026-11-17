@@ -44,6 +44,9 @@ public class SecurityConfig {
 
     static final String[] PUBLIC_GET = {
         "/api/v1/auth/csrf", "/api/v1/auth/me",
+        // Sign in with Google: opened as pages; the callback only accepts the answer to a flow
+        // this browser session started (state parameter).
+        "/api/v1/auth/sign-in-options", "/api/v1/auth/google", "/api/v1/auth/google/callback",
         "/api/v1/products", "/api/v1/products/**",
         "/api/v1/categories", "/api/v1/species", "/api/v1/species/**",
         "/api/v1/colours", "/api/v1/grades",

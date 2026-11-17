@@ -80,7 +80,7 @@ stable `code` the frontend can switch on:
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
 | 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `COUPON_IN_USE`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `CONFIRMATION_REQUIRED`, `LAST_SIGN_IN_METHOD`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
@@ -138,6 +138,9 @@ optional `…De` fields with the same length limits; blank values are stored as 
 | POST | `/auth/resend-verification` | public | `{ email }` → always `202` |
 | POST | `/auth/forgot-password` | public | `{ email }` → always `202` |
 | POST | `/auth/reset-password` | public | `{ token, newPassword }` → `204`; ends all sessions of the user |
+| GET | `/auth/sign-in-options` | public | `{ "google": true }` when signing in with Google is set up |
+| GET | `/auth/google?returnTo=&intent=` | public | Opened as a page (a link, not fetch): `302` to Google. `intent=sign-in` (default) or `confirm` (signed in; see §2.6). `404` when Google is not set up |
+| GET | `/auth/google/callback` | public | Google sends the browser back here: `302` to `returnTo` (signed in) or to a shop page with `?google=<code>` |
 
 **Rules**
 
@@ -156,6 +159,32 @@ optional `…De` fields with the same length limits; blank values are stored as 
 - Emailed links are single-use (`422 TOKEN_INVALID` otherwise): verification
   and email change 48 h, password reset 1 h. Only a SHA-256 hash is stored.
 - Emails are sent in the language of the request (`Accept-Language`: `en`/`de`).
+
+**Sign in with Google** (ADR-014; OpenID Connect, authorization code flow)
+
+- `returnTo` is where the customer comes back to, as the browser shows it (`/checkout`,
+  `/de/kasse`); a German path makes a new account German and Google's pages German (`hl`).
+  Only paths on this site are accepted: anything else (`https://…`, `//host`, `/api/…`,
+  characters a link would have encoded) becomes `/account`.
+- `/auth/google` keeps the authorization request in the session — random `state`, `nonce` and a
+  PKCE verifier (S256) — and asks for `openid email profile` only. The callback only accepts
+  Google's answer to the request kept in **this** browser session; the server exchanges the code
+  with Google and checks the ID token's signature against Google's published keys, its issuer,
+  audience, expiry and nonce. Google's access token is not kept.
+- **Which account:** the Google account is found by Google's subject id (`sub`), not by its
+  address. The first time, it is connected to the account with the same address, but only if
+  Google says the address is verified (`email_verified`); the customer gets a "Sign-in with Google
+  added" email. Was that account's address not confirmed yet, its password is removed (it was
+  never proven by the address owner). Without an account, a new one is created — verified, no
+  password, name from Google. Administrators sign in with their password only.
+- Sign-in starts a new session (new session id, fresh CSRF token), as with a password.
+- **Back to the shop with `?google=<code>`** (on the sign-in page, keeping `redirect=`; for
+  `intent=confirm` on `returnTo`): `cancelled` (at Google), `failed` (Google's answer did not
+  check out), `expired` (no flow started in this browser session, or used up), `unverified`,
+  `locked`, `password_only` (administrators), `other_account` (the shop account is connected to
+  a different Google account), `too_many` (rate limit), `not_connected` (confirming with a
+  Google account that is not the connected one), `confirmed` (success of `intent=confirm`).
+- Logged: only the reason of a failure (e.g. `invalid_id_token`), never tokens or personal data.
 
 ### 2.2 Catalog — public
 
@@ -530,11 +559,12 @@ it, the order is kept and the webhook marks it as paid.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/account/profile` | `{ email, firstName, lastName, phone, marketingOptIn, locale, memberSince }` |
+| GET | `/account/profile` | `{ email, firstName, lastName, phone, marketingOptIn, locale, memberSince, hasPassword, googleEmail, confirmedUntil }` |
 | PATCH | `/account/profile` | `{ firstName, lastName, phone?, marketingOptIn, locale? }` → updated profile |
-| PUT | `/account/email` | `{ newEmail, currentPassword }` → `202`. A link goes to the **new** address; the change happens when it is opened (via `/auth/verify-email`), and the old address is notified. If the address is taken nothing is sent and the answer is the same |
+| PUT | `/account/email` | `{ newEmail, currentPassword? }` → `202`. A link goes to the **new** address; the change happens when it is opened (via `/auth/verify-email`), and the old address is notified. If the address is taken nothing is sent and the answer is the same |
 | PUT | `/account/password` | `{ currentPassword, newPassword }` → `204`; all other sessions are ended and a notice is emailed |
-| DELETE | `/account` | `{ currentPassword }` → `204`. Personal data and addresses are removed, the row is anonymised, all sessions end |
+| DELETE | `/account` | `{ currentPassword? }` → `204`. Personal data, addresses and the connection to Google are removed, the row is anonymised, all sessions end |
+| DELETE | `/account/google` | Removes the connection to Google → `204` and a notice by email. Only while the account has a password (`422 LAST_SIGN_IN_METHOD`); none connected → `404` |
 | GET | `/account/addresses` | Saved addresses, defaults first |
 | POST | `/account/addresses` | Create → `201`. The first address becomes default for shipping and billing. Max. 10 |
 | PUT | `/account/addresses/{id}` | Update |
@@ -542,7 +572,16 @@ it, the order is kept and the webhook marks it as paid.
 | PUT | `/account/addresses/{id}/default` | `{ shipping: true, billing: false }` (at least one `true`) → updated list |
 
 Wrong current password → `422 CURRENT_PASSWORD_INVALID` (not `401`, which means
-"no session"). Address fields: `label?`, `firstName`, `lastName`, `company?`,
+"no session").
+
+**Without a password** (customers who signed up with Google): `hasPassword` is `false` and
+`googleEmail` names the connected Google account. Changing the email address and deleting the
+account then need a confirmation with that Google account instead
+(`/auth/google?intent=confirm&returnTo=/account/profile`, back with `?google=confirmed`): it
+counts for 10 minutes and one change (`confirmedUntil` says until when; the request then carries
+no `currentPassword`). Without it → `422 CONFIRMATION_REQUIRED`. Any customer with a connected
+Google account may confirm this way. A password is set through `/auth/forgot-password` (the
+emailed link); `/account/password` always needs the current password. Address fields: `label?`, `firstName`, `lastName`, `company?`,
 `street`, `houseNumber`, `addressLine2?`, `postalCode`, `city`, `countryCode`
 (ISO 3166-1 alpha-2), `phone?`; responses add `id`, `defaultShipping`,
 `defaultBilling`. Another customer's address → `404`.
@@ -989,6 +1028,7 @@ calculated on the server.
 | `POST /auth/register`, `/auth/forgot-password`, `/auth/resend-verification` | 5/hour per IP |
 | `POST /contact` | 3/hour per IP |
 | Password confirmations (`/account/password`, `/account/email`, `DELETE /account`) | 10 per 15 min per user |
+| `GET /auth/google`, `/auth/google/callback` | 20/min per IP |
 | Cart changes (`POST`/`PATCH`/`DELETE /cart…`) | 120/min per IP |
 | `PUT /cart/coupon` | 10/min per IP (so codes cannot be guessed by trying) |
 | `POST /checkout/orders` | 10/min per user |

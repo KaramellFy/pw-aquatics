@@ -139,6 +139,12 @@ app:
     # sandbox (test accounts) or live
     environment: ${PAYPAL_ENVIRONMENT:sandbox}
     timeout: PT10S
+  # Sign in with Google (ADR-014): both or neither; register <base-url>/api/v1/auth/google/callback
+  # as the redirect URI of the OAuth client.
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    timeout: PT10S
   # How long personal data is kept where no law requires longer (docs/DATABASE.md §6).
   # Orders are not listed here: they are business records with statutory retention.
   retention:
@@ -202,6 +208,10 @@ app:
     # Webhook deliveries per client IP, before the signature check.
     payment-webhook:
       capacity: 300
+      period: PT1M
+    # Starting and finishing "Sign in with Google", per IP address.
+    google-sign-in:
+      capacity: 20
       period: PT1M
     # Password confirmations inside a session (change password/email, delete account).
     password-check:

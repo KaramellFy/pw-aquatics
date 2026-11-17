@@ -25,7 +25,7 @@ a sale (animal losses), and species that may legally not be traded.
 | Filtering | Species, colour, grade, price range, availability (+ category, text search, sorting) |
 | Cart | Persistent server-side cart for guests and customers; merged on login |
 | Checkout | Address, shipping method, coupon, order review, order placement |
-| Accounts | Register, login/logout, email verification, password reset, profile, saved addresses, order history, order status, parcel tracking |
+| Accounts | Register, login/logout, sign in with Google, email verification, password reset, profile, saved addresses, order history, order status, parcel tracking |
 | Admin | Dashboard, sales statistics, products, taxonomy, inventory, orders, tracking numbers, coupons, gallery, contact messages |
 | Payments | Bank transfer (Vorkasse), Stripe (cards, Apple Pay, Google Pay), PayPal |
 
@@ -100,6 +100,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | Mapping | MapStruct | DTO ↔ entity mapping, no entities in API responses |
 | Rate limiting | Bucket4j | Login, registration, contact, coupon checks |
 | Payments | `stripe-java` (backend), `@stripe/stripe-js` + `@stripe/react-stripe-js` (payment page only) | PaymentIntents, webhook signatures, Payment Element (ADR-010) |
+| Sign in with Google | `spring-security-oauth2-client` + `spring-security-oauth2-jose` (building blocks only) | Authorization request with state, nonce and PKCE; code exchange; ID-token check against Google's keys (ADR-014) |
 | Images | Thumbnailator (resize, EXIF orientation) + webp-imageio (libwebp, bundled for Linux/macOS/Windows) | Re-encode uploads to WebP renditions; drops all metadata. The JVM runs with `--enable-native-access=ALL-UNNAMED` for libwebp |
 | Build (BE) | Gradle (Kotlin DSL) | Maven is equally fine; one choice, consistently |
 | Language (FE) | TypeScript 6 (strict) | Stays on 6.x until typescript-eslint supports TypeScript 7 |
@@ -161,7 +162,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 |---|---|
 | `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation, `ContentLanguage` (language of owner-written texts per request), `SiteLinks` |
 | `security` | Spring Security config, session/CSRF setup, current-user resolution, rate limiting |
-| `identity` | Users, registration, login, email verification, password reset, roles |
+| `identity` | Users, registration, login, sign in with Google (`user_identities`, ADR-014), email verification, password reset, roles |
 | `customer` | Profile, saved addresses, account deletion/anonymisation |
 | `catalog` | Products, variants, species, categories, colours, grades, images, search & filters |
 | `inventory` | Stock levels, reservations, stock movements, low-stock alerts |
@@ -515,7 +516,7 @@ payment module                                 order module
 
 | Concern | Approach |
 |---|---|
-| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. |
+| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. Sign in with Google (ADR-014): OpenID Connect code flow with PKCE run by the server; accounts are linked by Google's subject id, connected to an existing account only for a Google-verified address; administrators use their password only. |
 | Why sessions, not JWT | Same-origin SPA; sessions are revocable instantly (logout, password change, admin lock), nothing sensitive is in browser storage, and Spring Security supports them natively. |
 | CSRF | Spring Security CSRF with cookie-to-header pattern (`XSRF-TOKEN` cookie → `X-XSRF-TOKEN` header) for all state-changing requests. |
 | Passwords | `DelegatingPasswordEncoder` with Argon2id; hashes carry an algorithm prefix and are upgraded on login if the algorithm changes. 10–128 characters, no composition rules, a small deny-list of obvious passwords. A check against a breached-password service is a possible later addition. |
@@ -767,6 +768,8 @@ STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, ORDER_CARD_PAY
 # The publishable key reaches the browser through the API, so the frontend build needs no Stripe variable.
 # PayPal (client id, secret and webhook id: all three or none; online orders share ORDER_CARD_PAYMENT_MINUTES)
 PAYPAL_ENVIRONMENT=sandbox|live, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
+# Sign in with Google (both or neither; redirect URI at Google: <APP_BASE_URL>/api/v1/auth/google/callback)
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 ```
 
 ### 7.3 Environments and delivery
@@ -844,8 +847,9 @@ endpoint (403).
 | ADR-011 | Motion for React (`motion`) behind `LazyMotion`, CSS for simple effects | CSS only (no exit, shared-layout or drag animations), React Spring, GSAP |
 | ADR-012 | Language in the link: English at `/…`, German at `/de/…` with the same path words | Language only in the browser, `?lang=`, a `.de` domain, German path words |
 | ADR-013 | Public pages filled in by the backend from the frontend build's `index.html` (Caddy asks `/_pages/**`, falls back to the plain file) | Node.js SSR or prerender service, build-time prerendering, head tags only |
+| ADR-014 | Sign in with Google: server-side OIDC code flow with PKCE from Spring Security's OAuth 2 client parts; linked by Google's subject id | `oauth2Login()` filter, Google's script in the browser, a hand-written OIDC client |
 
-Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-013).
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-014).
 
 ---
 

@@ -33,6 +33,7 @@ public record AppProperties(
         @Valid @NotNull BankTransfer bankTransfer,
         @Valid @NotNull Stripe stripe,
         @Valid @NotNull PayPal paypal,
+        @Valid @NotNull Google google,
         @Valid @NotNull Retention retention,
         AdminBootstrap adminBootstrap,
         Map<String, @Valid RateLimit> rateLimits) {
@@ -185,6 +186,29 @@ public record AppProperties(
         @AssertTrue(message = "PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_WEBHOOK_ID must be set together")
         public boolean isCompleteOrEmpty() {
             return isConfigured() || (blank(clientId) && blank(clientSecret) && blank(webhookId));
+        }
+
+        private static boolean blank(String value) {
+            return value == null || value.isBlank();
+        }
+    }
+
+    /**
+     * "Sign in with Google" (ADR-014): an OAuth client of type "Web application" in the Google
+     * Cloud console. Offered only when both values are set. The redirect URI to register there is
+     * {@code <app.base-url>/api/v1/auth/google/callback}.
+     *
+     * @param timeout for each call to Google (code exchange, Google's signing keys)
+     */
+    public record Google(String clientId, String clientSecret, @NotNull Duration timeout) {
+
+        public boolean isConfigured() {
+            return !blank(clientId) && !blank(clientSecret);
+        }
+
+        @AssertTrue(message = "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together")
+        public boolean isCompleteOrEmpty() {
+            return isConfigured() || (blank(clientId) && blank(clientSecret));
         }
 
         private static boolean blank(String value) {

@@ -96,7 +96,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TABLE users (
     id                    uuid PRIMARY KEY,
     email                 citext       NOT NULL UNIQUE,   -- stored lower-case by the application
-    password_hash         varchar(255),                   -- NULL only for anonymised accounts
+    password_hash         varchar(255),                   -- NULL: anonymised, or signs in with Google only
     first_name            varchar(100) NOT NULL,
     last_name             varchar(100) NOT NULL,
     phone                 varchar(40),
@@ -112,8 +112,23 @@ CREATE TABLE users (
     marketing_opt_in      boolean      NOT NULL DEFAULT false,
     created_at            timestamptz  NOT NULL DEFAULT now(),
     updated_at            timestamptz  NOT NULL DEFAULT now(),
-    version               bigint       NOT NULL DEFAULT 0,
-    CHECK (password_hash IS NOT NULL OR status = 'ANONYMISED')
+    version               bigint       NOT NULL DEFAULT 0
+    -- The CHECK (password_hash IS NOT NULL OR status = 'ANONYMISED') of the first migration was
+    -- dropped for Sign in with Google (V2026_11_17_1600).
+);
+
+-- Sign in with Google (ADR-014): a Google account connected to a shop account, found by Google's
+-- stable subject id ("sub"), never by its address. Deleted with the account.
+CREATE TABLE user_identities (
+    id            uuid PRIMARY KEY,
+    user_id       uuid         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider      varchar(20)  NOT NULL CHECK (provider IN ('GOOGLE')),
+    subject       varchar(255) NOT NULL,
+    email         varchar(254) NOT NULL,      -- the Google account's address at the last sign-in (shown to the customer)
+    created_at    timestamptz  NOT NULL DEFAULT now(),
+    last_used_at  timestamptz  NOT NULL DEFAULT now(),
+    UNIQUE (provider, subject),
+    UNIQUE (user_id, provider)                -- one Google account per shop account; also the index on user_id
 );
 
 -- One-time tokens for email verification, password reset and email change.
@@ -924,6 +939,8 @@ adviser.
 | Data | Where | Purpose / legal basis (GDPR) | Kept until |
 |---|---|---|---|
 | Account: email, name, phone (optional), language, password hash (Argon2id), login state | `users` | Customer account, Art. 6(1)(b) | Account deletion → row anonymised at once |
+| Connected Google account: Google's subject id, its address, when it was connected and last used (name and address of a new account come from Google) | `user_identities` | Signing in with Google at the customer's request, Art. 6(1)(b) | Deleted when the customer disconnects Google or deletes the account |
+| Confirmation with Google in the current session (time only) | `spring_session` attribute | Allowing a sensitive change without a password, Art. 6(1)(b) | With the session; counts 10 minutes and one change |
 | Newsletter consent | `users.marketing_opt_in` + audit entries `MARKETING_CONSENT_GIVEN/WITHDRAWN` (time, source) | Consent, Art. 6(1)(a); proof per Art. 7(1) | Until withdrawn; no newsletter is sent yet |
 | Saved addresses | `addresses` | Faster checkout, Art. 6(1)(b) | Deleted by the customer or with the account |
 | Cart | `carts`, `cart_items` (variant ids only); guest carts via a random cookie, only its hash stored | Art. 6(1)(b) | Guest: 30 days after the last change; customer: with the account |
@@ -953,6 +970,13 @@ paid that way: Stripe and PayPal set their own cookies there for fraud preventio
 treat as necessary for the payment the customer asked for (to be confirmed by the legal
 adviser). The privacy policy must name Stripe (Stripe Payments Europe, Ltd.) and PayPal
 (PayPal (Europe) S.à r.l. et Cie, S.C.A.) as recipients of payment data for their methods.
+
+**Sign in with Google:** the shop's pages load nothing from Google; the customer is sent to
+Google only after clicking "Continue with Google", and Google's page sets its own cookies there.
+The shop asks for `openid email profile` only and keeps Google's subject id and the account's
+address (plus, for a new account, the name Google gives). Google's access token is not stored.
+The privacy policy must name Google (Google Ireland Limited) as the provider of the sign-in the
+customer chose (to be worded with the legal adviser).
 
 **Payment data:** no card or bank details of customers are stored. Bank transfers go to
 the shop's account (configured in the environment, not in the database). For card payment
