@@ -25,4 +25,12 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Payment p WHERE p.providerReference = :reference")
     Optional<Payment> lockByProviderReference(@Param("reference") String reference);
+
+    /** Only the order id of the payment a PayPal capture belongs to. */
+    @Query("SELECT p.orderId FROM Payment p WHERE p.captureReference = :capture")
+    Optional<UUID> findOrderIdByCaptureReference(@Param("capture") String capture);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Payment p WHERE p.captureReference = :capture")
+    Optional<Payment> lockByCaptureReference(@Param("capture") String capture);
 }

@@ -36,8 +36,20 @@ export function useChangePassword() {
 }
 
 export function useChangeEmail() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: Schemas['ChangeEmailRequest']) => api.put<void>('/account/email', request),
+    // A confirmation with Google is used up (or has run out): the profile says so.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+  });
+}
+
+/** Removes the connection to Google (the server allows it only while the account has a password). */
+export function useDisconnectGoogle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete<void>('/account/google'),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
   });
 }
 
@@ -55,6 +67,8 @@ export function useDeleteAccount() {
       queryClient.removeQueries({ queryKey: queryKeys.account });
       void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
     },
+    // E.g. the confirmation with Google ran out: the profile shows the button again.
+    onError: () => queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
   });
 }
 

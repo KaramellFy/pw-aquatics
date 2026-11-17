@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import { Alert } from '@/components/ui/Alert';
+import { googleProblem, useSignInOptions } from '@/features/auth';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
+import { formatLocalTime } from '@/lib/format/date';
 import { useProfile } from '../api/account';
 import { ChangeEmailForm } from '../components/ChangeEmailForm';
 import { ChangePasswordForm } from '../components/ChangePasswordForm';
 import { DeleteAccountSection } from '../components/DeleteAccountSection';
 import { ProfileDetailsForm } from '../components/ProfileDetailsForm';
+import { SignInSection } from '../components/SignInSection';
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -18,9 +22,15 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function ProfilePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const profile = useProfile();
+  const options = useSignInOptions();
   const errorMessage = useApiErrorMessage();
+  // Back from confirming with Google: the server added ?google=confirmed or a problem.
+  const [searchParams] = useSearchParams();
+  const google = searchParams.get('google');
+  const googleError = googleProblem(google);
+  const confirmedUntil = profile.data?.confirmedUntil ?? null;
 
   return (
     <>
@@ -32,6 +42,16 @@ export function ProfilePage() {
             {t('common.loading')}
           </p>
         )}
+        {googleError && (
+          <Alert tone="error" className="mb-8">
+            {t(googleError)}
+          </Alert>
+        )}
+        {google === 'confirmed' && confirmedUntil && (
+          <Alert tone="success" className="mb-8">
+            {t('account.profile.confirmedNotice', { time: formatLocalTime(confirmedUntil, i18n.language) })}
+          </Alert>
+        )}
         {profile.data && (
           <>
             <Panel title={t('account.profile.detailsTitle')}>
@@ -39,13 +59,25 @@ export function ProfilePage() {
             </Panel>
             <Panel title={t('account.profile.emailTitle')}>
               {/* Re-keyed so the form resets once the address has actually changed. */}
-              <ChangeEmailForm key={profile.data.email} currentEmail={profile.data.email} />
+              <ChangeEmailForm
+                key={profile.data.email}
+                currentEmail={profile.data.email}
+                hasPassword={profile.data.hasPassword}
+                confirmedUntil={confirmedUntil}
+              />
             </Panel>
-            <Panel title={t('account.profile.passwordTitle')}>
-              <ChangePasswordForm />
-            </Panel>
+            {(options.data?.google || profile.data.googleEmail || !profile.data.hasPassword) && (
+              <Panel title={t('account.profile.signInTitle')}>
+                <SignInSection profile={profile.data} />
+              </Panel>
+            )}
+            {profile.data.hasPassword && (
+              <Panel title={t('account.profile.passwordTitle')}>
+                <ChangePasswordForm />
+              </Panel>
+            )}
             <Panel title={t('account.profile.deleteTitle')}>
-              <DeleteAccountSection />
+              <DeleteAccountSection hasPassword={profile.data.hasPassword} confirmedUntil={confirmedUntil} />
             </Panel>
           </>
         )}

@@ -80,6 +80,7 @@ export function OrderDetailPage() {
 function OrderDetail({ order }: { order: Order }) {
   const { t } = useTranslation();
   const locale = useIntlLocale();
+  const onlinePayment = order.paymentMethod === 'PAYPAL' ? 'payPalPayment' : 'cardPayment';
   const cancel = useCancelOrder();
   const errorMessage = useApiErrorMessage();
   const [confirming, setConfirming] = useState(false);
@@ -110,22 +111,22 @@ function OrderDetail({ order }: { order: Order }) {
         />
       )}
 
-      {/* Whether the order can still be paid by card is decided by the server. */}
-      {order.payableByCard && (
+      {/* Whether the order can still be paid online is decided by the server. */}
+      {order.payableOnline && (
         <section
           aria-labelledby="card-payment"
           className="mt-8 rounded-card border border-brand-100 bg-brand-50 p-6 sm:p-8"
         >
           <h2 id="card-payment" className="text-title">
-            {t('orders.cardPayment.title')}
+            {t(`orders.${onlinePayment}.title`)}
           </h2>
           {order.paymentDueAt && (
             <p className="mt-3 text-ink-soft">
-              {t('orders.cardPayment.text', { time: formatLocalTime(order.paymentDueAt, locale) })}
+              {t(`orders.${onlinePayment}.text`, { time: formatLocalTime(order.paymentDueAt, locale) })}
             </p>
           )}
           <ButtonLink to={`/checkout/pay/${order.orderNumber}`} className="mt-6">
-            {t('orders.cardPayment.payNow')}
+            {t(`orders.${onlinePayment}.payNow`)}
           </ButtonLink>
         </section>
       )}
@@ -218,7 +219,9 @@ function OrderDetail({ order }: { order: Order }) {
         description={t(
           order.paymentMethod === 'STRIPE'
             ? 'orders.detail.cancelConfirmTextCard'
-            : 'orders.detail.cancelConfirmText',
+            : order.paymentMethod === 'PAYPAL'
+              ? 'orders.detail.cancelConfirmTextPayPal'
+              : 'orders.detail.cancelConfirmText',
         )}
       >
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

@@ -42,6 +42,26 @@ with Stripe's test cards, e.g. `4242 4242 4242 4242` (success), `4000 0000 0000 
 (declined) or `4000 0025 0000 3155` (3-D Secure), any future date and any CVC. Without the
 keys, the shop offers bank transfer only.
 
+**PayPal (optional):** create a REST app in the PayPal Developer Dashboard (sandbox) and put
+`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_WEBHOOK_ID` into `.env`
+(`PAYPAL_ENVIRONMENT=sandbox`). Pay with a sandbox *personal* account from the same dashboard.
+PayPal cannot reach `localhost`, so no webhooks arrive locally; a payment still completes,
+because the shop's server takes the money itself after the customer approves. To try the
+webhooks, register `https://<public address>/api/v1/webhooks/paypal` (e.g. through a tunnel)
+and use that webhook's id; otherwise any placeholder id will do locally.
+
+**Sign in with Google (optional):** in the Google Cloud console create an OAuth client of type
+"Web application" (APIs & Services → Credentials), add the authorised redirect URI
+`<APP_BASE_URL>/api/v1/auth/google/callback` (locally `http://localhost:5173/api/v1/auth/google/callback`)
+and put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` into `.env`. While the consent screen is in
+"Testing", only the test users listed there can sign in. See
+[ADR-014](docs/adr/014-sign-in-with-google.md).
+
+**Pages for search engines:** in production the frontend's Caddy asks the backend to fill in
+public pages (title, language links, text) before JavaScript runs, see
+[ADR-013](docs/adr/013-pages-filled-in-by-the-backend.md). Nothing to set up for `npm run dev`:
+the Vite dev server serves pages as before.
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — system design, modules, frontend structure, security, risks, open questions

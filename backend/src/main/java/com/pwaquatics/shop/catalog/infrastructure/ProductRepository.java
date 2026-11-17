@@ -27,6 +27,11 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             WHERE p.slug = :slug AND\s""" + VISIBLE)
     Optional<Product> findVisibleBySlug(@Param("slug") String slug);
 
+    /** Visible products for the sitemap: slug, last change, and the German texts that make a page German. */
+    @Query("SELECT p.slug, p.updatedAt, p.shortDescriptionDe, p.descriptionDe FROM Product p LEFT JOIN p.species s WHERE "
+            + VISIBLE + " ORDER BY p.slug")
+    List<Object[]> findSitemapRows();
+
     /** Visible products of the same species (or, as a fallback, category), best first. */
     @Query("""
             SELECT p.id FROM Product p

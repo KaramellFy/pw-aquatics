@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
-import { z } from 'zod';
+import { z } from '@/lib/validation/zod';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
@@ -13,6 +13,8 @@ import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { useLogin, useResendVerification, useSession } from '../api/auth';
 import { AuthCard } from '../components/AuthCard';
+import { GoogleSignIn } from '../components/GoogleSignIn';
+import { googleProblem } from '../google';
 import { PasswordField } from '../components/PasswordField';
 import { safeRedirectTarget } from '../redirect';
 
@@ -33,6 +35,8 @@ export function LoginPage() {
   const resend = useResendVerification();
   const errorMessage = useApiErrorMessage();
   const target = safeRedirectTarget(searchParams.get('redirect'));
+  // Signing in with Google failed or was cancelled: the server sent the browser back here.
+  const google = googleProblem(searchParams.get('google'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const schema = useMemo(() => loginSchema(t), [t, i18n.language]);
   const {
@@ -67,6 +71,12 @@ export function LoginPage() {
           </>
         }
       >
+        {google && (
+          <Alert tone="error" className="mb-6">
+            {t(google)}
+          </Alert>
+        )}
+        <GoogleSignIn returnTo={target} />
         <form onSubmit={onSubmit} noValidate className="space-y-5">
           {login.isError && (
             <Alert tone="error">

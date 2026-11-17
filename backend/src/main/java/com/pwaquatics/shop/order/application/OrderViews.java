@@ -15,6 +15,7 @@ import com.pwaquatics.shop.order.domain.OrderItem;
 import com.pwaquatics.shop.order.domain.OrderStatus;
 import com.pwaquatics.shop.order.domain.Shipment;
 import com.pwaquatics.shop.payment.application.BankTransferPayments;
+import com.pwaquatics.shop.payment.application.PayPalPayments;
 import com.pwaquatics.shop.payment.application.StripePayments;
 import com.pwaquatics.shop.payment.application.view.PaymentInstructionsView;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
@@ -27,11 +28,13 @@ class OrderViews {
 
     private final BankTransferPayments bankTransfer;
     private final StripePayments stripe;
+    private final PayPalPayments paypal;
     private final Clock clock;
 
-    OrderViews(BankTransferPayments bankTransfer, StripePayments stripe, Clock clock) {
+    OrderViews(BankTransferPayments bankTransfer, StripePayments stripe, PayPalPayments paypal, Clock clock) {
         this.bankTransfer = bankTransfer;
         this.stripe = stripe;
+        this.paypal = paypal;
         this.clock = clock;
     }
 
@@ -82,7 +85,7 @@ class OrderViews {
                         .toList(),
                 paymentInstructions(order),
                 order.isCancellableByCustomer(),
-                isPayableByCard(order),
+                isPayableOnline(order),
                 order.getShipments().stream().map(OrderViews::shipment).toList());
     }
 
@@ -96,12 +99,18 @@ class OrderViews {
                 shipment.getDeliveredAt());
     }
 
-    /** A card order can be paid until its payment deadline, while Stripe is set up. */
-    boolean isPayableByCard(Order order) {
-        return order.getStatus() == OrderStatus.PENDING_PAYMENT
-                && order.getPaymentMethod() == PaymentMethod.STRIPE
-                && !order.isPaymentOverdue(clock.instant())
-                && stripe.isAvailable();
+    /**
+     * A card or PayPal order can be paid until its payment deadline, while its provider is set up.
+     */
+    boolean isPayableOnline(Order order) {
+        boolean available = switch (order.getPaymentMethod()) {
+            case STRIPE -> stripe.isAvailable();
+            case PAYPAL -> paypal.isAvailable();
+            case BANK_TRANSFER -> false;
+        };
+        return available
+                && order.getStatus() == OrderStatus.PENDING_PAYMENT
+                && !order.isPaymentOverdue(clock.instant());
     }
 
     /** Bank details are only handed out while the order is actually waiting for a transfer. */

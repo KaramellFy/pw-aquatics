@@ -67,6 +67,20 @@ describe('language links', () => {
     expect(head.querySelector('meta[property="og:locale"]')).toHaveAttribute('content', 'de_DE');
   });
 
+  it('keeps a list page number in the canonical and alternate links, and nothing else', () => {
+    renderWithProviders(<PageMeta title="Shop" page={3} />, { path: '/shop?page=3&utm_source=news' });
+
+    const origin = window.location.origin;
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `${origin}/shop?page=3`,
+    );
+    expect(document.head.querySelector('link[hreflang="de"]')).toHaveAttribute(
+      'href',
+      `${origin}/de/shop?page=3`,
+    );
+  });
+
   it('leaves pages that are not indexed without language alternates', () => {
     renderWithProviders(<PageMeta title="Cart" noIndex />, { path: '/cart' });
     expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();

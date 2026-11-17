@@ -43,7 +43,12 @@ const profile: Profile = {
   marketingOptIn: false,
   locale: 'en',
   memberSince: '2026-11-10T10:00:00Z',
+  hasPassword: true,
+  googleEmail: null,
+  confirmedUntil: null,
 };
+/** Signed up with Google: no password. */
+const googleOnly: Profile = { ...profile, hasPassword: false, googleEmail: 'anna@gmail.com' };
 
 // The real guard and layout are part of the test: signing out or deleting the account
 // must end on the home page, not bounce through the login page.
@@ -220,6 +225,102 @@ describe('profile', () => {
     expect(await screen.findByRole('heading', { name: 'Home page' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
     expect(lastBody(fetchMock, 'DELETE', '/account')).toEqual({ currentPassword: 'correct-horse-battery' });
+  });
+});
+
+describe('profile of a customer who signs in with Google', () => {
+  it('asks for a confirmation with Google instead of a password before deleting the account', async () => {
+    const fetchMock = mockApi({
+      '/auth/me': anna,
+      '/account/profile': googleOnly,
+      'POST /auth/forgot-password': () => undefined,
+    });
+    renderRoutes(routes, { path: '/account/profile' });
+
+    expect(await screen.findByText(/connected to Google \(anna@gmail.com\)/)).toBeInTheDocument();
+    expect(screen.getByText('To disconnect Google, set a password first.')).toBeInTheDocument();
+    // No password to change: the customer can ask for a link to set one.
+    expect(screen.queryByRole('heading', { name: 'Password' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Email me a link' }));
+    expect(await screen.findByText('We have sent a link to anna@example.com.')).toBeInTheDocument();
+    expect(lastBody(fetchMock, 'POST', '/auth/forgot-password')).toEqual({ email: 'anna@example.com' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete your account?' });
+    expect(within(dialog).queryByLabelText('Current password')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Confirm with Google' })).toHaveAttribute(
+      'href',
+      '/api/v1/auth/google?returnTo=%2Faccount%2Fprofile&intent=confirm',
+    );
+    expect(within(dialog).getByRole('button', { name: 'Delete account permanently' })).toBeDisabled();
+  });
+
+  it('deletes the account without a password once the server counts the confirmation', async () => {
+    const fetchMock = mockApi({
+      '/auth/me': anna,
+      '/account/profile': { ...googleOnly, confirmedUntil: '2026-11-17T10:10:00Z' },
+      'DELETE /account': () => undefined,
+    });
+    renderRoutes(routes, { path: '/account/profile?google=confirmed' });
+
+    expect(
+      await screen.findByText(/Confirmed with Google\. Until .* you can change your email address/),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete your account?' });
+    expect(within(dialog).getByText(/Confirmed with Google until/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete account permanently' }));
+
+    expect(await screen.findByRole('heading', { name: 'Home page' })).toBeInTheDocument();
+    expect(lastBody(fetchMock, 'DELETE', '/account')).toEqual({});
+  });
+
+  it('changes the email address after confirming with Google, without a password field', async () => {
+    const fetchMock = mockApi({
+      '/auth/me': anna,
+      '/account/profile': { ...googleOnly, confirmedUntil: '2026-11-17T10:10:00Z' },
+      'PUT /account/email': () => undefined,
+    });
+    renderRoutes(routes, { path: '/account/profile' });
+
+    await userEvent.type(await screen.findByLabelText('New email address'), 'anna@new.example');
+    await userEvent.click(screen.getByRole('button', { name: 'Change email address' }));
+    expect(
+      await screen.findByText(/we have sent a confirmation link to anna@new.example/),
+    ).toBeInTheDocument();
+    expect(lastBody(fetchMock, 'PUT', '/account/email')).toEqual({ newEmail: 'anna@new.example' });
+  });
+
+  it('disconnects Google while the account has a password', async () => {
+    let current: Profile = { ...profile, googleEmail: 'anna@gmail.com' };
+    const fetchMock = mockApi({
+      '/auth/me': anna,
+      '/auth/sign-in-options': { google: true },
+      '/account/profile': () => current,
+      'DELETE /account/google': () => {
+        current = { ...current, googleEmail: null };
+        return undefined;
+      },
+    });
+    renderRoutes(routes, { path: '/account/profile' });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Disconnect Google' }));
+    expect(await screen.findByText(/Google is no longer connected/)).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) => String(url).endsWith('/account/google') && init?.method === 'DELETE',
+      ),
+    ).toBe(true);
+    // The password panel is still there.
+    expect(screen.getByRole('heading', { name: 'Password' })).toBeInTheDocument();
+  });
+
+  it('explains when another Google account was used to confirm', async () => {
+    mockApi({ '/auth/me': anna, '/account/profile': googleOnly });
+    renderRoutes(routes, { path: '/account/profile?google=not_connected' });
+    expect(
+      await screen.findByText('This Google account is not the one connected to your shop account.'),
+    ).toBeInTheDocument();
   });
 });
 

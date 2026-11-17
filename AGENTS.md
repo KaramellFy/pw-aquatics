@@ -56,7 +56,20 @@ and some species may not be traded legally.
   Apple Pay / Google Pay as wallets) next to bank transfer, payment page with Stripe's Payment
   Element (`/checkout/pay/:orderNumber`), PaymentIntents from the stored total
   (`POST /api/v1/payments/stripe/intents`), signed and idempotent webhook
-  (`POST /api/v1/webhooks/stripe`), 60-minute expiry of unpaid card orders. PayPal follows.
+  (`POST /api/v1/webhooks/stripe`), 60-minute expiry of unpaid card orders.
+- **PayPal** (from Phase 9, built early; ADR-010 addendum) is built: PayPal as a third choice,
+  PayPal's button on the same payment page, one PayPal order per shop order from the stored
+  total (`POST /api/v1/payments/paypal/orders`), capture by the server after the customer
+  approved (`POST /api/v1/payments/paypal/captures`), webhooks confirmed by PayPal
+  (`POST /api/v1/webhooks/paypal`), the same 60-minute expiry. Optional: without
+  `PAYPAL_*` credentials it is not offered. Not yet tried against PayPal's sandbox.
+- **Sign in with Google** (addition to Phase 3; ADR-014) is built: "Continue with Google" on the
+  sign-in and registration pages (`GET /api/v1/auth/google` → Google → `/auth/google/callback`),
+  accounts linked by Google's subject id, automatic linking for Google-verified addresses,
+  accounts without password (confirm with Google before changing the email or deleting the
+  account; `DELETE /api/v1/account/google` to disconnect). Optional: without
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` it is not offered. Not yet tried against Google.
+  Apple: later.
 - **Phase 8 (coupons & statistics)** is built end to end: coupon field in the cart
   (`PUT`/`DELETE /api/v1/cart/coupon`), discount in the quote, order, emails and order pages,
   redemption in the order transaction (released on cancellation), admin coupons under
@@ -70,8 +83,11 @@ and some species may not be traded legally.
   `/de/…` with the same path words, the link decides the language, pages carry canonical and
   `hreflang` links, emails link in the customer's language. The owner writes German catalog
   texts next to the English ones; the API answers in the page's language with English as the
-  fallback. Next: public pages filled in by the backend (no extra server), sitemap and
-  structured data.
+  fallback. Public pages are filled in by the backend for the first page load (ADR-013:
+  Caddy asks `GET /_pages/**`). The backend also serves `sitemap.xml` and `robots.txt`
+  (`GET /_site/…`) and writes all structured data; each page of the plain shop list is its own
+  page (`?page=2`). Open for launch: return policy and shipping in the product data (after the
+  legal texts), Search Console.
 
 - **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
   motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
@@ -198,6 +214,14 @@ working around them.
   (`ContentLanguage.of(locale)` outside a request, e.g. with a stored locale). Public responses carry one
   text per field; search covers both columns. Pages that can be untranslated report
   `languages` (`catalog.application.Translations`).
+- **Pages module** (ADR-013): `pages.application.PageService` fills public pages from the
+  frontend build's `index.html` (loaded by `FrontendShellSource` from `app.pages.shell-url`).
+  Its head must match what the app's `PageMeta` writes for the same page; interface words and
+  the app's routes come from `pages.json` (never hard-coded), catalog data from the catalog services; escape
+  everything with `Html` except sanitised HTML from the API. A new public page or a change to
+  the API paths and page sizes the app requests first means updating `PageService` too, and a
+  new indexable page without catalog data belongs in `CrawlerFiles.FIXED_PAGES` (sitemap).
+  Structured data (schema.org) is written only here, never by the app.
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
   keeping it, a deletion path (`app.retention.*` job or account deletion via
@@ -207,6 +231,15 @@ working around them.
   querying. Responses must not reveal whether an account exists (see docs/API.md §2.1).
   After a password change, reset or account deletion, end the user's sessions via
   `SessionManager`. Record security-relevant actions with `AuditService`.
+- **Sign in with Google** (ADR-014): the OIDC flow runs on the server (`GoogleAuthorizationFlow`
+  in `identity.api`, Spring Security's OAuth 2 client parts; never `oauth2Login()` or Google's
+  script in the browser). A Google account is found by its subject id (`user_identities`), never
+  by its address; it is connected to an existing account only when Google says the address is
+  verified, and `User.confirmEmailThroughProvider` removes a password that was never proven.
+  Administrators sign in with their password only. Accounts can have no password: sensitive
+  changes take the password or a recent confirmation with Google (`SessionManager.confirmation`,
+  `AccountService.CONFIRMATION_WINDOW`). The `returnTo` of a Google round trip must be a path on
+  this site (`GoogleSignInController.origin`). Tests use `FakeGoogle`, never Google.
 - **Cart rules:** a module reads catalog data only through `CatalogLookup`
   (never the catalog repositories). Money arithmetic happens only in
   `pricing.domain.PriceCalculator`. Random tokens and their hashes come from
@@ -233,13 +266,17 @@ working around them.
   `identity.AccountLocking` and ends its sessions with `SessionManager`. DTO records must have
   unique simple names (springdoc schema names; `ArchitectureTest` checks this).
 - **Payment rules** (ADR-010): an order becomes paid only through a signature-verified
-  webhook (`StripeWebhooks`), never because the browser says so. The amount always comes from
-  the stored order. Calls to Stripe go through `StripeGateway` (tests use `FakeStripeGateway`).
+  webhook (`StripeWebhooks`, `PayPalWebhooks`) or, for PayPal, the server's own capture call
+  answered by PayPal (`PayPalPayments.capture`) — never because the browser says so. The amount
+  always comes from the stored order. Calls to Stripe go through `StripeGateway`, calls to
+  PayPal through `PayPalGateway` (tests use `FakeStripeGateway` / `FakePayPalGateway`).
   The payment module never imports the order module: it calls `PayableOrders`, which
   `OrderPayments` implements. Take locks in the order order → payment. Webhook payloads are
   reduced to ids, amounts and statuses before they are stored; never log or store card or
-  billing details. Cancelling an unpaid card order cancels its PaymentIntent first
-  (`OrderCancellation`).
+  billing details (PayPal: no payer name or email either). Cancelling an unpaid card order
+  cancels its PaymentIntent first; a PayPal order is asked first whether the money was taken
+  (`OrderCancellation`). A payment the webhook may still capture must check
+  `PayableOrders.isAwaitingPayment` first.
 - **Coupon rules:** whether a coupon may be used at all is decided in `coupon`
   (`Coupon.problemAt`, through `Coupons`); whether and by how much it reduces a basket only
   in `PriceCalculator` (`Discount`, `DiscountOutcome`). Cart and checkout always run both
@@ -270,6 +307,15 @@ working around them.
   the API's `languages`, so an untranslated German page is not indexed. Admin forms show the
   German version of a text as its own field, labelled `admin.common.inGerman`, with
   `lang="de"` on the input.
+- **Pages filled in by the backend** (ADR-013): `index.html` keeps its markers (see the comment in
+  it); texts the backend needs go through `lib/seo/pageTexts.ts` and every route is listed in
+  `app/routePaths.ts` (a test compares it with the route tree); the build writes both to
+  `pages.json`. Files that vite.config.ts imports use relative imports with `.ts` extensions. On start the app takes the page's data (`app/serverPage.ts`, `lib/api/preload.ts` maps
+  API paths to query keys) and waits for the router before rendering. Style the backend's text
+  only through the `.page-preview` classes. The app writes no structured data (JSON-LD): the
+  backend's stays until the app shows another page. `public/robots.txt` goes into `pages.json`
+  (the backend adds the sitemap link). A paged list passes its page to `PageMeta` (`page`; the
+  shop uses `canonicalPage`), the same rule as `PageService.listPage`.
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
 - **Login state** comes from `useSession()` (`GET /auth/me`); nothing auth-related is kept
@@ -297,6 +343,16 @@ working around them.
   `@stripe/stripe-js/pure`), with the publishable key from the API. The page calls
   `confirmPayment` and moves on; whether the order is paid comes from the API (the
   confirmation page polls the order). Never show an order as paid from Stripe's browser result.
+- **Sign in with Google:** `GoogleButton` (features/auth) is a plain link to the API that leaves the
+  app (`googleSignInUrl` with `useHref` for `returnTo`); the app never talks to Google. Whether it
+  is offered comes from `useSignInOptions()`; the `?google=` code the server sends back is shown
+  with `googleProblem`. The account page decides between password field and "Confirm with Google"
+  from the server's `hasPassword` and `confirmedUntil` only.
+- **PayPal:** PayPal's script is loaded only on the payment page (`features/checkout/lib/paypal.ts`,
+  `@paypal/paypal-js`), with the client id from the API. `PaymentPage` shows the form for the
+  order's `paymentMethod` (one route for both). PayPal's button opens the order the server
+  created; `onApprove` only asks the server to capture, and the server's answer decides
+  (`PAID`, `PENDING`, `DECLINED` → `actions.restart()`). Never capture in the browser.
 - **Admin:** pages live in `features/admin`, routed under `/admin` with `RequireAdmin` and
   `AdminLayout`; each page is a lazy chunk and nothing from it is imported by the shop.
   Prices typed by the owner are parsed with `parseMoneyInput` ("3,90" → 390); what blocks
@@ -322,7 +378,10 @@ working around them.
   timelines: no fade-up-on-scroll, no hiding until revealed. Disabled buttons drop keyboard
   focus, so a button that is busy uses `aria-busy`/`aria-disabled` and ignores clicks instead.
 - Forms: React Hook Form + Zod for UX validation; always display server
-  validation errors too.
+  validation errors too. Import `z` from `@/lib/validation/zod` (never from `zod`; ESLint
+  enforces it): it keeps Zod from trying `eval`, which our Content-Security-Policy forbids.
+- **Content-Security-Policy** is set in `frontend/Caddyfile`. A new third-party script, frame or
+  API host needs its hosts added there, checked in a browser behind Caddy (Stripe and PayPal are listed).
 - Styling: Tailwind utilities and design tokens only; build variants in
   `components/ui` instead of one-off styles. No inline hex colours.
 - Accessibility: semantic HTML, labels for every input, visible focus, keyboard

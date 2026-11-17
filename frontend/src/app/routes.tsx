@@ -143,7 +143,7 @@ export const routes: RouteObject[] = [
           {
             path: 'pay/:orderNumber',
             lazy: async () => ({
-              Component: (await import('@/features/checkout/pages/CardPaymentPage')).CardPaymentPage,
+              Component: (await import('@/features/checkout/pages/PaymentPage')).PaymentPage,
             }),
           },
           {

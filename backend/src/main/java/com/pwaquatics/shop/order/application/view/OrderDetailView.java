@@ -16,7 +16,8 @@ import java.util.List;
  * @param plannedDispatchDate earliest dispatch day
  * @param paymentInstructions how to pay, while the order is waiting for a bank transfer
  * @param cancellable whether the customer may cancel the order right now
- * @param payableByCard whether the customer can (still) pay this order by card right now
+ * @param payableOnline whether the customer can (still) pay this order online right now, with the
+ *     order's own method (card or PayPal) on the payment page
  * @param shipments parcels handed to the carrier, with tracking links
  * @param couponCode the coupon used for this order, or null
  */
@@ -40,5 +41,5 @@ public record OrderDetailView(
         List<OrderStatusEntryView> statusTimeline,
         @Nullable PaymentInstructionsView paymentInstructions,
         boolean cancellable,
-        boolean payableByCard,
+        boolean payableOnline,
         List<ShipmentView> shipments) {}

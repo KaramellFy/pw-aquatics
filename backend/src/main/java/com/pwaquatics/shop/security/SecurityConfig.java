@@ -44,16 +44,25 @@ public class SecurityConfig {
 
     static final String[] PUBLIC_GET = {
         "/api/v1/auth/csrf", "/api/v1/auth/me",
+        // Sign in with Google: opened as pages; the callback only accepts the answer to a flow
+        // this browser session started (state parameter).
+        "/api/v1/auth/sign-in-options", "/api/v1/auth/google", "/api/v1/auth/google/callback",
         "/api/v1/products", "/api/v1/products/**",
         "/api/v1/categories", "/api/v1/species", "/api/v1/species/**",
         "/api/v1/colours", "/api/v1/grades",
         "/api/v1/gallery", "/api/v1/shop-info",
         "/media/**",
+        // Pages filled in for the first page load, sitemap and robots.txt (pages module); the
+        // frontend's Caddy calls them.
+        "/_pages", "/_pages/**", "/_site/sitemap.xml", "/_site/robots.txt",
         "/actuator/health", "/actuator/health/**",
     };
 
-    /** Called by Stripe's servers; the signature is checked in {@code StripeWebhooks}. */
-    static final String WEBHOOKS = "/api/v1/webhooks/stripe";
+    /**
+     * Called by the payment providers' servers: Stripe's signature is checked in
+     * {@code StripeWebhooks}, PayPal confirms its deliveries in {@code PayPalWebhooks}.
+     */
+    static final String[] WEBHOOKS = {"/api/v1/webhooks/stripe", "/api/v1/webhooks/paypal"};
 
     /** Callable without a session. Each is rate limited in its service. */
     static final String[] PUBLIC_POST = {
@@ -61,7 +70,7 @@ public class SecurityConfig {
         "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/logout",
         "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",
         "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
-        WEBHOOKS,
+        "/api/v1/webhooks/stripe", "/api/v1/webhooks/paypal",
     };
 
     /** Only reachable when springdoc is enabled (dev/staging); disabled in production. */

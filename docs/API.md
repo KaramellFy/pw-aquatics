@@ -80,7 +80,7 @@ stable `code` the frontend can switch on:
 | 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
 | 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `COUPON_IN_USE`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `CONFIRMATION_REQUIRED`, `LAST_SIGN_IN_METHOD`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
@@ -138,6 +138,9 @@ optional `…De` fields with the same length limits; blank values are stored as 
 | POST | `/auth/resend-verification` | public | `{ email }` → always `202` |
 | POST | `/auth/forgot-password` | public | `{ email }` → always `202` |
 | POST | `/auth/reset-password` | public | `{ token, newPassword }` → `204`; ends all sessions of the user |
+| GET | `/auth/sign-in-options` | public | `{ "google": true }` when signing in with Google is set up |
+| GET | `/auth/google?returnTo=&intent=` | public | Opened as a page (a link, not fetch): `302` to Google. `intent=sign-in` (default) or `confirm` (signed in; see §2.6). `404` when Google is not set up |
+| GET | `/auth/google/callback` | public | Google sends the browser back here: `302` to `returnTo` (signed in) or to a shop page with `?google=<code>` |
 
 **Rules**
 
@@ -156,6 +159,32 @@ optional `…De` fields with the same length limits; blank values are stored as 
 - Emailed links are single-use (`422 TOKEN_INVALID` otherwise): verification
   and email change 48 h, password reset 1 h. Only a SHA-256 hash is stored.
 - Emails are sent in the language of the request (`Accept-Language`: `en`/`de`).
+
+**Sign in with Google** (ADR-014; OpenID Connect, authorization code flow)
+
+- `returnTo` is where the customer comes back to, as the browser shows it (`/checkout`,
+  `/de/kasse`); a German path makes a new account German and Google's pages German (`hl`).
+  Only paths on this site are accepted: anything else (`https://…`, `//host`, `/api/…`,
+  characters a link would have encoded) becomes `/account`.
+- `/auth/google` keeps the authorization request in the session — random `state`, `nonce` and a
+  PKCE verifier (S256) — and asks for `openid email profile` only. The callback only accepts
+  Google's answer to the request kept in **this** browser session; the server exchanges the code
+  with Google and checks the ID token's signature against Google's published keys, its issuer,
+  audience, expiry and nonce. Google's access token is not kept.
+- **Which account:** the Google account is found by Google's subject id (`sub`), not by its
+  address. The first time, it is connected to the account with the same address, but only if
+  Google says the address is verified (`email_verified`); the customer gets a "Sign-in with Google
+  added" email. Was that account's address not confirmed yet, its password is removed (it was
+  never proven by the address owner). Without an account, a new one is created — verified, no
+  password, name from Google. Administrators sign in with their password only.
+- Sign-in starts a new session (new session id, fresh CSRF token), as with a password.
+- **Back to the shop with `?google=<code>`** (on the sign-in page, keeping `redirect=`; for
+  `intent=confirm` on `returnTo`): `cancelled` (at Google), `failed` (Google's answer did not
+  check out), `expired` (no flow started in this browser session, or used up), `unverified`,
+  `locked`, `password_only` (administrators), `other_account` (the shop account is connected to
+  a different Google account), `too_many` (rate limit), `not_connected` (confirming with a
+  Google account that is not the connected one), `confirmed` (success of `intent=confirm`).
+- Logged: only the reason of a failure (e.g. `invalid_id_token`), never tokens or personal data.
 
 ### 2.2 Catalog — public
 
@@ -267,7 +296,6 @@ object is always present (marked `required` in OpenAPI); properties that can be
 | GET | `/gallery?page=0&size=24` | Published gallery photos in the owner's order (paged, `size` ≤ 48): `id`, `title`, `caption`, `image` (`url`, `srcSet`, `alt`, `width`, `height`) |
 | POST | `/contact` | `{ name, email, subject, message, orderNumber?, website (honeypot) }` → `202`. Rate limited |
 | GET | `/shop-info` | Shop-wide notices for every page: `{ shippingPause: { message, until } \| null }` — set only while a pause is in force (`until` is its last day; `null` for an open-ended pause). Free-shipping threshold and bank-transfer note may follow |
-| GET | `/sitemap.xml` | Generated sitemap (served at `/sitemap.xml` via proxy) |
 
 ### 2.4 Cart — `/api/v1/cart` (public; guest or customer)
 
@@ -517,24 +545,26 @@ contains the link to the payment page and the deadline; for bank transfer, the b
 }
 ```
 
-`paymentInstructions` is `null` for card payment: the client continues with §2.7.
+`paymentInstructions` is `null` for card and PayPal payment: the client continues with §2.7.
 
 Unpaid orders expire: a bank-transfer order at the end of the day
-`ORDER_BANK_TRANSFER_PAYMENT_DAYS` (default 7) after it was placed, a card order
+`ORDER_BANK_TRANSFER_PAYMENT_DAYS` (default 7) after it was placed, a card or PayPal order
 `ORDER_CARD_PAYMENT_MINUTES` (default 60) after it was placed (`paymentDueAt`). A job
 (every 15 minutes) cancels it, returns the animals to stock and emails the customer. For a
-card order it first cancels the PaymentIntent at Stripe; if Stripe already has the money or
-is still processing it, the order is kept and the webhook marks it as paid.
+card order it first cancels the PaymentIntent at Stripe; for a PayPal order it asks PayPal
+whether the money was taken. If the provider already has the money or is still processing
+it, the order is kept and the webhook marks it as paid.
 
 ### 2.6 Account — `/api/v1/account` (customer)
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/account/profile` | `{ email, firstName, lastName, phone, marketingOptIn, locale, memberSince }` |
+| GET | `/account/profile` | `{ email, firstName, lastName, phone, marketingOptIn, locale, memberSince, hasPassword, googleEmail, confirmedUntil }` |
 | PATCH | `/account/profile` | `{ firstName, lastName, phone?, marketingOptIn, locale? }` → updated profile |
-| PUT | `/account/email` | `{ newEmail, currentPassword }` → `202`. A link goes to the **new** address; the change happens when it is opened (via `/auth/verify-email`), and the old address is notified. If the address is taken nothing is sent and the answer is the same |
+| PUT | `/account/email` | `{ newEmail, currentPassword? }` → `202`. A link goes to the **new** address; the change happens when it is opened (via `/auth/verify-email`), and the old address is notified. If the address is taken nothing is sent and the answer is the same |
 | PUT | `/account/password` | `{ currentPassword, newPassword }` → `204`; all other sessions are ended and a notice is emailed |
-| DELETE | `/account` | `{ currentPassword }` → `204`. Personal data and addresses are removed, the row is anonymised, all sessions end |
+| DELETE | `/account` | `{ currentPassword? }` → `204`. Personal data, addresses and the connection to Google are removed, the row is anonymised, all sessions end |
+| DELETE | `/account/google` | Removes the connection to Google → `204` and a notice by email. Only while the account has a password (`422 LAST_SIGN_IN_METHOD`); none connected → `404` |
 | GET | `/account/addresses` | Saved addresses, defaults first |
 | POST | `/account/addresses` | Create → `201`. The first address becomes default for shipping and billing. Max. 10 |
 | PUT | `/account/addresses/{id}` | Update |
@@ -542,7 +572,16 @@ is still processing it, the order is kept and the webhook marks it as paid.
 | PUT | `/account/addresses/{id}/default` | `{ shipping: true, billing: false }` (at least one `true`) → updated list |
 
 Wrong current password → `422 CURRENT_PASSWORD_INVALID` (not `401`, which means
-"no session"). Address fields: `label?`, `firstName`, `lastName`, `company?`,
+"no session").
+
+**Without a password** (customers who signed up with Google): `hasPassword` is `false` and
+`googleEmail` names the connected Google account. Changing the email address and deleting the
+account then need a confirmation with that Google account instead
+(`/auth/google?intent=confirm&returnTo=/account/profile`, back with `?google=confirmed`): it
+counts for 10 minutes and one change (`confirmedUntil` says until when; the request then carries
+no `currentPassword`). Without it → `422 CONFIRMATION_REQUIRED`. Any customer with a connected
+Google account may confirm this way. A password is set through `/auth/forgot-password` (the
+emailed link); `/account/password` always needs the current password. Address fields: `label?`, `firstName`, `lastName`, `company?`,
 `street`, `houseNumber`, `addressLine2?`, `postalCode`, `city`, `countryCode`
 (ISO 3166-1 alpha-2), `phone?`; responses add `id`, `defaultShipping`,
 `defaultBilling`. Another customer's address → `404`.
@@ -565,9 +604,9 @@ purchase; `lineTotal` is before the coupon discount), `totals` (`subtotal`, `dis
 `shippingMethodName`, `shippingCarrier`, `shippingAddress`,
 `billingAddress`, `customerNote`, `containsLiveAnimals`, `statusTimeline`,
 `paymentInstructions` (only while the order waits for a bank transfer, otherwise `null`),
-`cancellable` (whether the customer may cancel right now) and `payableByCard` (whether
-the card payment can be started or resumed right now: an unpaid card order before its
-`paymentDueAt`) — both decided by the server.
+`cancellable` (whether the customer may cancel right now) and `payableOnline` (whether
+the card or PayPal payment can be started or resumed right now: an unpaid card or PayPal order
+before its `paymentDueAt`, with that provider configured) — both decided by the server.
 
 ```json
 "statusTimeline": [
@@ -591,16 +630,16 @@ leaves). `trackingUrl` is built by the server from the carrier's URL template
 
 ### 2.7 Payments
 
-Card payment (including Apple Pay and Google Pay, which Stripe treats as cards) is built
-(Phase 9); PayPal follows.
+Card payment (including Apple Pay and Google Pay, which Stripe treats as cards) and PayPal are
+built (Phase 9).
 
 | Method | Path | Access | Description |
 |---|---|---|---|
 | POST | `/payments/stripe/intents` | customer (CSRF) | Start or resume the card payment of one of the customer's own orders (below) |
 | POST | `/webhooks/stripe` | Stripe | Payment events; signature-verified, idempotent, no session, CSRF-exempt |
-| POST | `/payments/paypal/orders` | customer | *Later:* `{ orderNumber }` → PayPal order ID |
-| POST | `/payments/paypal/orders/{paypalOrderId}/capture` | customer | *Later:* capture after approval; final confirmation still via webhook |
-| POST | `/webhooks/paypal` | PayPal | *Later:* signature-verified, idempotent, CSRF-exempt |
+| POST | `/payments/paypal/orders` | customer (CSRF) | Start or resume the PayPal payment of one of the customer's own orders (below) |
+| POST | `/payments/paypal/captures` | customer (CSRF) | After the customer approved in PayPal's window: the server takes the money and answers whether the order is paid |
+| POST | `/webhooks/paypal` | PayPal | Payment events; confirmed by PayPal, idempotent, no session, CSRF-exempt |
 
 **`POST /payments/stripe/intents`**
 
@@ -663,6 +702,65 @@ for `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.pay
 **Local development:** Stripe cannot reach `localhost`. Forward events with the Stripe CLI
 (`stripe listen --forward-to localhost:8080/api/v1/webhooks/stripe`, then use the
 `whsec_…` it prints as `STRIPE_WEBHOOK_SECRET`).
+
+**`POST /payments/paypal/orders`** — `{ "orderNumber": "PW-2027-000123" }`
+
+```json
+{
+  "orderNumber": "PW-2027-000123",
+  "amount": { "amount": 1770, "currency": "EUR" },
+  "paymentDueAt": "2027-03-01T10:12:00Z",
+  "paypalOrderId": "5O190127TN364715T",
+  "clientId": "A…",
+  "alreadyPaid": false
+}
+```
+
+- The first call creates the PayPal order for the **stored order total** (one per order,
+  `PayPal-Request-Id: order-<id>`, `intent: CAPTURE`, no shipping address asked for or
+  returned, PayPal's pages in the customer's language); later calls return the same one.
+  Amounts in the request are ignored.
+- `clientId` loads PayPal's script (public by design); the button opens `paypalOrderId`.
+- `alreadyPaid: true` (and `paypalOrderId: null`): PayPal has the money or is still checking it.
+- Refusals as for card payment: `404`, `400`, `409 ORDER_ALREADY_PAID`, `409 ORDER_NOT_PAYABLE`,
+  `409 PAYMENT_METHOD_UNAVAILABLE` (not a PayPal order, or PayPal not configured),
+  `503 PAYMENT_PROVIDER_UNAVAILABLE`, `429 RATE_LIMITED`.
+
+**`POST /payments/paypal/captures`** — `{ "orderNumber": "PW-2027-000123" }` →
+`{ "orderNumber": "…", "status": "PAID" | "PENDING" | "DECLINED" }`
+
+- The server captures the PayPal order (`PayPal-Request-Id: order-<id>-capture`, so a repeated
+  call takes nothing twice) and reads the result **from PayPal**. `PAID`: the order is paid now
+  (the customer gets the "payment received" email). `PENDING`: PayPal or the bank still checks
+  the payment; the webhook completes it, and the order can neither be cancelled nor expire
+  meanwhile. `DECLINED`: nothing was taken (the funding source was declined, or the customer
+  has not approved yet); the browser lets the customer choose another way to pay in PayPal's
+  window. The decline reason is kept (`INSTRUMENT_DECLINED`, `ORDER_NOT_APPROVED`).
+- Refusals as above, plus `409 PAYMENT_NOT_STARTED` (no PayPal order yet).
+
+**`POST /webhooks/paypal`** — registered for the REST app (developer.paypal.com → Apps &
+Credentials → the app → Webhooks) for `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`,
+`PAYMENT.CAPTURE.PENDING`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.DECLINED`,
+`PAYMENT.CAPTURE.REFUNDED` and `PAYMENT.CAPTURE.REVERSED`; its id is `PAYPAL_WEBHOOK_ID`.
+
+- PayPal confirms each delivery: the `PAYPAL-*` headers and the body exactly as received go to
+  PayPal's verify-webhook-signature API with our webhook id; missing headers or anything but
+  `SUCCESS` → `400 WEBHOOK_SIGNATURE_INVALID`. A body that is not exactly one JSON event →
+  `400 WEBHOOK_INVALID`. Bodies over 256 KB are refused. Without PayPal configured → `404`.
+- Stored once per PayPal event id, reduced to ids, amounts and statuses (no payer name or email),
+  processed in one transaction with its effect on the order; a failure answers `500` and PayPal
+  delivers again.
+- `CHECKOUT.ORDER.APPROVED`: captured as above if the order still waits for payment (covers a
+  customer whose browser never came back); otherwise noted as `order not awaiting payment`.
+- `PAYMENT.CAPTURE.COMPLETED`: the amount and currency must equal the stored payment (otherwise
+  noted as `amount mismatch`); the order turns `PAID` once. `…PENDING` keeps it waiting;
+  `…DENIED`/`…DECLINED` record the reason. A capture completed for a cancelled order leaves it
+  cancelled and tells the shop inbox, as for Stripe.
+- `PAYMENT.CAPTURE.REFUNDED`/`REVERSED` (refunds are made in the PayPal account) set
+  `paymentStatus` to `PARTIALLY_REFUNDED` or `REFUNDED` from the total refunded so far.
+
+**Local development:** PayPal cannot reach `localhost`; a payment completes without webhooks
+because the server captures it. To try webhooks, register a public address (e.g. a tunnel).
 
 ---
 
@@ -916,6 +1014,9 @@ calculated on the server.
 | `/actuator/health/liveness`, `/actuator/health/readiness` | internal network only | Container health checks |
 | `/actuator/prometheus` | internal network only | Metrics |
 | `/api/v3/api-docs`, `/swagger-ui` | dev/staging only | Disabled in production |
+| `GET /_pages/<path>` | public (called by the frontend's Caddy) | Not JSON: the page `<path>` as HTML, filled in from the frontend build (ADR-013). `200`, `404` (with `noindex`) for unknown products, species and categories and for addresses the app has no page for (its route list comes with the frontend build), `503` when no page template is available (Caddy then serves the plain `index.html`). `Cache-Control: no-cache`. Shop and category pages read `?page=N` (the plain list's page N, with previous/next links and `?page=N` in the canonical link; a filtered, searched or sorted view is filled in as its list's first page; a page after the last answers `404`). Structured data (`application/ld+json`): `Product` with an `Offer` per pack size and `BreadcrumbList` on product pages, `BreadcrumbList` on category pages, `Organization` and `WebSite` on the home page. Embeds the API responses the app requests first in `<script type="application/json" id="page-data">`, keyed by API path (`/products/{slug}`, `/species/{slug}`, `/categories`, `/products?…`) |
+| `GET /_site/sitemap.xml` | public (called by the frontend's Caddy for `/sitemap.xml`) | Not JSON: the sitemap (`application/xml`). Home, shop, gallery, about, contact, every category, species and published product, one `<url>` per language the page is written in (German only when translated), each with `xhtml:link` alternates (`en`, `de`, `x-default`); products carry `<lastmod>`. Full links from `app.base-url`. `Cache-Control: no-cache` (ADR-013 addendum) |
+| `GET /_site/robots.txt` | public (called by the frontend's Caddy for `/robots.txt`) | Not JSON: the frontend build's `robots.txt` (from `pages.json`) plus `Sitemap: <app.base-url>/sitemap.xml`. `503` without a frontend build; Caddy then serves the build's own file |
 
 ---
 
@@ -927,6 +1028,7 @@ calculated on the server.
 | `POST /auth/register`, `/auth/forgot-password`, `/auth/resend-verification` | 5/hour per IP |
 | `POST /contact` | 3/hour per IP |
 | Password confirmations (`/account/password`, `/account/email`, `DELETE /account`) | 10 per 15 min per user |
+| `GET /auth/google`, `/auth/google/callback` | 20/min per IP |
 | Cart changes (`POST`/`PATCH`/`DELETE /cart…`) | 120/min per IP |
 | `PUT /cart/coupon` | 10/min per IP (so codes cannot be guessed by trying) |
 | `POST /checkout/orders` | 10/min per user |

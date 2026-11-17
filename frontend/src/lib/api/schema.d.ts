@@ -323,6 +323,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payments/paypal/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start (or resume) the PayPal payment of an order; returns what PayPal's button needs */
+        post: operations["startPayPalPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/paypal/captures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take the PayPal payment the customer approved; the server reads the result from PayPal */
+        post: operations["capturePayPalPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contact": {
         parameters: {
             query?: never;
@@ -1254,6 +1288,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/sign-in-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ways to sign in besides email and password */
+        get: operations["signInOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -1263,6 +1314,40 @@ export interface paths {
         };
         /** The current session's user, if any */
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start signing in with Google (open as a page, not with fetch); redirects to Google */
+        get: operations["start"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Google sends the browser back here; signs in and redirects to the shop */
+        get: operations["callback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1589,6 +1674,23 @@ export interface paths {
         post?: never;
         /** Delete the account and personal data */
         delete: operations["deleteAccount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove the connection to Google (only while the account has a password) */
+        delete: operations["disconnect"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2003,7 +2105,7 @@ export interface components {
             statusTimeline: components["schemas"]["OrderStatusEntryView"][];
             paymentInstructions: components["schemas"]["PaymentInstructionsView"] | null;
             cancellable: boolean;
-            payableByCard: boolean;
+            payableOnline: boolean;
             shipments: components["schemas"]["ShipmentView"][];
         };
         OrderHistoryEntry: {
@@ -2255,7 +2357,7 @@ export interface components {
         ChangeEmailRequest: {
             /** Format: email */
             newEmail: string;
-            currentPassword: string;
+            currentPassword?: string;
         };
         AddressRequest: {
             label?: string;
@@ -2302,6 +2404,23 @@ export interface components {
             clientSecret: string | null;
             publishableKey: string;
             alreadyPaid: boolean;
+        };
+        PayPalPaymentRequest: {
+            orderNumber: string;
+        };
+        PayPalPaymentView: {
+            orderNumber: string;
+            amount: components["schemas"]["Money"];
+            /** Format: date-time */
+            paymentDueAt: string | null;
+            paypalOrderId: string | null;
+            clientId: string;
+            alreadyPaid: boolean;
+        };
+        PayPalCaptureView: {
+            orderNumber: string;
+            /** @enum {string} */
+            status: "PAID" | "PENDING" | "DECLINED";
         };
         ContactMessageRequest: {
             name: string;
@@ -2576,6 +2695,10 @@ export interface components {
             locale: string;
             /** Format: date-time */
             memberSince: string;
+            hasPassword: boolean;
+            googleEmail: string | null;
+            /** Format: date-time */
+            confirmedUntil: string | null;
         };
         SpeciesSummaryView: {
             slug: string;
@@ -2774,6 +2897,9 @@ export interface components {
             name: string;
             description: string | null;
             children: components["schemas"]["CategoryNodeView"][];
+        };
+        SignInOptionsView: {
+            google: boolean;
         };
         CsrfToken: {
             headerName: string;
@@ -3147,7 +3273,7 @@ export interface components {
             totalPages: number;
         };
         DeleteAccountRequest: {
-            currentPassword: string;
+            currentPassword?: string;
         };
     };
     responses: never;
@@ -3883,6 +4009,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CardPaymentView"];
+                };
+            };
+        };
+    };
+    startPayPalPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayPalPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PayPalPaymentView"];
+                };
+            };
+        };
+    };
+    capturePayPalPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayPalPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PayPalCaptureView"];
                 };
             };
         };
@@ -5467,6 +5641,26 @@ export interface operations {
             };
         };
     };
+    signInOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignInOptionsView"];
+                };
+            };
+        };
+    };
     me: {
         parameters: {
             query?: never;
@@ -5484,6 +5678,45 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["SessionView"];
                 };
+            };
+        };
+    };
+    start: {
+        parameters: {
+            query?: {
+                returnTo?: string;
+                intent?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    callback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5916,6 +6149,24 @@ export interface operations {
                 "application/json": components["schemas"]["DeleteAccountRequest"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {

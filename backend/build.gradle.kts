@@ -52,6 +52,12 @@ dependencies {
     // Its model classes are annotated for Gson (a runtime dependency); this only keeps javac from warning about it.
     compileOnly("com.google.code.gson:gson")
 
+    // Sign in with Google (OpenID Connect): authorization request with state, nonce and PKCE,
+    // code exchange and ID-token validation against Google's keys; see ADR-014. Only the
+    // building blocks are used (no Boot auto-configuration, no oauth2Login filter).
+    implementation("org.springframework.security:spring-security-oauth2-client")
+    implementation("org.springframework.security:spring-security-oauth2-jose")
+
     // Mapping
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
     annotationProcessor("org.mapstruct:mapstruct-processor:$mapstructVersion")

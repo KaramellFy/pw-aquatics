@@ -73,8 +73,8 @@ export function usePlaceOrder() {
         body: request,
         headers: { 'Idempotency-Key': idempotencyKey.current },
       });
-      // Leave the checkout before the (now empty) cart is refreshed. Card orders are paid next.
-      const next = placed.paymentMethod === 'STRIPE' ? 'pay' : 'complete';
+      // Leave the checkout before the (now empty) cart is refreshed. Card and PayPal orders are paid next.
+      const next = placed.paymentMethod === 'BANK_TRANSFER' ? 'complete' : 'pay';
       await navigate(`/checkout/${next}/${placed.orderNumber}`, { replace: true });
       return placed;
     },

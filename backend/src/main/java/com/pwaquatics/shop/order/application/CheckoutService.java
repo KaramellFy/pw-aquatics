@@ -34,6 +34,7 @@ import com.pwaquatics.shop.order.domain.OrderAddress;
 import com.pwaquatics.shop.order.domain.OrderNumber;
 import com.pwaquatics.shop.order.infrastructure.OrderRepository;
 import com.pwaquatics.shop.payment.application.BankTransferPayments;
+import com.pwaquatics.shop.payment.application.PayPalPayments;
 import com.pwaquatics.shop.payment.application.StripePayments;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.pricing.domain.Discount;
@@ -88,6 +89,7 @@ public class CheckoutService {
     private final ShippingService shipping;
     private final BankTransferPayments bankTransfer;
     private final StripePayments stripe;
+    private final PayPalPayments paypal;
     private final AccountService accounts;
     private final OrderRepository orders;
     private final OrderViews views;
@@ -109,6 +111,7 @@ public class CheckoutService {
             ShippingService shipping,
             BankTransferPayments bankTransfer,
             StripePayments stripe,
+            PayPalPayments paypal,
             AccountService accounts,
             OrderRepository orders,
             OrderViews views,
@@ -127,6 +130,7 @@ public class CheckoutService {
         this.shipping = shipping;
         this.bankTransfer = bankTransfer;
         this.stripe = stripe;
+        this.paypal = paypal;
         this.accounts = accounts;
         this.orders = orders;
         this.views = views;
@@ -398,13 +402,16 @@ public class CheckoutService {
     }
 
     /**
-     * Card payment first (it is the quickest way to get the animals on their way), then bank
-     * transfer. Card payment needs at least Stripe's minimum charge.
+     * Card payment first and PayPal second (both are the quickest way to get the animals on
+     * their way), then bank transfer. Card payment needs at least Stripe's minimum charge.
      */
     private List<PaymentMethod> availablePaymentMethods(Money total) {
-        List<PaymentMethod> methods = new ArrayList<>(2);
+        List<PaymentMethod> methods = new ArrayList<>(3);
         if (stripe.isAvailable() && total.amount() >= CARD_MINIMUM_CENTS) {
             methods.add(PaymentMethod.STRIPE);
+        }
+        if (paypal.isAvailable() && total.amount() > 0) {
+            methods.add(PaymentMethod.PAYPAL);
         }
         if (bankTransfer.isAvailable()) {
             methods.add(PaymentMethod.BANK_TRANSFER);
@@ -414,11 +421,11 @@ public class CheckoutService {
 
     /**
      * How long the animals stay reserved for an unpaid order: {@code cardPaymentMinutes} for card
-     * payment; for bank transfer, until the end of the day {@code bankTransferPaymentDays} days
-     * after the order.
+     * and PayPal payment; for bank transfer, until the end of the day
+     * {@code bankTransferPaymentDays} days after the order.
      */
     private Instant paymentDueAt(PaymentMethod method, Instant now) {
-        if (method == PaymentMethod.STRIPE) {
+        if (method == PaymentMethod.STRIPE || method == PaymentMethod.PAYPAL) {
             return now.plus(cardPaymentTime);
         }
         return LocalDate.ofInstant(now, ShippingService.SHOP_ZONE)

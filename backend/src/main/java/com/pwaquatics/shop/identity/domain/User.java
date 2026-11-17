@@ -81,6 +81,17 @@ public class User extends AbstractEntity {
         return user;
     }
 
+    /**
+     * A customer account created by signing in with Google: no password (the customer can set one
+     * later through the "forgot password" email), and verified, because Google confirmed the address.
+     */
+    public static User registerWithGoogle(
+            String email, String firstName, String lastName, String locale, Instant now) {
+        User user = register(email, null, firstName, lastName, locale, now);
+        user.emailVerifiedAt = now;
+        return user;
+    }
+
     /** An administrator; created verified because the address comes from the deployment configuration. */
     public static User administrator(String email, String passwordHash, Instant now) {
         User user = register(email, passwordHash, "Shop", "Admin", "en", now);
@@ -93,6 +104,26 @@ public class User extends AbstractEntity {
 
     public boolean isEmailVerified() {
         return emailVerifiedAt != null;
+    }
+
+    /** False for accounts that only sign in with Google. */
+    public boolean hasPassword() {
+        return passwordHash != null;
+    }
+
+    /**
+     * Google has just confirmed that the person signing in owns this address. If the address was
+     * not verified yet, the password was never proven by its owner (anyone can register someone
+     * else's address), so it is removed before the account is handed over; the owner can set a
+     * new one through the "forgot password" email.
+     */
+    public void confirmEmailThroughProvider(Instant now) {
+        if (emailVerifiedAt == null) {
+            passwordHash = null;
+            failedLoginAttempts = 0;
+            lockedUntil = null;
+        }
+        verifyEmail(now);
     }
 
     public boolean isActive() {

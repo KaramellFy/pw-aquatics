@@ -169,6 +169,45 @@ class AuthEmails {
                         """.formatted(firstName));
     }
 
+    /** Security notice: from now on the account can also be used by signing in with this Google account. */
+    EmailMessage googleConnected(User user, String googleEmail) {
+        String security = links.page(user.getLocale(), "/account/security");
+        return german(user)
+                ? mail(user.getEmail(), "Anmeldung mit Google hinzugefügt", """
+                        Hallo %s,
+
+                        du hast dich gerade mit deinem Google-Konto (%s) bei PW Aquatics angemeldet. Ab jetzt kannst du dich damit in dein Konto einloggen.
+
+                        Warst du das nicht? Dann melde dich bitte bei uns. Unter %s kannst du die Verbindung zu Google wieder entfernen, sobald du ein Passwort hast.
+                        """.formatted(user.getFirstName(), googleEmail, security))
+                : mail(user.getEmail(), "Sign-in with Google added", """
+                        Hello %s,
+
+                        you have just signed in to PW Aquatics with your Google account (%s). From now on you can use it to sign in to your account.
+
+                        Wasn't you? Please contact us. At %s you can remove the connection to Google again once you have a password.
+                        """.formatted(user.getFirstName(), googleEmail, security));
+    }
+
+    /** Security notice: the account can no longer be used through Google. */
+    EmailMessage googleDisconnected(User user) {
+        return german(user)
+                ? mail(user.getEmail(), "Anmeldung mit Google entfernt", """
+                        Hallo %s,
+
+                        die Verbindung zwischen deinem PW Aquatics Konto und Google wurde entfernt. Du meldest dich ab jetzt mit deiner E-Mail-Adresse und deinem Passwort an.
+
+                        Warst du das nicht? Dann melde dich bitte bei uns.
+                        """.formatted(user.getFirstName()))
+                : mail(user.getEmail(), "Sign-in with Google removed", """
+                        Hello %s,
+
+                        the connection between your PW Aquatics account and Google has been removed. From now on you sign in with your email address and password.
+
+                        Wasn't you? Please contact us.
+                        """.formatted(user.getFirstName()));
+    }
+
     /** A one-time link in the user's language. */
     private String link(User user, String path, String token) {
         return links.page(user.getLocale(), path) + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);

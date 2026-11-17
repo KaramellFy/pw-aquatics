@@ -44,7 +44,7 @@ const awaitingCard: Order = {
   statusTimeline: [],
   paymentInstructions: null,
   cancellable: true,
-  payableByCard: true,
+  payableOnline: true,
   shipments: [],
 };
 const paid: Order = {
@@ -52,7 +52,7 @@ const paid: Order = {
   status: 'PAID',
   paymentStatus: 'PAID',
   cancellable: false,
-  payableByCard: false,
+  payableOnline: false,
 };
 
 const routes = [{ path: '/checkout/complete/:orderNumber', element: <OrderConfirmationPage /> }];
@@ -69,6 +69,17 @@ describe('OrderConfirmationPage after a card payment', () => {
     expect(await screen.findByText(/Payment received/, {}, { timeout: 4000 })).toBeInTheDocument();
     expect(checks).toBe(2);
     expect(screen.queryByText(/Transfer the total/)).not.toBeInTheDocument();
+  });
+
+  it('waits for the server to hear from PayPal in the same way', async () => {
+    let checks = 0;
+    const awaitingPayPal: Order = { ...awaitingCard, paymentMethod: 'PAYPAL' };
+    const paidPayPal: Order = { ...paid, paymentMethod: 'PAYPAL' };
+    mockApi({ '/account/orders/PW-2026-000042': () => (++checks < 2 ? awaitingPayPal : paidPayPal) });
+    renderRoutes(routes, { path: '/checkout/complete/PW-2026-000042' });
+
+    expect(await screen.findByText(/confirming your PayPal payment/)).toBeInTheDocument();
+    expect(await screen.findByText(/Payment received/, {}, { timeout: 4000 })).toBeInTheDocument();
   });
 
   it('offers another attempt when the bank declined after 3-D Secure', async () => {

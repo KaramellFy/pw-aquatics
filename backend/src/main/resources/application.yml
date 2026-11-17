@@ -115,7 +115,7 @@ app:
   orders:
     # Unpaid bank-transfer orders are cancelled after this many days and their stock is returned.
     bank-transfer-payment-days: ${ORDER_BANK_TRANSFER_PAYMENT_DAYS:7}
-    # Unpaid card orders are cancelled this many minutes after they were placed.
+    # Unpaid card and PayPal orders are cancelled this many minutes after they were placed.
     card-payment-minutes: ${ORDER_CARD_PAYMENT_MINUTES:60}
   # Bank account shown to customers who pay by bank transfer. Without an IBAN the
   # payment method is not offered and no orders can be placed.
@@ -130,6 +130,21 @@ app:
     secret-key: ${STRIPE_SECRET_KEY:}
     publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  # Payments with PayPal. Offered only when client id, secret and webhook id are set. The webhook
+  # id belongs to the endpoint /api/v1/webhooks/paypal registered for the REST app.
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    webhook-id: ${PAYPAL_WEBHOOK_ID:}
+    # sandbox (test accounts) or live
+    environment: ${PAYPAL_ENVIRONMENT:sandbox}
+    timeout: PT10S
+  # Sign in with Google (ADR-014): both or neither; register <base-url>/api/v1/auth/google/callback
+  # as the redirect URI of the OAuth client.
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    timeout: PT10S
   # How long personal data is kept where no law requires longer (docs/DATABASE.md §6).
   # Orders are not listed here: they are business records with statutory retention.
   retention:
@@ -141,6 +156,12 @@ app:
     contact-messages: 365d
     # Processed payment webhook deliveries (ids, amounts and statuses only).
     payment-webhook-events: 90d
+  # Pages filled in by the backend for the first page load (docs/adr/013-pages-filled-in-by-the-backend.md).
+  # shell-url: where the built frontend is served inside the deployment (e.g. http://frontend:8080/);
+  # empty: pages are not filled in (local development with the Vite dev server).
+  pages:
+    shell-url: ${APP_PAGES_SHELL_URL:}
+    timeout: PT2S
   # Optional first administrator, created at startup if no admin exists yet.
   admin-bootstrap:
     email: ${APP_ADMIN_BOOTSTRAP_EMAIL:}
@@ -180,9 +201,17 @@ app:
     card-payment:
       capacity: 20
       period: PT1M
+    # Opening the PayPal payment and confirming it, per customer (each call asks PayPal).
+    paypal-payment:
+      capacity: 20
+      period: PT1M
     # Webhook deliveries per client IP, before the signature check.
     payment-webhook:
       capacity: 300
+      period: PT1M
+    # Starting and finishing "Sign in with Google", per IP address.
+    google-sign-in:
+      capacity: 20
       period: PT1M
     # Password confirmations inside a session (change password/email, delete account).
     password-check:

@@ -1,4 +1,5 @@
-import type { Messages } from './en';
+// With extension: vite.config.ts loads this file (lib/seo/pageTexts.ts).
+import type { Messages } from './en.ts';
 
 /** German UI texts. Must provide exactly the keys defined in `en.ts`. */
 export const de: Messages = {
@@ -347,6 +348,8 @@ export const de: Messages = {
     TOKEN_INVALID: 'Dieser Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.',
     PASSWORD_TOO_WEAK: 'Dieses Passwort ist zu leicht zu erraten. Bitte wähle ein anderes.',
     CURRENT_PASSWORD_INVALID: 'Das aktuelle Passwort ist nicht korrekt.',
+    CONFIRMATION_REQUIRED: 'Bitte bestätige zuerst mit deinem Google-Konto.',
+    LAST_SIGN_IN_METHOD: 'Bitte lege zuerst ein Passwort fest, sonst könntest du dich nicht mehr anmelden.',
     EMAIL_TAKEN: 'Diese E-Mail-Adresse wird bereits verwendet.',
     EMAIL_UNCHANGED: 'Das ist bereits deine E-Mail-Adresse.',
     ADDRESS_LIMIT_REACHED: 'Du kannst bis zu 10 Adressen speichern. Bitte lösche zuerst eine.',
@@ -456,6 +459,25 @@ export const de: Messages = {
       resend: 'Bestätigungs-E-Mail erneut senden',
       resent: 'Falls deine Adresse noch bestätigt werden muss, ist eine neue E-Mail unterwegs.',
     },
+    google: {
+      continue: 'Weiter mit Google',
+      or: 'oder',
+      hint: 'Google teilt uns deinen Namen und deine E-Mail-Adresse mit – sonst nichts.',
+      problems: {
+        cancelled: 'Du hast die Anmeldung mit Google abgebrochen.',
+        failed: 'Die Anmeldung mit Google hat nicht geklappt. Bitte versuche es noch einmal.',
+        expired:
+          'Die Anmeldung mit Google hat zu lange gedauert oder wurde in einem anderen Fenster gestartet. Bitte versuche es noch einmal.',
+        unverified:
+          'Google hat die E-Mail-Adresse dieses Google-Kontos nicht bestätigt, deshalb kann es hier nicht zur Anmeldung verwendet werden.',
+        locked: 'Dieses Konto wurde gesperrt. Bitte melde dich bei uns.',
+        passwordOnly: 'Bitte melde dich bei diesem Konto mit deinem Passwort an.',
+        otherAccount:
+          'Dieses Konto ist bereits mit einem anderen Google-Konto verbunden. Bitte melde dich mit deinem Passwort oder mit diesem Google-Konto an.',
+        tooMany: 'Zu viele Versuche. Bitte warte eine Minute und versuche es dann noch einmal.',
+        notConnected: 'Dieses Google-Konto ist nicht das, das mit deinem Kundenkonto verbunden ist.',
+      },
+    },
     register: {
       metaTitle: 'Konto erstellen – PW Aquatics',
       title: 'Konto erstellen',
@@ -552,6 +574,24 @@ export const de: Messages = {
       deleteConfirmTitle: 'Konto wirklich löschen?',
       deleteConfirmText: 'Das kann nicht rückgängig gemacht werden. Gib zur Bestätigung dein Passwort ein.',
       deleteConfirm: 'Konto endgültig löschen',
+      signInTitle: 'Anmeldung',
+      googleConnected: 'Dein Konto ist mit Google verbunden ({{email}}). Du kannst dich damit anmelden.',
+      googleDisconnect: 'Verbindung zu Google trennen',
+      googleAvailable:
+        'Du kannst dich auch mit Google anmelden – mit einem Google-Konto mit der Adresse {{email}}.',
+      googleDisconnected:
+        'Google ist nicht mehr verbunden. Melde dich mit deiner E-Mail-Adresse und deinem Passwort an.',
+      googleNeedsPassword: 'Um die Verbindung zu Google zu trennen, lege zuerst ein Passwort fest.',
+      noPassword:
+        'Du meldest dich mit Google an. Wenn du dich auch mit einem Passwort anmelden möchtest, schicken wir dir einen Link, um eins festzulegen.',
+      setPassword: 'Link per E-Mail senden',
+      setPasswordSent: 'Wir haben einen Link an {{email}} geschickt.',
+      confirmNeeded: 'Du meldest dich mit Google an. Bitte bestätige deshalb zuerst mit deinem Google-Konto.',
+      confirmWithGoogle: 'Mit Google bestätigen',
+      confirmedUntil: 'Mit Google bestätigt bis {{time}} Uhr.',
+      confirmedNotice:
+        'Mit Google bestätigt. Bis {{time}} Uhr kannst du ohne Passwort deine E-Mail-Adresse ändern oder dein Konto löschen.',
+      deleteConfirmTextConfirmed: 'Das kann nicht rückgängig gemacht werden.',
       cancel: 'Abbrechen',
     },
   },
@@ -717,6 +757,7 @@ export const de: Messages = {
       cancelConfirmText:
         'Die Tiere gehen wieder in den Verkauf. Falls du bereits überwiesen hast, melde dich bitte bei uns – wir erstatten den Betrag.',
       cancelConfirmTextCard: 'Die Tiere gehen wieder in den Verkauf und deine Karte wird nicht belastet.',
+      cancelConfirmTextPayPal: 'Die Tiere gehen wieder in den Verkauf und über PayPal wird nichts abgebucht.',
       cancelConfirm: 'Bestellung stornieren',
       keep: 'Bestellung behalten',
     },
@@ -731,6 +772,11 @@ export const de: Messages = {
       title: 'Zahlung ausstehend',
       text: 'Bitte schließe die Kartenzahlung bis {{time}} Uhr ab. Danach wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf.',
       payNow: 'Jetzt bezahlen',
+    },
+    payPalPayment: {
+      title: 'Zahlung ausstehend',
+      text: 'Bitte schließe die Zahlung mit PayPal bis {{time}} Uhr ab. Danach wird die Bestellung automatisch storniert und die Tiere gehen wieder in den Verkauf.',
+      payNow: 'Mit PayPal bezahlen',
     },
     payment: {
       title: 'Per Überweisung bezahlen',
@@ -804,7 +850,8 @@ export const de: Messages = {
           'Visa, Mastercard und weitere Karten – oder Apple Pay und Google Pay, wo dein Gerät sie anbietet. Du bezahlst direkt nach der Bestellung; wir versenden, sobald die Zahlung bestätigt ist.',
         BANK_TRANSFER:
           'Du erhältst unsere Bankverbindung direkt nach der Bestellung und per E-Mail. Wir versenden, sobald deine Zahlung eingegangen ist.',
-        PAYPAL: 'Du bezahlst direkt nach der Bestellung mit deinem PayPal-Konto.',
+        PAYPAL:
+          'Du bezahlst direkt nach der Bestellung mit PayPal, im eigenen Fenster von PayPal. Wir versenden, sobald die Zahlung bestätigt ist.',
       },
       noPayment: 'Derzeit ist keine Zahlungsart verfügbar. Bitte versuche es später erneut.',
       note: 'Anmerkung zur Bestellung (optional)',
@@ -848,6 +895,12 @@ export const de: Messages = {
         payNow: 'Jetzt bezahlen',
         retry: 'Erneut versuchen',
       },
+      paypal: {
+        confirming: 'Wir bestätigen deine Zahlung bei PayPal …',
+        pending:
+          'PayPal prüft deine Zahlung noch. Sobald sie durch ist, schicken wir dir eine E-Mail – du musst nichts weiter tun.',
+        payNow: 'Mit PayPal bezahlen',
+      },
     },
     pay: {
       metaTitle: 'Bezahlung – PW Aquatics',
@@ -866,6 +919,18 @@ export const de: Messages = {
         'Deine Kartendaten gibst du direkt bei unserem Zahlungsdienstleister Stripe ein; sie werden verschlüsselt übertragen. Wir sehen und speichern sie nie.',
       later: 'Du kannst auch später über deine Bestellung bezahlen, solange die Tiere reserviert sind.',
       viewOrder: 'Bestellung ansehen',
+      paypal: {
+        loading: 'PayPal wird geladen …',
+        confirming: 'Wir bestätigen deine Zahlung bei PayPal …',
+        declined:
+          'PayPal konnte die Zahlung auf diesem Weg nicht annehmen. Bitte wähle im PayPal-Fenster eine andere Zahlungsart.',
+        cancelled: 'Du hast PayPal vor dem Bezahlen geschlossen. Du kannst jederzeit neu starten.',
+        failed: 'Die Zahlung mit PayPal konnte nicht abgeschlossen werden. Bitte versuche es erneut.',
+        loadFailed:
+          'PayPal konnte nicht geladen werden. Bitte prüfe deine Internetverbindung – auch Inhaltsblocker können es verhindern – und versuche es erneut.',
+        secure:
+          'Du meldest dich im eigenen Fenster von PayPal an und bezahlst dort. Deine PayPal-Zugangsdaten, Bank- und Kartendaten sehen wir nie.',
+      },
     },
   },
   shippingPause: {
@@ -1515,6 +1580,7 @@ export const de: Messages = {
       refunded: 'Erstattet',
       cancelledAt: 'Storniert am',
       openInStripe: 'In Stripe öffnen',
+      openInPayPal: 'In PayPal öffnen',
       refundReminder: 'Diese Bestellung war bezahlt. Erstatte das Geld in Stripe oder per Überweisung.',
       dialogs: {
         customerMessage: 'Nachricht an die Kundschaft',
@@ -1547,6 +1613,8 @@ export const de: Messages = {
         restock: 'Tiere wieder in den Verkauf geben',
         refundCard:
           'Diese Bestellung wurde per Karte bezahlt. Erstatte danach {{amount}} im Stripe-Dashboard.',
+        refundPayPal:
+          'Diese Bestellung wurde mit PayPal bezahlt. Erstatte danach {{amount}} in deinem PayPal-Konto.',
         refundTransfer: 'Diese Bestellung wurde per Überweisung bezahlt. Überweise danach {{amount}} zurück.',
       },
     },

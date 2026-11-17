@@ -25,9 +25,9 @@ a sale (animal losses), and species that may legally not be traded.
 | Filtering | Species, colour, grade, price range, availability (+ category, text search, sorting) |
 | Cart | Persistent server-side cart for guests and customers; merged on login |
 | Checkout | Address, shipping method, coupon, order review, order placement |
-| Accounts | Register, login/logout, email verification, password reset, profile, saved addresses, order history, order status, parcel tracking |
+| Accounts | Register, login/logout, sign in with Google, email verification, password reset, profile, saved addresses, order history, order status, parcel tracking |
 | Admin | Dashboard, sales statistics, products, taxonomy, inventory, orders, tracking numbers, coupons, gallery, contact messages |
-| Payments (later) | Stripe (cards, Apple Pay, Google Pay), PayPal. Bank transfer (Vorkasse) as the first, manual method |
+| Payments | Bank transfer (Vorkasse), Stripe (cards, Apple Pay, Google Pay), PayPal |
 
 ### 1.3 Non-functional requirements
 
@@ -68,7 +68,7 @@ flowchart LR
     API --> DB[("PostgreSQL")]
     API --> Media
     API -->|SMTP| Mail["Mail provider"]
-    API <-->|"later: API + webhooks"| PSP["Stripe / PayPal"]
+    API <-->|"API + webhooks"| PSP["Stripe / PayPal"]
 ```
 
 Key decisions:
@@ -100,6 +100,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | Mapping | MapStruct | DTO ↔ entity mapping, no entities in API responses |
 | Rate limiting | Bucket4j | Login, registration, contact, coupon checks |
 | Payments | `stripe-java` (backend), `@stripe/stripe-js` + `@stripe/react-stripe-js` (payment page only) | PaymentIntents, webhook signatures, Payment Element (ADR-010) |
+| Sign in with Google | `spring-security-oauth2-client` + `spring-security-oauth2-jose` (building blocks only) | Authorization request with state, nonce and PKCE; code exchange; ID-token check against Google's keys (ADR-014) |
 | Images | Thumbnailator (resize, EXIF orientation) + webp-imageio (libwebp, bundled for Linux/macOS/Windows) | Re-encode uploads to WebP renditions; drops all metadata. The JVM runs with `--enable-native-access=ALL-UNNAMED` for libwebp |
 | Build (BE) | Gradle (Kotlin DSL) | Maven is equally fine; one choice, consistently |
 | Language (FE) | TypeScript 6 (strict) | Stays on 6.x until typescript-eslint supports TypeScript 7 |
@@ -161,7 +162,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 |---|---|
 | `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation, `ContentLanguage` (language of owner-written texts per request), `SiteLinks` |
 | `security` | Spring Security config, session/CSRF setup, current-user resolution, rate limiting |
-| `identity` | Users, registration, login, email verification, password reset, roles |
+| `identity` | Users, registration, login, sign in with Google (`user_identities`, ADR-014), email verification, password reset, roles |
 | `customer` | Profile, saved addresses, account deletion/anonymisation |
 | `catalog` | Products, variants, species, categories, colours, grades, images, search & filters |
 | `inventory` | Stock levels, reservations, stock movements, low-stock alerts |
@@ -172,10 +173,11 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `settings` | Shop-wide key/value settings (e.g. the shipping pause), read and written through `ShopSettings` |
 | `order` | Checkout, order placement, order lifecycle, status history |
 | `fulfilment` | (folded into `order`: shipments and notes are part of the order aggregate, see §5.4 Admin II) |
-| `payment` | Payment abstraction; bank transfer now, Stripe/PayPal later; webhooks |
+| `payment` | Bank transfer details, Stripe and PayPal payments, verified webhooks; reaches orders only through `PayableOrders` |
 | `notification` | Transactional email via an outbox |
 | `media` | Image upload, processing, storage abstraction |
 | `content` | Gallery, contact messages |
+| `pages` | Public pages filled in for the first page load: head tags, structured data, main text and first API responses in the frontend's `index.html` (`GET /_pages/**`); `sitemap.xml` and `robots.txt` (`GET /_site/…`) (ADR-013) |
 | `admin` | Dashboard, sales and coupon statistics and the customer view (read models); other admin controllers live in their feature modules |
 | `audit` | Audit log of admin and security-relevant actions |
 
@@ -452,18 +454,23 @@ not shipped returns stock.
 
 ### 5.5 Payment architecture
 
-Bank transfer (Phase 5) and card payment through Stripe (Phase 9) are built; PayPal follows
-the same pattern. See ADR-010.
+Bank transfer (Phase 5) and card payment through Stripe and PayPal (Phase 9) are built.
+See ADR-010 and its PayPal addendum.
 
 ```
 payment module                                 order module
-├── BankTransferPayments  (bank details)       ├── CheckoutService   offers STRIPE / BANK_TRANSFER,
-├── StripePayments        (one PaymentIntent   │                     card orders due after 60 min
-│                          per order)          ├── OrderPayments     startCardPayment(); implements
-├── StripeWebhooks        (verify, store,      │                     PayableOrders (lock, paid, refunded)
-│                          process)            ├── OrderCancellation cancels the PaymentIntent first
+├── BankTransferPayments  (bank details)       ├── CheckoutService   offers STRIPE / PAYPAL /
+├── StripePayments        (one PaymentIntent   │                     BANK_TRANSFER; online
+│                          per order)          │                     orders due after 60 min
+├── StripeWebhooks        (verify, store,      ├── OrderPayments     startCardPayment(),
+│                          process)            │                     start/capturePayPalPayment();
+├── PayPalPayments        (one PayPal order    │                     implements PayableOrders
+│                          per order, capture) │                     (lock, paid, refunded)
+├── PayPalWebhooks        (PayPal confirms,    ├── OrderCancellation stops the open payment first
+│   + PayPalEventProcessor  store, process)    │
 ├── PayableOrders ◄─────── implemented by ─────┘
-└── StripeGateway → StripeApiClient (stripe-java; replaced by a fake in tests)
+├── StripeGateway → StripeApiClient (stripe-java; replaced by a fake in tests)
+└── PayPalGateway → PayPalApiClient (JDK HttpClient, Orders v2; replaced by a fake in tests)
 ```
 
 - The browser talks to Stripe directly through Stripe's Payment Element on the payment
@@ -479,20 +486,37 @@ payment module                                 order module
 - The payment module never depends on the order module: it calls `PayableOrders`, which
   the order module implements. Locks are always taken order first, then payment (checkout,
   expiry, webhook), so concurrent paths cannot deadlock.
-- Unpaid card orders expire after `ORDER_CARD_PAYMENT_MINUTES` (default 60). Expiry and
+- Unpaid card and PayPal orders expire after `ORDER_CARD_PAYMENT_MINUTES` (default 60). Expiry and
   customer cancellation first cancel the PaymentIntent at Stripe; if Stripe already has the
   money or is processing it, the order stays and the webhook marks it paid.
 - Refunds are made in the Stripe Dashboard; `charge.refunded` updates `paymentStatus`.
 - Apple Pay needs the shop's domain verified in the Stripe Dashboard; Google Pay needs HTTPS.
-- **CSP for Stripe** (when Caddy sets one): `script-src https://js.stripe.com`,
-  `frame-src https://js.stripe.com https://hooks.stripe.com`,
-  `connect-src https://api.stripe.com` (Stripe's CSP guide lists the current set).
+- **PayPal** (ADR-010 addendum): the server creates one PayPal order per shop order for the
+  stored total (`intent: CAPTURE`, no shipping address). PayPal's script (only on the payment
+  page) shows PayPal's button, which opens that order; after the customer approves, the
+  browser asks our server to capture, and the server decides from **PayPal's answer to the
+  server** whether the order is paid. Webhooks (`CHECKOUT.ORDER.APPROVED`,
+  `PAYMENT.CAPTURE.*`), each confirmed through PayPal's verify-webhook-signature API, cover a
+  customer who never returns, pending captures and refunds. PayPal orders cannot be withdrawn:
+  expiry and cancellation ask PayPal first and keep the order only if the money was taken.
+  Cards are paid through Stripe, so PayPal's card button is switched off.
+- One payment page (`/checkout/pay/:orderNumber`) shows the form for the order's method.
+- **CSP for Stripe** (set by the frontend's Caddy, `frontend/Caddyfile`): `script-src
+  https://js.stripe.com https://*.js.stripe.com`, `frame-src https://js.stripe.com
+  https://*.js.stripe.com https://hooks.stripe.com`, `connect-src https://api.stripe.com`,
+  `img-src https://*.stripe.com`. Checked with a card payment and the 3-D Secure window behind
+  Caddy without violations; Stripe's CSP guide lists the current set. Zod is set to `jitless`
+  (`lib/validation/zod.ts`) because the policy forbids `eval`.
+- **CSP for PayPal:** `script-src`, `img-src`: `https://*.paypal.com https://*.paypalobjects.com`;
+  `connect-src`, `frame-src`: `https://*.paypal.com` (PayPal's CSP guidance). Checked behind
+  Caddy with a stand-in for PayPal's script at its real address (no violations); PayPal's
+  window itself still needs a sandbox payment behind Caddy before go-live.
 
 ### 5.6 Security architecture
 
 | Concern | Approach |
 |---|---|
-| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. |
+| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. Sign in with Google (ADR-014): OpenID Connect code flow with PKCE run by the server; accounts are linked by Google's subject id, connected to an existing account only for a Google-verified address; administrators use their password only. |
 | Why sessions, not JWT | Same-origin SPA; sessions are revocable instantly (logout, password change, admin lock), nothing sensitive is in browser storage, and Spring Security supports them natively. |
 | CSRF | Spring Security CSRF with cookie-to-header pattern (`XSRF-TOKEN` cookie → `X-XSRF-TOKEN` header) for all state-changing requests. |
 | Passwords | `DelegatingPasswordEncoder` with Argon2id; hashes carry an algorithm prefix and are upgraded on login if the algorithm changes. 10–128 characters, no composition rules, a small deny-list of obvious passwords. A check against a breached-password service is a possible later addition. |
@@ -547,7 +571,7 @@ frontend/src/
 │   ├── format/                  # Intl formatters: money, dates, units
 │   ├── i18n/
 │   ├── motion/                  # Motion tokens (curves, durations), LazyMotion provider
-│   └── seo/                     # <title>/meta helpers, JSON-LD builders
+│   └── seo/                     # PageMeta (title, meta, canonical, hreflang), texts for pages.json
 ├── components/
 │   ├── ui/                      # Design system primitives
 │   │   ├── Button.tsx, Input.tsx, Select.tsx, Checkbox.tsx, Badge.tsx
@@ -683,13 +707,20 @@ design-led studio than a pet-supply store. Tokens live in
 
 - A client-rendered SPA is weak for SEO, which matters for a shop. Built: per-route
   `<title>`/meta (React 19 metadata support) with canonical link and `hreflang` alternates
-  for both languages (ADR-012), JSON-LD `Product`, and German catalog texts: the owner
+  for both languages (ADR-012), and German catalog texts: the owner
   writes them next to the English ones in the admin, the API answers in the language of the
   page (`Accept-Language`), and a German product or species page stays out of the index
-  (`noindex`) until its German text is written. Planned (roadmap "SEO", brought forward
-  from Phase 10 at the owner's request): **public pages filled in by the backend** we already run (title, meta, language links, structured data, main text and
-  the page's data, per request — no extra server, owner decision 2026-11-16), backend-generated
-  `sitemap.xml`, `BreadcrumbList`/`Organization` data (see risk R3).
+  (`noindex`) until its German text is written. **Public pages are filled in by the backend**
+  we already run (ADR-013; no extra server, owner decision 2026-11-16): the frontend's Caddy asks
+  `GET /_pages/<path>`, and the backend puts the page's head tags, main text and first API
+  responses into the frontend build's `index.html`; the app takes over without a loading state.
+  Unknown addresses, products, species and categories answer 404. The backend also writes the
+  structured data (`Product` with an offer per pack size, `BreadcrumbList`, `Organization`,
+  `WebSite`; the app writes none), `sitemap.xml` (every public page in its languages, with
+  `hreflang` alternates) and `robots.txt` with the sitemap link (`GET /_site/…`). Pages of the
+  plain shop list (`?page=2`) are pages of their own; filtered, searched or sorted views point to
+  the list's first page (ADR-013 addendum, risk R3). Still open for launch: return policy and
+  shipping details in the product data (they wait for the final legal texts), Search Console.
 - Responsive images: backend generates WebP sizes (e.g. 400/800/1200/2000 px);
   `ResponsiveImage` uses `srcset` + `sizes`, lazy loading below the fold,
   explicit width/height to avoid layout shift.
@@ -705,7 +736,7 @@ design-led studio than a pet-supply store. Tokens live in
 |---|---|---|---|---|
 | `postgres` | `postgres:18` | Database, named volume | ✓ | ✓ |
 | `backend` | built from `backend/Dockerfile` (multi-stage, JRE only, non-root user) | API | ✓ | ✓ |
-| `frontend` | built from `frontend/Dockerfile` (build stage → static files) | SPA assets | — (Vite dev server) | ✓ |
+| `frontend` | built from `frontend/Dockerfile` (build stage → static files) | SPA assets; sends page requests to the backend to be filled in (ADR-013, `PAGES_BACKEND`, default `backend:8080`) | — (Vite dev server) | ✓ |
 | `caddy` | `caddy:2` | Reverse proxy, automatic HTTPS, static files, `/media` | optional | ✓ |
 | `mailpit` | `axllent/mailpit` | Catches all outgoing email in development | ✓ | — |
 | `minio` | `minio/minio` | S3-compatible storage (only if we choose S3) | optional | — |
@@ -723,6 +754,7 @@ POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
 # App
 APP_BASE_URL, APP_COOKIE_SECURE
+APP_PAGES_SHELL_URL   # e.g. http://frontend:8080/ — where the backend loads the page template (ADR-013)
 # Orders and bank transfer (no orders can be placed without the bank account)
 BANK_ACCOUNT_HOLDER, BANK_IBAN, BANK_BIC, BANK_NAME
 ORDER_BANK_TRANSFER_PAYMENT_DAYS=7, SHIPPING_HANDLING_DAYS=1
@@ -734,8 +766,10 @@ MEDIA_STORAGE=local|s3, MEDIA_LOCAL_PATH, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY,
 # Card payments (all three or none; test and live keys must not be mixed)
 STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, ORDER_CARD_PAYMENT_MINUTES=60
 # The publishable key reaches the browser through the API, so the frontend build needs no Stripe variable.
-# PayPal (later)
-PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
+# PayPal (client id, secret and webhook id: all three or none; online orders share ORDER_CARD_PAYMENT_MINUTES)
+PAYPAL_ENVIRONMENT=sandbox|live, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
+# Sign in with Google (both or neither; redirect URI at Google: <APP_BASE_URL>/api/v1/auth/google/callback)
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 ```
 
 ### 7.3 Environments and delivery
@@ -777,7 +811,7 @@ endpoint (403).
 |---|---|---|---|
 | R1 | **Overselling** when two customers buy the last animals simultaneously | Selling animals we don't have | Row locks in deterministic order + conditional `UPDATE … WHERE stock_units >= n` + `CHECK (stock_units >= 0)`; concurrency test |
 | R2 | **Duplicate orders** from double-clicks or network retries | Double charge / double stock | `Idempotency-Key` header, unique `(user_id, idempotency_key)`; button disabled while pending |
-| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap; language in the link (ADR-012); public pages filled in per request by the existing backend (no extra server — owner decision). Build-time prerendering was dropped: stock and prices change daily through the admin |
+| R3 | **SEO of a client-rendered SPA** | Weak organic traffic | Meta + JSON-LD + sitemap; language in the link (ADR-012); public pages filled in per request by the existing backend (ADR-013; no extra server — owner decision). Build-time prerendering was dropped: stock and prices change daily through the admin |
 | R4 | **Live-animal shipping constraints:** heat/frost, weekends, carrier T&Cs (many standard parcel services restrict live animals) | Dead animals, refunds, reputation | Shipping methods flagged for live animals; configurable dispatch weekdays (e.g. Mon–Wed); admin "shipping pause" with message; heat/cold packs as options; confirm carrier before building carrier integrations |
 | R5 | **Legal trade restrictions:** some crayfish are on the EU list of invasive alien species and cannot be sold in the EU | Legal liability | `species.trade_restricted` blocks publishing; per-country restrictions possible later; legal review of the species list |
 | R6 | **German/EU e-commerce law:** Impressum, privacy policy, terms, right of withdrawal (live-animal specifics need legal advice), price display incl. VAT and shipping, "zahlungspflichtig bestellen" button, packaging registration (LUCID), invoice retention (up to 10 years) | Fines, cease-and-desist letters (Abmahnungen) | Legal pages managed as content; checkout copy reviewed by a lawyer; legal-text service considered; orders/invoices retained and anonymised rather than deleted |
@@ -812,8 +846,10 @@ endpoint (403).
 | ADR-010 | Hosted payment components; webhook-confirmed payments | Handling card data ourselves |
 | ADR-011 | Motion for React (`motion`) behind `LazyMotion`, CSS for simple effects | CSS only (no exit, shared-layout or drag animations), React Spring, GSAP |
 | ADR-012 | Language in the link: English at `/…`, German at `/de/…` with the same path words | Language only in the browser, `?lang=`, a `.de` domain, German path words |
+| ADR-013 | Public pages filled in by the backend from the frontend build's `index.html` (Caddy asks `/_pages/**`, falls back to the plain file) | Node.js SSR or prerender service, build-time prerendering, head tags only |
+| ADR-014 | Sign in with Google: server-side OIDC code flow with PKCE from Spring Security's OAuth 2 client parts; linked by Google's subject id | `oauth2Login()` filter, Google's script in the browser, a hand-written OIDC client |
 
-Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-012).
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-014).
 
 ---
 

@@ -47,9 +47,11 @@ public class OrderExpiry {
         if (order == null || !order.isPaymentOverdue(clock.instant())) {
             return false;
         }
-        String reason = order.getPaymentMethod() == PaymentMethod.STRIPE
-                ? "Card payment not completed in time"
-                : "Payment not received by the due date";
+        String reason = switch (order.getPaymentMethod()) {
+            case STRIPE -> "Card payment not completed in time";
+            case PAYPAL -> "PayPal payment not completed in time";
+            case BANK_TRANSFER -> "Payment not received by the due date";
+        };
         return cancellation.cancel(order, reason, null, true);
     }
 }

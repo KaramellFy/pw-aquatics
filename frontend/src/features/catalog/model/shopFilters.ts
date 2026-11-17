@@ -129,6 +129,16 @@ export function activeFilterCount(filters: ShopFilters): number {
   );
 }
 
+/**
+ * The list page the shop's canonical link names: each page of the plain list is a page of its own
+ * for search engines, while a filtered, searched or sorted view points to the plain list's first
+ * page. The backend fills in shop pages by the same rule (`PageService.listPage`).
+ */
+export function canonicalPage(filters: ShopFilters): number {
+  const plain = !filters.q && activeFilterCount(filters) === 0 && filters.sort === 'relevance';
+  return plain ? filters.page : 1;
+}
+
 export function toggle(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
 }

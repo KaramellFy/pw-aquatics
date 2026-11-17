@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
-import { z } from 'zod';
+import { z } from '@/lib/validation/zod';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { CheckboxField, TextField } from '@/components/ui/Field';
@@ -14,6 +14,7 @@ import { applyServerFieldErrors } from '@/lib/forms/serverErrors';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { useRegister, useResendVerification, useSession } from '../api/auth';
 import { AuthCard } from '../components/AuthCard';
+import { GoogleSignIn } from '../components/GoogleSignIn';
 import { PasswordField } from '../components/PasswordField';
 
 /** Mirrors the server's limits for instant feedback; the server validates again. */
@@ -110,6 +111,7 @@ export function RegisterPage() {
           </>
         }
       >
+        <GoogleSignIn returnTo="/account" />
         <form onSubmit={onSubmit} noValidate className="space-y-5">
           {registration.isError && <Alert tone="error">{errorMessage(registration.error)}</Alert>}
           <div className="grid gap-5 sm:grid-cols-2">

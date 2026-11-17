@@ -144,7 +144,7 @@ class CheckoutApiTest {
                 .andExpect(jsonPath("$.totals.includedTax.amount").value(334))
                 .andExpect(jsonPath("$.shippingMethod.code").value(LIVE))
                 .andExpect(jsonPath("$.containsLiveAnimals").value(true))
-                .andExpect(jsonPath("$.paymentMethods").value(contains("STRIPE", "BANK_TRANSFER")));
+                .andExpect(jsonPath("$.paymentMethods").value(contains("STRIPE", "PAYPAL", "BANK_TRANSFER")));
 
         // Live animals cannot travel with the parcel method; unknown methods do not exist.
         for (String method : new String[] {PARCEL, "NOPE"}) {
@@ -349,11 +349,7 @@ class CheckoutApiTest {
                         .cookie(customer.session()).header("Idempotency-Key", key()))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("LIVE_ANIMAL_CONDITIONS_REQUIRED"));
-        // A payment method that is not offered (yet).
-        mvc.perform(json(post("/api/v1/checkout/orders"), valid.replace("BANK_TRANSFER", "PAYPAL"))
-                        .cookie(customer.session()).header("Idempotency-Key", key()))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("PAYMENT_METHOD_UNAVAILABLE"));
+        // A payment method that is not offered: PayPalSwitchedOffTest.
         // Someone else's address, as shipping or as billing address.
         mvc.perform(json(post("/api/v1/checkout/orders"), valid.replace(customer.addressId(), stranger.addressId()))
                         .cookie(customer.session()).header("Idempotency-Key", key()))

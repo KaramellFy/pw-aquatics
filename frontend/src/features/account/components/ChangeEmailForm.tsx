@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import { z } from '@/lib/validation/zod';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
@@ -10,14 +10,23 @@ import { PasswordField } from '@/features/auth';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
 import { applyServerFieldErrors } from '@/lib/forms/serverErrors';
 import { useChangeEmail } from '../api/account';
+import { GoogleConfirmation } from './GoogleConfirmation';
 
 interface Values {
   newEmail: string;
   currentPassword: string;
 }
 
-export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
+interface ChangeEmailFormProps {
+  currentEmail: string;
+  hasPassword: boolean;
+  /** Set while a confirmation with Google stands in for the password (from the server). */
+  confirmedUntil: string | null;
+}
+
+export function ChangeEmailForm({ currentEmail, hasPassword, confirmedUntil }: ChangeEmailFormProps) {
   const { t, i18n } = useTranslation();
+  const askPassword = hasPassword && !confirmedUntil;
   const change = useChangeEmail();
   const errorMessage = useApiErrorMessage();
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -25,10 +34,10 @@ export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
     () =>
       z.object({
         newEmail: z.email(t('auth.validation.emailInvalid')).max(254, t('auth.validation.tooLong')),
-        currentPassword: z.string().min(1, t('auth.validation.required')),
+        currentPassword: askPassword ? z.string().min(1, t('auth.validation.required')) : z.string(),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, i18n.language],
+    [t, i18n.language, askPassword],
   );
   const {
     register,
@@ -43,7 +52,11 @@ export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
 
   const onSubmit = handleSubmit((values) => {
     setSentTo(null);
-    change.mutate(values, {
+    const request = {
+      newEmail: values.newEmail,
+      currentPassword: askPassword ? values.currentPassword : undefined,
+    };
+    change.mutate(request, {
       onSuccess: () => {
         setSentTo(values.newEmail);
         reset();
@@ -64,12 +77,16 @@ export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
         error={errors.newEmail?.message}
         {...register('newEmail')}
       />
-      <PasswordField
-        label={t('auth.fields.currentPassword')}
-        autoComplete="current-password"
-        error={errors.currentPassword?.message}
-        {...register('currentPassword')}
-      />
+      {askPassword ? (
+        <PasswordField
+          label={t('auth.fields.currentPassword')}
+          autoComplete="current-password"
+          error={errors.currentPassword?.message}
+          {...register('currentPassword')}
+        />
+      ) : (
+        <GoogleConfirmation confirmedUntil={confirmedUntil} />
+      )}
       <Button type="submit" variant="secondary" disabled={change.isPending}>
         {t('account.profile.emailSubmit')}
       </Button>

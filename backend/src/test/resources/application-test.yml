@@ -18,6 +18,17 @@ app:
     secret-key: sk_test_fake_for_tests
     publishable-key: pk_test_fake_for_tests
     webhook-secret: whsec_test_secret_for_tests
+  # Fake sandbox credentials: tests never talk to PayPal (FakePayPalGateway decides whether a
+  # webhook delivery is genuine).
+  paypal:
+    client-id: test-paypal-client-id
+    client-secret: test-paypal-client-secret
+    webhook-id: TEST-WEBHOOK-ID
+    environment: sandbox
+  # Sign in with Google: the tests replace Google with a local stand-in (support/FakeGoogle).
+  google:
+    client-id: test-google-client-id
+    client-secret: test-google-client-secret
 
 springdoc:
   api-docs:

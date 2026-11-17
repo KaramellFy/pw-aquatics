@@ -3,6 +3,8 @@ package com.pwaquatics.shop.security;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.annotation.Nullable;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,6 +28,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class SessionManager {
+
+    private static final String CONFIRMED_AT = "pwa.confirmedWithGoogleAt";
 
     private final SecurityContextRepository securityContextRepository;
     private final CsrfTokenRepository csrfTokenRepository;
@@ -55,6 +59,28 @@ public class SessionManager {
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
         securityContextRepository.saveContext(context, request, response);
+    }
+
+    /**
+     * Notes that the user just confirmed who they are with the Google account connected to their
+     * shop account; the account service accepts this instead of the password for a while.
+     */
+    public void recordConfirmation(HttpServletRequest request, Instant at) {
+        request.getSession(true).setAttribute(CONFIRMED_AT, at);
+    }
+
+    /** When this session last confirmed with Google, or null. */
+    public @Nullable Instant confirmation(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session != null && session.getAttribute(CONFIRMED_AT) instanceof Instant at ? at : null;
+    }
+
+    /** A confirmation counts for one sensitive change. */
+    public void clearConfirmation(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.removeAttribute(CONFIRMED_AT);
+        }
     }
 
     /** Ends the current session and rotates the CSRF token. */

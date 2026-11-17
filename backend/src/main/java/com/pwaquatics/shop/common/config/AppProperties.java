@@ -6,7 +6,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -30,6 +32,8 @@ public record AppProperties(
         @Valid @NotNull Orders orders,
         @Valid @NotNull BankTransfer bankTransfer,
         @Valid @NotNull Stripe stripe,
+        @Valid @NotNull PayPal paypal,
+        @Valid @NotNull Google google,
         @Valid @NotNull Retention retention,
         AdminBootstrap adminBootstrap,
         Map<String, @Valid RateLimit> rateLimits) {
@@ -140,6 +144,71 @@ public record AppProperties(
             }
             boolean testSecret = secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_");
             return testSecret == publishableKey.startsWith("pk_test_");
+        }
+
+        private static boolean blank(String value) {
+            return value == null || value.isBlank();
+        }
+    }
+
+    /**
+     * PayPal account (a REST app in the PayPal Developer Dashboard) for payments with PayPal.
+     * Offered only when client id, secret and webhook id are set; the client id is the only value
+     * sent to browsers.
+     *
+     * @param webhookId id of the webhook registered for {@code /api/v1/webhooks/paypal}; PayPal
+     *     needs it to confirm that a delivery is genuine
+     * @param environment {@code sandbox} (test accounts, no real money) or {@code live}
+     * @param timeout for each call to PayPal's API
+     */
+    public record PayPal(
+            String clientId,
+            String clientSecret,
+            String webhookId,
+            @NotNull @Pattern(regexp = "sandbox|live") String environment,
+            @NotNull Duration timeout) {
+
+        public boolean isConfigured() {
+            return !blank(clientId) && !blank(clientSecret) && !blank(webhookId);
+        }
+
+        /** Sandbox: payments are simulated with PayPal's test accounts. */
+        public boolean isSandbox() {
+            return !"live".equals(environment);
+        }
+
+        /** PayPal's REST API for this environment. */
+        public URI apiBase() {
+            return URI.create(isSandbox() ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com");
+        }
+
+        /** All three or none: a half-configured account would take payments it never hears back about. */
+        @AssertTrue(message = "PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_WEBHOOK_ID must be set together")
+        public boolean isCompleteOrEmpty() {
+            return isConfigured() || (blank(clientId) && blank(clientSecret) && blank(webhookId));
+        }
+
+        private static boolean blank(String value) {
+            return value == null || value.isBlank();
+        }
+    }
+
+    /**
+     * "Sign in with Google" (ADR-014): an OAuth client of type "Web application" in the Google
+     * Cloud console. Offered only when both values are set. The redirect URI to register there is
+     * {@code <app.base-url>/api/v1/auth/google/callback}.
+     *
+     * @param timeout for each call to Google (code exchange, Google's signing keys)
+     */
+    public record Google(String clientId, String clientSecret, @NotNull Duration timeout) {
+
+        public boolean isConfigured() {
+            return !blank(clientId) && !blank(clientSecret);
+        }
+
+        @AssertTrue(message = "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together")
+        public boolean isCompleteOrEmpty() {
+            return isConfigured() || (blank(clientId) && blank(clientSecret));
         }
 
         private static boolean blank(String value) {

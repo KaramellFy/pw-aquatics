@@ -1,7 +1,20 @@
 # Serves the built SPA. TLS and the /api proxy are handled by the edge proxy (infra/caddy).
+# Page requests are filled in by the backend (docs/adr/013-pages-filled-in-by-the-backend.md).
 {
 	admin off
 	auto_https off
+}
+
+# What the backend's pages and files may carry: they are the same for everyone, so no cookies
+# go to the backend and none come back; the headers set below for every response are not
+# repeated.
+(from_backend) {
+	header_up -Cookie
+	header_down -Set-Cookie
+	header_down -Cache-Control
+	header_down -X-Content-Type-Options
+	header_down -X-Frame-Options
+	header_down -Referrer-Policy
 }
 
 :8080 {
@@ -14,17 +27,84 @@
 		X-Frame-Options "DENY"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		# 'unsafe-inline' for styles is needed for React style attributes; scripts stay strict.
-		# Extend connect-src/frame-src/script-src for Stripe and PayPal in Phase 9.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		# Stripe (card payment page, ADR-010): Stripe.js from js.stripe.com, its card form and the
+		# 3-D Secure check in frames from js.stripe.com / hooks.stripe.com, calls to api.stripe.com.
+		# PayPal (payment page): its script from www.paypal.com, its button and window in frames
+		# from *.paypal.com, images from *.paypalobjects.com.
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://js.stripe.com https://*.js.stripe.com https://*.paypal.com https://*.paypalobjects.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.stripe.com https://*.paypal.com https://*.paypalobjects.com; font-src 'self'; connect-src 'self' https://api.stripe.com https://*.paypal.com; frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://*.paypal.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
 	}
 
-	# Hashed build assets can be cached forever; index.html must always be revalidated.
+	# Hashed build assets can be cached forever; pages and index.html must always be revalidated.
 	@assets path /assets/*
 	header @assets Cache-Control "public, max-age=31536000, immutable"
 	@document not path /assets/*
 	header @document Cache-Control "no-cache"
 
-	# Client-side routing: unknown paths fall back to index.html.
-	try_files {path} /index.html
-	file_server
+	# A page (a path without a file extension): the backend fills in its head, text and data.
+	# If the backend answers 5xx or cannot be reached, the plain index.html is served instead.
+	@page {
+		method GET HEAD
+		not path *.*
+	}
+	handle @page {
+		reverse_proxy {$PAGES_BACKEND:backend:8080} {
+			rewrite /_pages{uri}
+			import from_backend
+			@unavailable status 5xx
+			handle_response @unavailable {
+				rewrite * /index.html
+				file_server
+			}
+		}
+	}
+
+	# Sitemap and robots.txt come from the backend, which knows the catalog and the shop's full
+	# link. Without it, the build's robots.txt (without the sitemap link) is served and the
+	# sitemap answers 503, so search engines try again later.
+	handle /robots.txt {
+		reverse_proxy {$PAGES_BACKEND:backend:8080} {
+			rewrite /_site/robots.txt
+			import from_backend
+			@unavailable status 5xx
+			handle_response @unavailable {
+				file_server
+			}
+		}
+	}
+	handle /sitemap.xml {
+		reverse_proxy {$PAGES_BACKEND:backend:8080} {
+			rewrite /_site/sitemap.xml
+			import from_backend
+		}
+	}
+
+	# Files (paths with an extension). A missing one answers 404: with the app's "not found"
+	# page, except for build assets and the sitemap, where a page would only confuse the reader.
+	handle {
+		file_server
+	}
+
+	handle_errors 404 {
+		@notAsset not path /assets/* /sitemap.xml
+		handle @notAsset {
+			rewrite * /index.html
+			file_server
+		}
+	}
+
+	# The backend cannot be reached.
+	handle_errors 502 503 504 {
+		handle /robots.txt {
+			file_server {
+				status 200
+			}
+		}
+		handle /sitemap.xml {
+			respond 503
+		}
+		handle {
+			rewrite * /index.html
+			file_server
+		}
+	}
 }

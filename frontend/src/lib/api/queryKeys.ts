@@ -1,6 +1,8 @@
 /** Central TanStack Query keys, so invalidation stays consistent. */
 export const queryKeys = {
   session: ['auth', 'session'] as const,
+  /** Ways to sign in besides email and password (e.g. Google). */
+  signInOptions: ['auth', 'sign-in-options'] as const,
   cart: ['cart'] as const,
   /** Prefix of everything that belongs to the logged-in user (cleared on logout). */
   account: ['account'] as const,
@@ -17,6 +19,8 @@ export const queryKeys = {
     ['account', 'checkout', 'quote', addressId, methodCode] as const,
   /** The Stripe payment form of an order (client secret and publishable key). */
   cardPayment: (orderNumber: string) => ['account', 'payments', 'card', orderNumber] as const,
+  /** The PayPal payment of an order (PayPal order id and client id). */
+  payPalPayment: (orderNumber: string) => ['account', 'payments', 'paypal', orderNumber] as const,
   /** Prefix of everything in the admin area. */
   admin: ['admin'] as const,
   adminProducts: (query: Record<string, string>) => ['admin', 'products', 'list', query] as const,

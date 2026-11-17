@@ -1,6 +1,6 @@
 # ADR-010: Hosted payment components, webhook-confirmed payments
 
-- **Status:** accepted (card payment through Stripe built; PayPal follows the same pattern)
+- **Status:** accepted (card payment through Stripe built; PayPal built 2026-11-17, see the addendum)
 - **Date:** 2026-11-13
 
 ## Context
@@ -37,6 +37,45 @@ an order as paid.
 - **Data minimisation:** webhook payloads are reduced to ids, amounts and statuses before they
   are stored; Stripe's Link is switched off in the form.
 
+## Addendum (2026-11-17): PayPal
+
+PayPal follows the same rules — amount from the stored order, one provider payment per order,
+the browser never decides that an order is paid — with PayPal's own flow:
+
+- **Server:** PayPal's REST API (Orders v2) called with the JDK's HTTP client and an OAuth 2
+  access token (`PayPalApiClient`; no PayPal SDK dependency). The account is configured with
+  `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_WEBHOOK_ID` (all three or none) and
+  `PAYPAL_ENVIRONMENT` (`sandbox` by default, `live` in production).
+- **One PayPal order per shop order**, created for the stored total (`PayPal-Request-Id`
+  `order-<id>`), `intent: CAPTURE`, `shipping_preference: NO_SHIPPING` (the shop has the
+  address; PayPal neither asks for one nor sends one back), `user_action: PAY_NOW`, the
+  customer's language. Reloads and further attempts reuse it.
+- **Browser:** PayPal's script (`@paypal/paypal-js` loader, only on the payment page) draws
+  PayPal's own button (`fundingSource: paypal`; cards are paid through Stripe, so PayPal's card
+  button is switched off). The button opens the PayPal order the server created.
+- **Confirmation differs from Stripe:** after the customer approved in PayPal's window, the
+  browser asks our server to capture (`POST /payments/paypal/captures`); the server takes the
+  money from PayPal (`PayPal-Request-Id` `order-<id>-capture`) and decides from **PayPal's
+  answer to the server** whether the order is paid. The browser only reports that the customer
+  approved, which by itself moves no money. A declined funding source lets the customer choose
+  another in PayPal's window (`actions.restart()`).
+- **Webhooks back this up:** `CHECKOUT.ORDER.APPROVED` (captures an approval the browser never
+  reported, while the order still waits for payment), `PAYMENT.CAPTURE.COMPLETED`/`PENDING`/
+  `DENIED`/`DECLINED` and `PAYMENT.CAPTURE.REFUNDED`/`REVERSED`. PayPal confirms each delivery
+  (its verify-webhook-signature API with our webhook id, the body passed on exactly as
+  received); deliveries are stored once per event id, reduced to ids, amounts and statuses.
+- **Deadlines and cancellation:** PayPal orders share the card deadline
+  (`ORDER_CARD_PAYMENT_MINUTES`). A PayPal order cannot be withdrawn, but we never capture for
+  a cancelled order, so cancelling marks our payment cancelled — unless PayPal already has the
+  money or is still checking it (we ask PayPal first), in which case the order stays.
+- **Payment page:** `/checkout/pay/:orderNumber` shows the form for the order's own method, so
+  emails and order pages link to one address for both.
+
+Consequences: PayPal's script sets cookies and contacts PayPal hosts on the payment page only
+(CSP: `*.paypal.com`, `*.paypalobjects.com`); the privacy policy must name PayPal. Production
+needs the webhook registered for the REST app. Refunds are made in the PayPal account; the shop
+records them from the refund events.
+
 ## Alternatives considered
 
 - **Stripe Checkout (hosted page):** less code, but the customer leaves the shop, and our own
@@ -44,6 +83,10 @@ an order as paid.
   the payment step.
 - **Confirming payment from the browser redirect:** simpler, but anyone can call a redirect
   URL; a lost redirect would leave a paid order unpaid.
+- **PayPal: capturing in the browser (`actions.order.capture()`):** the browser would decide
+  that money moved; the server would only learn it from a webhook.
+- **PayPal: the official server SDK:** another dependency for four calls the JDK's HTTP client
+  makes in a small, tested class.
 - **Creating the PaymentIntent before the order exists:** the amount could change between
   payment and order placement, and stock would not be reserved during 3-D Secure.
 

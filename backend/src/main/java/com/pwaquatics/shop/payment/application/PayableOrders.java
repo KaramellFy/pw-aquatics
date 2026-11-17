@@ -18,9 +18,15 @@ public interface PayableOrders {
      */
     void lock(UUID orderId);
 
+    /**
+     * Whether the (locked) order still waits for its online payment: not paid, not cancelled
+     * and before its payment deadline. PayPal approvals reported by webhook are captured only then.
+     */
+    boolean isAwaitingPayment(UUID orderId);
+
     /** The full amount has arrived. Called once per payment. */
     void paymentSucceeded(PaymentSucceeded payment);
 
-    /** Money was paid back (in full or in part), e.g. from the Stripe Dashboard. */
+    /** Money was paid back (in full or in part), e.g. from the Stripe Dashboard or PayPal. */
     void paymentRefunded(PaymentRefunded refund);
 }

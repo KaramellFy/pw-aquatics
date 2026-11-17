@@ -48,6 +48,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-PW Aquatics <no-reply@localhost>}
       SHOP_INBOX_EMAIL: ${SHOP_INBOX_EMAIL:-shop@localhost}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+      APP_PAGES_SHELL_URL: ${APP_PAGES_SHELL_URL:-}
       APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
       APP_ADMIN_BOOTSTRAP_EMAIL: ${APP_ADMIN_BOOTSTRAP_EMAIL:-}
       APP_ADMIN_BOOTSTRAP_PASSWORD: ${APP_ADMIN_BOOTSTRAP_PASSWORD:-}
@@ -63,6 +64,14 @@ services:
       STRIPE_SECRET_KEY:
       STRIPE_PUBLISHABLE_KEY:
       STRIPE_WEBHOOK_SECRET:
+      # PayPal, offered only when client id, secret and webhook id are set in .env (sandbox locally).
+      PAYPAL_ENVIRONMENT:
+      PAYPAL_CLIENT_ID:
+      PAYPAL_CLIENT_SECRET:
+      PAYPAL_WEBHOOK_ID:
+      # Sign in with Google, offered only when both are set in .env.
+      GOOGLE_CLIENT_ID:
+      GOOGLE_CLIENT_SECRET:
       ORDER_CARD_PAYMENT_MINUTES:
     volumes:
       - media:/app/media

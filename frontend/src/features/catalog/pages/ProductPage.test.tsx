@@ -75,11 +75,8 @@ describe('ProductPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'You might also like' })).toBeInTheDocument();
 
-    const jsonLd = document.querySelector('script[type="application/ld+json"]');
-    expect(JSON.parse(jsonLd!.textContent!)).toMatchObject({
-      '@type': 'Product',
-      offers: { lowPrice: '5.90', highPrice: '52.00', priceCurrency: 'EUR' },
-    });
+    // Structured data comes only from the backend's first page load (docs/adr/013).
+    expect(document.querySelector('script[type="application/ld+json"]')).toBeNull();
   });
 
   it('adds the chosen quantity to the cart and confirms it in the drawer', async () => {
