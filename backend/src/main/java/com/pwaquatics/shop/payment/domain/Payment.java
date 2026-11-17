@@ -160,7 +160,9 @@ public class Payment extends AbstractEntity {
     }
 
     /**
-     * Records the total amount refunded so far (refunds are made in the provider's dashboard).
+     * Records the total amount refunded so far, as the provider reports it (refunds from the
+     * admin order page and from the provider's dashboard). The total only grows here; a refund
+     * that fails afterwards is taken back with {@link #refundFailed}.
      *
      * @return true if the refunded amount changed
      */
@@ -172,9 +174,57 @@ public class Payment extends AbstractEntity {
             throw new IllegalArgumentException("Refunded more than was paid");
         }
         refundedCents = totalRefundedCents;
-        status = refundedCents == amountCents ? PaymentState.REFUNDED : PaymentState.PARTIALLY_REFUNDED;
-        updatedAt = now;
+        settleRefundStatus(now);
         return true;
+    }
+
+    /**
+     * The provider accepted a refund the shop asked for: it counts as refunded from now on, as
+     * the provider counts it (also while the provider is still paying it out).
+     *
+     * @throws IllegalArgumentException if the amount is not positive, in another currency or
+     *     more than is left to refund
+     * @throws IllegalStateException if no money has arrived
+     */
+    public void refundAccepted(Money amount, Instant now) {
+        if (!status.isSettled()) {
+            throw new IllegalStateException("Only a payment that has arrived can be refunded");
+        }
+        if (amount.amount() <= 0 || amount.amount() > amountCents - refundedCents
+                || !amount.currency().equalsIgnoreCase(currency)) {
+            throw new IllegalArgumentException("A refund of " + amount + " does not fit a payment of " + amount());
+        }
+        refundedCents += amount.amount();
+        settleRefundStatus(now);
+    }
+
+    /**
+     * A refund the provider had accepted failed after all (e.g. the card was closed): the money
+     * stays with the shop, so it no longer counts as refunded.
+     *
+     * @return true if the refunded amount changed
+     */
+    public boolean refundFailed(Money amount, Instant now) {
+        if (!status.isSettled() || amount.amount() <= 0 || refundedCents == 0) {
+            return false;
+        }
+        refundedCents = Math.max(0, refundedCents - amount.amount());
+        settleRefundStatus(now);
+        return true;
+    }
+
+    /** What may still be refunded: nothing until the money has arrived. */
+    public Money refundable() {
+        return new Money(status.isSettled() ? amountCents - refundedCents : 0, currency);
+    }
+
+    private void settleRefundStatus(Instant now) {
+        if (refundedCents == 0) {
+            status = PaymentState.SUCCEEDED;
+        } else {
+            status = refundedCents == amountCents ? PaymentState.REFUNDED : PaymentState.PARTIALLY_REFUNDED;
+        }
+        updatedAt = now;
     }
 
     public boolean isFullyRefunded() {

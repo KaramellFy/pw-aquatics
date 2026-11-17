@@ -57,6 +57,7 @@ erDiagram
     orders ||--o{ shipments : fulfilled_by
     orders ||--o{ order_notes : annotated_by
     orders ||--o{ payments : paid_by
+    payments ||--o{ payment_refunds : refunded_by
     orders ||--o| coupon_redemptions : uses
     coupons ||--o{ coupon_redemptions : redeemed_as
 
@@ -681,6 +682,26 @@ CREATE INDEX idx_payments_order ON payments (order_id);
 -- One payment per order and provider: a second attempt reuses the same PaymentIntent / PayPal order.
 CREATE UNIQUE INDEX uq_payments_order_provider ON payments (order_id, provider);
 
+-- Refunds the owner makes from the admin order page (Stripe or PayPal). Refunds made in the
+-- provider's dashboard have no row; they only show in payments.refunded_cents.
+CREATE TABLE payment_refunds (
+    id                 uuid PRIMARY KEY,
+    payment_id         uuid         NOT NULL REFERENCES payments(id) ON DELETE RESTRICT,
+    idempotency_key    varchar(100) NOT NULL UNIQUE,   -- from the admin's request; sent to the provider as refund-<key>
+    amount_cents       bigint       NOT NULL CHECK (amount_cents > 0),
+    currency           char(3)      NOT NULL,
+    status             varchar(20)  NOT NULL CHECK (status IN ('PENDING', 'SUCCEEDED', 'FAILED')),
+    provider_reference varchar(100) UNIQUE,            -- Stripe re_… / PayPal refund id
+    failure_code       varchar(100),                   -- provider's reason for a failed refund
+    reason             varchar(500),                   -- the owner's internal reason
+    requested_by       uuid         REFERENCES users(id) ON DELETE SET NULL,
+    created_at         timestamptz  NOT NULL DEFAULT now(),
+    updated_at         timestamptz  NOT NULL DEFAULT now(),
+    version            bigint       NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_payment_refunds_payment      ON payment_refunds (payment_id);
+CREATE INDEX idx_payment_refunds_requested_by ON payment_refunds (requested_by);
+
 CREATE TABLE payment_webhook_events (
     id            uuid PRIMARY KEY,
     provider      varchar(20)  NOT NULL CHECK (provider IN ('STRIPE', 'PAYPAL')),
@@ -722,6 +743,14 @@ Every path that touches both takes the order's lock first and
 then the payment's (checkout, expiry, webhook), so two transactions never wait for each
 other. A webhook delivery is stored first in its own transaction, then processed; its row
 is locked while processing, so a repeated delivery is skipped once `processed_at` is set.
+
+Notes on refunds: a refund from the admin page is written in the same transaction as the
+provider's answer, under the order's and the payment's locks, so the amount left to refund
+(`amount_cents - refunded_cents`) can never be exceeded. `refunded_cents` counts a refund as
+soon as the provider accepts it (as the providers count it, pending ones included); a refund
+that fails later is subtracted again and its row marked `FAILED`. A provider refusal rolls the
+whole transaction back, so a refused refund leaves no row. The unique `idempotency_key` makes a
+repeated request return the first refund.
 
 Notes on fulfilment (Phase 7): shipments and notes belong to the order aggregate and are
 written only by `AdminOrderService` while it holds the order's lock. The carrier must be
@@ -921,7 +950,7 @@ redemption per order, coupon usage never above its limit (conditional update).
 | 6 | (inventory admin uses existing tables) |
 | 7 | `shipments`, `order_notes`, `gallery_images`, `shipping_methods.version` |
 | 8 | `coupons`, `coupon_redemptions`, `carts.coupon_id` |
-| 9 | `payments`, `payment_webhook_events` |
+| 9 | `payments`, `payment_webhook_events`, `payment_refunds` |
 | 10 | `invoices`; German texts (`…_de` columns, brought forward with SEO, §3) |
 
 A foreign key that points to a table created in a later phase is added by
@@ -953,6 +982,7 @@ adviser.
 | Audit log: who did what, when; IP address | `audit_log` | Security, Art. 6(1)(f) | IP address erased after 90 days (`app.retention.audit-ip-addresses`); entries stay |
 | Card payments: Stripe PaymentIntent id, amount, status, refunded amount, method (`card`), decline code — no card or billing details | `payments` | Contract Art. 6(1)(b); accounting Art. 6(1)(c) | With the order (statutory retention) |
 | PayPal payments: PayPal order and capture ids, amount, status, refunded amount, decline reason — no PayPal account, payer name or email | `payments` | Contract Art. 6(1)(b); accounting Art. 6(1)(c) | With the order (statutory retention) |
+| Refunds made from the admin: amount, status, provider's refund id and failure reason, the owner's internal reason and who made it — no customer data | `payment_refunds` | Contract Art. 6(1)(b); accounting Art. 6(1)(c) | With the order (statutory retention) |
 | Stripe and PayPal webhook deliveries: event id and type, reduced to ids, amounts and statuses | `payment_webhook_events` | Recognising repeated deliveries, tracing payment problems, Art. 6(1)(f) | 90 days (`app.retention.payment-webhook-events`) |
 | Internal order notes and status-change notes written by the shop (may mention the customer) | `order_notes`, `order_status_history.note` | Running the order, Art. 6(1)(b)/(f) | With the order (statutory retention) |
 | Shipments: carrier, tracking number, tracking link, shipping and delivery time | `shipments` | Delivering the order and answering where it is, Art. 6(1)(b) | With the order (statutory retention) |

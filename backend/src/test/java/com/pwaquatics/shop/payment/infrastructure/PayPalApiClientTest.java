@@ -7,6 +7,8 @@ import com.pwaquatics.shop.common.config.AppProperties;
 import com.pwaquatics.shop.common.error.ServiceUnavailableException;
 import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.payment.application.PayPalGateway.CaptureRefused;
+import com.pwaquatics.shop.payment.application.PayPalGateway.Refund;
+import com.pwaquatics.shop.payment.application.PayPalGateway.RefundRefused;
 import com.pwaquatics.shop.payment.application.PayPalGateway.PayPalOrder;
 import com.pwaquatics.shop.payment.application.PayPalGateway.WebhookSignature;
 import com.sun.net.httpserver.HttpExchange;
@@ -137,6 +139,35 @@ class PayPalApiClientTest {
                 """));
         answers.put("GET /v2/checkout/orders/BBB222", new Answer(200, order("BBB222", "COMPLETED", "CAP1")));
         assertThat(client.capture("BBB222", ORDER_ID).capture().id()).isEqualTo("CAP1");
+    }
+
+    @Test
+    void refundsPartOfACaptureOnceAndReportsWhatPayPalRefuses() {
+        answers.put("POST /v2/payments/captures/3C679366HH908993F/refund", new Answer(201, """
+                {"id": "1JU08902781691411", "status": "COMPLETED",
+                 "amount": {"currency_code": "EUR", "value": "5.00"},
+                 "links": [{"rel": "up", "href": "https://api.paypal.com/v2/payments/captures/3C679366HH908993F"}]}
+                """));
+
+        Refund refund = client.refund("3C679366HH908993F", new Money(500, "EUR"), "0196f0c2-key");
+
+        assertThat(refund).isEqualTo(new Refund("1JU08902781691411", "COMPLETED", new Money(500, "EUR")));
+        Request request = requests.getFirst();
+        assertThat(request.headers())
+                .containsEntry("paypal-request-id", "refund-0196f0c2-key")
+                .containsEntry("prefer", "return=representation");
+        JsonNode body = JSON.readTree(request.body());
+        assertThat(body.path("amount").path("value").asString()).isEqualTo("5.00");
+        assertThat(body.path("amount").path("currency_code").asString()).isEqualTo("EUR");
+
+        answers.put("POST /v2/payments/captures/OLD1/refund", new Answer(422, """
+                {"name": "UNPROCESSABLE_ENTITY", "details": [{"issue": "REFUND_TIME_LIMIT_EXCEEDED"}]}
+                """));
+        assertThatThrownBy(() -> client.refund("OLD1", new Money(500, "EUR"), "key-2"))
+                .isInstanceOfSatisfying(RefundRefused.class,
+                        e -> assertThat(e.issue()).isEqualTo("REFUND_TIME_LIMIT_EXCEEDED"));
+        assertThatThrownBy(() -> client.refund("../../v1/oauth2/token", new Money(500, "EUR"), "key-3"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

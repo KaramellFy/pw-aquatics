@@ -144,6 +144,32 @@ class PayPalApiClient implements PayPalGateway {
         return "SUCCESS".equals(read(checkedResponse(response, "verify webhook")).path("verification_status").asString(""));
     }
 
+    @Override
+    public Refund refund(String captureId, Money amount, String idempotencyKey) {
+        ObjectNode body = json.createObjectNode();
+        body.putObject("amount")
+                .put("value", PayPalAmounts.value(amount))
+                .put("currency_code", amount.currency());
+        HttpRequest.Builder request = request("/v2/payments/captures/" + checked(captureId) + "/refund")
+                .header("PayPal-Request-Id", "refund-" + idempotencyKey)
+                .header("Prefer", "return=representation")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()));
+        HttpResponse<String> response = exchange(request, "refund");
+        if (response.statusCode() == 422) {
+            List<String> issues = issues(response.body());
+            log.warn("PayPal refused a refund: {} (debug id {})", issues, debugId(response.body()));
+            throw new RefundRefused(issues.isEmpty() ? "UNPROCESSABLE_ENTITY" : issues.getFirst());
+        }
+        JsonNode refund = read(checkedResponse(response, "refund"));
+        String id = refund.path("id").asString("");
+        if (id.isBlank()) {
+            log.warn("PayPal sent a refund without id");
+            throw unavailable(null);
+        }
+        Money refunded = refund.path("amount").isObject() ? money(refund.path("amount")) : amount;
+        return new Refund(id, refund.path("status").asString(""), refunded);
+    }
+
     // ------------------------------------------------------------------ HTTP
 
     private HttpRequest.Builder request(String path) {

@@ -307,6 +307,46 @@ class OrderEmails {
         return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
     }
 
+    /** The shop has paid money back through the provider that took it (card or PayPal). */
+    EmailMessage refunded(Order order, Money amount, String customerMessage) {
+        boolean german = german(order);
+        Locale locale = locale(order);
+        boolean paypal = order.getPaymentMethod() == PaymentMethod.PAYPAL;
+        StringBuilder body = greeting(order);
+        if (german) {
+            body.append("wir haben dir für deine Bestellung %s %s erstattet.\n".formatted(
+                    order.getOrderNumber(), money(amount, locale)));
+            body.append(paypal
+                    ? "Das Geld geht auf dein PayPal-Konto zurück; meist ist es innerhalb weniger Tage dort.\n"
+                    : "Das Geld geht auf die Karte zurück, mit der du bezahlt hast. Je nach Bank kann es 5–10 Werktage dauern, bis du es siehst.\n");
+        } else {
+            body.append("we have refunded %s for your order %s.\n".formatted(
+                    money(amount, locale), order.getOrderNumber()));
+            body.append(paypal
+                    ? "The money goes back to your PayPal account; it usually arrives within a few days.\n"
+                    : "The money goes back to the card you paid with. Depending on your bank, it can take 5–10 working days to show.\n");
+        }
+        appendShopMessage(body, customerMessage, german);
+        body.append('\n').append(german ? "Bestellung ansehen: " : "View the order: ").append(orderLink(order))
+                .append('\n');
+        String subject = (german ? "Erstattung für deine Bestellung %s" : "Refund for your order %s")
+                .formatted(order.getOrderNumber());
+        return new EmailMessage(order.getCustomerEmail(), null, subject, body.toString());
+    }
+
+    /**
+     * For the shop owner: a refund the provider had accepted failed afterwards (e.g. the card
+     * account was closed), so the customer has not got the money. Contains no customer details.
+     */
+    EmailMessage refundFailed(Order order, Money amount, String shopInbox) {
+        boolean paypal = order.getPaymentMethod() == PaymentMethod.PAYPAL;
+        String body = "%s could not complete a refund of %s for order %s. The money is back in your %s balance; the customer has not received it.\n\n"
+                        .formatted(paypal ? "PayPal" : "Stripe", money(amount, ENGLISH), order.getOrderNumber(),
+                                paypal ? "PayPal" : "Stripe")
+                + "Please get in touch with the customer and pay the amount back another way, e.g. by bank transfer.\n";
+        return new EmailMessage(shopInbox, null, "Refund failed for order " + order.getOrderNumber(), body);
+    }
+
     private static StringBuilder greeting(Order order) {
         return new StringBuilder(german(order) ? "Hallo " : "Hello ")
                 .append(order.billingAddress().getFirstName())

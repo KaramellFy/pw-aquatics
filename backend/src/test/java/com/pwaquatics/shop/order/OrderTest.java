@@ -117,15 +117,26 @@ class OrderTest {
     @Test
     void refundsAreRecordedOnlyForPaidOrdersAndLeaveTheStatusAlone() {
         Order order = newOrder();
-        assertThat(order.recordRefund(true, NOW)).isFalse();
+        assertThat(order.recordRefund(true, true, NOW)).isFalse();
         assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
 
         order.markPaid(null, "Card payment confirmed by Stripe", NOW);
-        assertThat(order.recordRefund(false, NOW.plusSeconds(60))).isTrue();
+        assertThat(order.recordRefund(false, true, NOW.plusSeconds(60))).isTrue();
         assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.PARTIALLY_REFUNDED);
-        assertThat(order.recordRefund(true, NOW.plusSeconds(120))).isTrue();
+        assertThat(order.recordRefund(false, true, NOW.plusSeconds(90))).isFalse();
+        assertThat(order.recordRefund(true, true, NOW.plusSeconds(120))).isTrue();
         assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.REFUNDED);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+    }
+
+    @Test
+    void anOrderIsPaidAgainWhenItsOnlyRefundFailed() {
+        Order order = newOrder();
+        order.markPaid(null, "Card payment confirmed by Stripe", NOW);
+        order.recordRefund(false, true, NOW.plusSeconds(60));
+
+        assertThat(order.recordRefund(false, false, NOW.plusSeconds(120))).isTrue();
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
     }
 
     @Test

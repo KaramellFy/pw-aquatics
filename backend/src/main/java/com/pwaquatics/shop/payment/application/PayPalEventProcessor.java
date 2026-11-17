@@ -33,14 +33,21 @@ class PayPalEventProcessor {
     private final PaymentRepository payments;
     private final PayPalPayments paypal;
     private final PayableOrders orders;
+    private final PaymentRefunds refunds;
     private final Clock clock;
 
     PayPalEventProcessor(
-            WebhookEventLog events, PaymentRepository payments, PayPalPayments paypal, PayableOrders orders, Clock clock) {
+            WebhookEventLog events,
+            PaymentRepository payments,
+            PayPalPayments paypal,
+            PayableOrders orders,
+            PaymentRefunds refunds,
+            Clock clock) {
         this.events = events;
         this.payments = payments;
         this.paypal = paypal;
         this.orders = orders;
+        this.refunds = refunds;
         this.clock = clock;
     }
 
@@ -102,7 +109,10 @@ class PayPalEventProcessor {
         }
     }
 
-    /** A refund (from PayPal's site) or a reversal: the resource names the capture it belongs to. */
+    /**
+     * A refund (from the admin order page or PayPal's site) or a reversal: the resource names the
+     * capture it belongs to. A refund made from the admin is marked as completed as well.
+     */
     private String refunded(JsonNode refund, Instant now) {
         String captureId = captureIdOf(refund);
         if (captureId == null) {
@@ -123,6 +133,10 @@ class PayPalEventProcessor {
         if (payment.refunded(refundedCents, now)) {
             orders.paymentRefunded(
                     new PaymentRefunded(payment.getOrderId(), payment.refunded(), payment.isFullyRefunded()));
+        }
+        String refundId = refund.path("id").asString("");
+        if (refundId.matches("[A-Za-z0-9]{1,100}")) {
+            refunds.providerReport(refundId, PaymentRefunds.payPalState(refund.path("status").asString("")), null);
         }
         return null;
     }

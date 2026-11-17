@@ -19,8 +19,13 @@ import com.pwaquatics.shop.order.domain.ShipmentData;
 import com.pwaquatics.shop.order.infrastructure.AdminOrderQueries;
 import com.pwaquatics.shop.order.infrastructure.OrderNoteRepository;
 import com.pwaquatics.shop.order.infrastructure.OrderRepository;
+import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.payment.application.PayPalPayments;
+import com.pwaquatics.shop.payment.application.PaymentRefunds;
+import com.pwaquatics.shop.payment.application.PaymentRefunds.RefundRequest;
+import com.pwaquatics.shop.payment.application.PaymentRefunds.RefundResult;
 import com.pwaquatics.shop.payment.application.StripePayments;
+import com.pwaquatics.shop.payment.application.view.PaymentSummaryView;
 import com.pwaquatics.shop.payment.domain.PaymentMethod;
 import com.pwaquatics.shop.shipping.application.ShippingService;
 import java.time.Clock;
@@ -65,6 +70,7 @@ public class AdminOrderService {
     private final OutboxService outbox;
     private final StripePayments stripe;
     private final PayPalPayments paypal;
+    private final PaymentRefunds refunds;
     private final UserDirectory users;
     private final AuditService audit;
     private final AppProperties.Shipping shipping;
@@ -80,6 +86,7 @@ public class AdminOrderService {
             OutboxService outbox,
             StripePayments stripe,
             PayPalPayments paypal,
+            PaymentRefunds refunds,
             UserDirectory users,
             AuditService audit,
             AppProperties properties,
@@ -93,6 +100,7 @@ public class AdminOrderService {
         this.outbox = outbox;
         this.stripe = stripe;
         this.paypal = paypal;
+        this.refunds = refunds;
         this.users = users;
         this.audit = audit;
         this.shipping = properties.shipping();
@@ -178,8 +186,8 @@ public class AdminOrderService {
     }
 
     /**
-     * Cancels an order that has not been shipped. Paid orders can be cancelled too; the
-     * owner refunds the money (Stripe Dashboard or bank transfer).
+     * Cancels an order that has not been shipped. Paid orders can be cancelled too; the owner
+     * refunds the money afterwards ({@link #refund} for card and PayPal, a bank transfer otherwise).
      *
      * @param restock whether the animals go back on sale
      * @throws ConflictException {@code INVALID_STATUS_TRANSITION} once shipped;
@@ -195,6 +203,60 @@ public class AdminOrderService {
         details.put("restocked", restock);
         details.put("wasPaid", wasPaid);
         record(actor, "ORDER_CANCELLED_BY_SHOP", order, details);
+        return view(order);
+    }
+
+    /**
+     * Pays all or part of a card or PayPal payment back to the customer through the provider
+     * that took it. Works for any order status (e.g. after a cancellation, or for animals that
+     * arrived dead). Bank transfers are paid back by the owner's own transfer.
+     *
+     * <p>Repeating a request with the same {@code idempotencyKey} returns the order as it is,
+     * without a second refund, email or audit entry.
+     *
+     * @param amountCents what to pay back
+     * @param expectedRefundableCents what the owner saw as refundable when deciding
+     * @param reason internal reason, or null
+     * @throws ConflictException {@code NOT_REFUNDABLE}, {@code REFUNDS_CHANGED},
+     *     {@code IDEMPOTENCY_KEY_REUSED}, {@code PAYMENT_METHOD_UNAVAILABLE} (provider not set up)
+     * @throws BusinessRuleException {@code REFUND_AMOUNT_INVALID}, {@code REFUND_REFUSED}
+     */
+    @Transactional
+    public AdminOrderView refund(
+            String orderNumber,
+            long amountCents,
+            long expectedRefundableCents,
+            String reason,
+            String customerMessage,
+            boolean notify,
+            String idempotencyKey,
+            Actor actor) {
+        Order order = lock(orderNumber);
+        PaymentMethod method = order.getPaymentMethod();
+        if (method == PaymentMethod.BANK_TRANSFER) {
+            throw new ConflictException("NOT_REFUNDABLE",
+                    "Bank transfers are paid back by bank transfer; note it on the order.");
+        }
+        if (!providerAvailable(method)) {
+            throw new ConflictException("PAYMENT_METHOD_UNAVAILABLE",
+                    "Refunds need the payment provider's keys, which are not set up.");
+        }
+        String currency = order.total().currency();
+        RefundResult result = refunds.refund(new RefundRequest(
+                order.getId(),
+                method,
+                new Money(amountCents, currency),
+                new Money(expectedRefundableCents, currency),
+                idempotencyKey,
+                reason,
+                actor.userId()));
+        if (!result.repeated()) {
+            if (notify) {
+                outbox.enqueueEmail(emails.refunded(order, result.amount(), customerMessage));
+            }
+            record(actor, "ORDER_REFUNDED_BY_SHOP", order, Map.of(
+                    "amountCents", result.amount().amount(), "status", result.status().name()));
+        }
         return view(order);
     }
 
@@ -299,6 +361,11 @@ public class AdminOrderService {
         Map<UUID, String> names = people.isEmpty() ? Map.of() : users.displayNames(people);
 
         OrderStatus status = order.getStatus();
+        PaymentSummaryView payment = switch (order.getPaymentMethod()) {
+            case STRIPE -> stripe.summary(order.getId()).orElse(null);
+            case PAYPAL -> paypal.summary(order.getId()).orElse(null);
+            case BANK_TRANSFER -> null;
+        };
         return new AdminOrderView(
                 views.detail(order),
                 order.getUserId(),
@@ -320,11 +387,7 @@ public class AdminOrderService {
                         .map(note -> new AdminOrderView.InternalNote(note.getId(), note.getBody(), note.getCreatedAt(),
                                 note.getAuthorId() == null ? null : names.get(note.getAuthorId())))
                         .toList(),
-                switch (order.getPaymentMethod()) {
-                    case STRIPE -> stripe.summary(order.getId()).orElse(null);
-                    case PAYPAL -> paypal.summary(order.getId()).orElse(null);
-                    case BANK_TRANSFER -> null;
-                },
+                payment,
                 shipping.carriers().stream().map(AppProperties.Carrier::name).toList(),
                 new AdminOrderView.OrderActions(
                         status == OrderStatus.PENDING_PAYMENT && order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER,
@@ -332,7 +395,16 @@ public class AdminOrderService {
                         status == OrderStatus.PAID || status == OrderStatus.PROCESSING || status == OrderStatus.SHIPPED,
                         status == OrderStatus.SHIPPED,
                         status.canTransitionTo(OrderStatus.CANCELLED),
-                        order.getShipments().size() > 1));
+                        order.getShipments().size() > 1,
+                        payment != null && payment.refundable().amount() > 0 && providerAvailable(payment.provider())));
+    }
+
+    private boolean providerAvailable(PaymentMethod method) {
+        return switch (method) {
+            case STRIPE -> stripe.isAvailable();
+            case PAYPAL -> paypal.isAvailable();
+            case BANK_TRANSFER -> false;
+        };
     }
 
     private static NotFoundException notFound() {

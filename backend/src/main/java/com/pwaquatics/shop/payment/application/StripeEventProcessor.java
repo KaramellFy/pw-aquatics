@@ -31,12 +31,19 @@ class StripeEventProcessor {
     private final WebhookEventLog events;
     private final PaymentRepository payments;
     private final PayableOrders orders;
+    private final PaymentRefunds refunds;
     private final Clock clock;
 
-    StripeEventProcessor(WebhookEventLog events, PaymentRepository payments, PayableOrders orders, Clock clock) {
+    StripeEventProcessor(
+            WebhookEventLog events,
+            PaymentRepository payments,
+            PayableOrders orders,
+            PaymentRefunds refunds,
+            Clock clock) {
         this.events = events;
         this.payments = payments;
         this.orders = orders;
+        this.refunds = refunds;
         this.clock = clock;
     }
 
@@ -53,6 +60,7 @@ class StripeEventProcessor {
                     withPayment(object.path("id"), payment -> payment.failed(failureCode(object), now));
             case "payment_intent.canceled" -> withPayment(object.path("id"), payment -> payment.cancelled(now));
             case "charge.refunded" -> refunded(object, now);
+            case "refund.updated", "refund.failed", "charge.refund.updated" -> refundUpdated(object);
             default -> "ignored";
         };
         events.markProcessed(row, now, note);
@@ -94,6 +102,16 @@ class StripeEventProcessor {
         return null;
     }
 
+    /** One of the refunds the owner made from the admin succeeded or failed after all. */
+    private String refundUpdated(JsonNode refund) {
+        String id = refund.path("id").asString("");
+        if (!id.startsWith("re_")) {
+            return "unknown refund";
+        }
+        return refunds.providerReport(
+                id, PaymentRefunds.stripeState(refund.path("status").asString("")), refundFailureReason(refund));
+    }
+
     private String withPayment(JsonNode intentId, Consumer<Payment> change) {
         Optional<Payment> payment = payment(intentId);
         if (payment.isEmpty()) {
@@ -128,5 +146,11 @@ class StripeEventProcessor {
             code = error.path("code").asString(null);
         }
         return code == null || code.length() > 100 ? null : code;
+    }
+
+    /** Why a refund failed, e.g. {@code expired_or_canceled_card}. */
+    static String refundFailureReason(JsonNode refund) {
+        String reason = refund.path("failure_reason").asString(null);
+        return reason == null || reason.length() > 100 ? null : reason;
     }
 }

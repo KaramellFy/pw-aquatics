@@ -63,6 +63,11 @@ and some species may not be traded legally.
   approved (`POST /api/v1/payments/paypal/captures`), webhooks confirmed by PayPal
   (`POST /api/v1/webhooks/paypal`), the same 60-minute expiry. Optional: without
   `PAYPAL_*` credentials it is not offered. Not yet tried against PayPal's sandbox.
+- **Admin refunds** (Phase 9; ADR-010 addendum) are built end to end: "Refund" on the admin order
+  page for card and PayPal payments, all or part, through the provider
+  (`POST /api/v1/admin/orders/{orderNumber}/refunds` with an `Idempotency-Key`), a list of
+  refunds on the order page, refund email, webhooks for pending and later-failed refunds.
+  Bank transfers are paid back by hand.
 - **Sign in with Google** (addition to Phase 3; ADR-014) is built: "Continue with Google" on the
   sign-in and registration pages (`GET /api/v1/auth/google` → Google → `/auth/google/callback`),
   accounts linked by Google's subject id, automatic linking for Google-verified addresses,
@@ -276,7 +281,12 @@ working around them.
   billing details (PayPal: no payer name or email either). Cancelling an unpaid card order
   cancels its PaymentIntent first; a PayPal order is asked first whether the money was taken
   (`OrderCancellation`). A payment the webhook may still capture must check
-  `PayableOrders.isAwaitingPayment` first.
+  `PayableOrders.isAwaitingPayment` first. Refunds go only through `PaymentRefunds` (called by
+  `AdminOrderService.refund` holding the order lock): the amount is checked against
+  `Payment.refundable()` and the owner's `expectedRefundableCents`, the request's idempotency key
+  is stored and passed to the provider, an accepted refund is counted at once
+  (`Payment.refundAccepted`), a provider refusal is thrown so nothing is recorded, and a refund
+  that fails later is taken back only through the webhook (`Payment.refundFailed`).
 - **Coupon rules:** whether a coupon may be used at all is decided in `coupon`
   (`Coupon.problemAt`, through `Coupons`); whether and by how much it reduces a basket only
   in `PriceCalculator` (`Discount`, `DiscountOutcome`). Cart and checkout always run both

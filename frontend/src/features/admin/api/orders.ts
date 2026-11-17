@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
+import { useRef } from 'react';
+import { ApiError, api, apiRequest } from '@/lib/api/client';
 import { queryKeys } from '@/lib/api/queryKeys';
 import type { Schemas } from '@/lib/api/types';
 
@@ -13,6 +14,8 @@ export type StatusInput = Schemas['OrderStatusRequest'];
 export type CancelInput = Schemas['CancelRequest'];
 export type ShipmentInput = Schemas['ShipmentRequest'];
 export type ShipmentCorrectionInput = Schemas['ShipmentCorrection'];
+export type RefundInput = Schemas['RefundRequest'];
+export type PaymentRefund = Schemas['PaymentRefundView'];
 
 export interface OrderListQuery {
   q?: string;
@@ -121,4 +124,35 @@ export function useRemoveShipment(orderNumber: string) {
   return useOrderMutation(orderNumber, (id: string) =>
     api.delete<AdminOrder>(`${path(orderNumber)}/shipments/${encodeURIComponent(id)}`),
   );
+}
+
+/**
+ * Pays money back through Stripe or PayPal. Every attempt carries an idempotency key: if the
+ * answer gets lost, the same key is sent again, so the money is never paid back twice. Once the
+ * server has answered, the next attempt gets a new key. When the amount left to refund changed
+ * in the meantime, the order is loaded again so the dialog shows the new amount.
+ */
+export function useRefund(orderNumber: string) {
+  const queryClient = useQueryClient();
+  const idempotencyKey = useRef<string | null>(null);
+  return useOrderMutation(orderNumber, async (input: RefundInput) => {
+    idempotencyKey.current ??= crypto.randomUUID();
+    try {
+      const order = await apiRequest<AdminOrder>(`${path(orderNumber)}/refunds`, {
+        method: 'POST',
+        body: input,
+        headers: { 'Idempotency-Key': idempotencyKey.current },
+      });
+      idempotencyKey.current = null;
+      return order;
+    } catch (error) {
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+        idempotencyKey.current = null;
+        if (error.code === 'REFUNDS_CHANGED') {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.adminOrder(orderNumber) });
+        }
+      }
+      throw error;
+    }
+  });
 }

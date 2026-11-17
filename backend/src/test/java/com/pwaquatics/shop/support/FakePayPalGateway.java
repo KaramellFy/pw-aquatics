@@ -3,9 +3,11 @@ package com.pwaquatics.shop.support;
 import com.pwaquatics.shop.common.error.ServiceUnavailableException;
 import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.payment.application.PayPalGateway;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.context.annotation.Primary;
 
@@ -27,7 +29,14 @@ public class FakePayPalGateway implements PayPalGateway {
     private final AtomicInteger captureCalls = new AtomicInteger();
     private volatile String nextRefusal;
     private volatile String captureStatus = "COMPLETED";
+    private final Map<String, Refund> refundsByKey = new ConcurrentHashMap<>();
+    private final List<RefundCall> refundCalls = new CopyOnWriteArrayList<>();
+    private volatile String nextRefundRefusal;
+    private volatile String refundStatus = "COMPLETED";
     private volatile boolean down;
+
+    /** A refund the shop asked PayPal for. */
+    public record RefundCall(String captureId, Money amount, String idempotencyKey) {}
 
     @Override
     public PayPalOrder createOrder(UUID orderId, String orderNumber, Money amount, String language) {
@@ -71,7 +80,40 @@ public class FakePayPalGateway implements PayPalGateway {
         return GENUINE_SIGNATURE.equals(signature.transmissionSig());
     }
 
+    /** Like PayPal: the same {@code PayPal-Request-Id} returns the first refund. */
+    @Override
+    public Refund refund(String captureId, Money amount, String idempotencyKey) {
+        checkUp();
+        refundCalls.add(new RefundCall(captureId, amount, idempotencyKey));
+        Refund earlier = refundsByKey.get(idempotencyKey);
+        if (earlier != null) {
+            return earlier;
+        }
+        String refusal = nextRefundRefusal;
+        if (refusal != null) {
+            nextRefundRefusal = null;
+            throw new RefundRefused(refusal);
+        }
+        Refund refund = new Refund("TESTREFUND%06d".formatted(sequence.incrementAndGet()), refundStatus, amount);
+        refundsByKey.put(idempotencyKey, refund);
+        return refund;
+    }
+
     // ------------------------------------------------------------------ test controls
+
+    /** The next refund is refused, e.g. with {@code REFUND_TIME_LIMIT_EXCEEDED}. */
+    public void refuseNextRefund(String issue) {
+        nextRefundRefusal = issue;
+    }
+
+    /** What the next refunds report: {@code COMPLETED} (default) or {@code PENDING}. */
+    public void setRefundStatus(String status) {
+        refundStatus = status;
+    }
+
+    public List<RefundCall> refundCalls() {
+        return List.copyOf(refundCalls);
+    }
 
     /** The customer approved the payment in PayPal's window. */
     public void approve(String paypalOrderId) {
@@ -115,6 +157,8 @@ public class FakePayPalGateway implements PayPalGateway {
     public void reset() {
         nextRefusal = null;
         captureStatus = "COMPLETED";
+        nextRefundRefusal = null;
+        refundStatus = "COMPLETED";
         down = false;
     }
 

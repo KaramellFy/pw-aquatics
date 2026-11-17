@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.payment.application;
 
+import com.pwaquatics.shop.common.money.Money;
 import com.pwaquatics.shop.payment.domain.PaymentRefunded;
 import com.pwaquatics.shop.payment.domain.PaymentSucceeded;
 import java.util.UUID;
@@ -27,6 +28,12 @@ public interface PayableOrders {
     /** The full amount has arrived. Called once per payment. */
     void paymentSucceeded(PaymentSucceeded payment);
 
-    /** Money was paid back (in full or in part), e.g. from the Stripe Dashboard or PayPal. */
+    /**
+     * The money refunded changed: paid back in full or in part (from the admin order page, the
+     * Stripe Dashboard or PayPal), or less than before because a refund failed.
+     */
     void paymentRefunded(PaymentRefunded refund);
+
+    /** A refund the provider had accepted failed afterwards; the owner has to pay it back another way. */
+    void refundFailed(UUID orderId, Money amount);
 }

@@ -8,8 +8,10 @@ import com.stripe.StripeClient;
 import com.stripe.exception.InvalidRequestException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.RefundCreateParams;
 import java.util.Locale;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -66,6 +68,29 @@ class StripeApiClient implements StripeGateway {
                 throw e;
             }
         });
+    }
+
+    @Override
+    public RefundData refund(String paymentIntentId, Money amount, String idempotencyKey) {
+        RefundCreateParams params = RefundCreateParams.builder()
+                .setPaymentIntent(paymentIntentId)
+                .setAmount(amount.amount())
+                .setReason(RefundCreateParams.Reason.REQUESTED_BY_CUSTOMER)
+                .build();
+        RequestOptions options = RequestOptions.builder().setIdempotencyKey("refund-" + idempotencyKey).build();
+        try {
+            Refund refund = stripe().v1().refunds().create(params, options);
+            return new RefundData(refund.getId(), refund.getStatus(),
+                    new Money(refund.getAmount(), refund.getCurrency().toUpperCase(Locale.ROOT)));
+        } catch (InvalidRequestException e) {
+            log.warn("Stripe refused a refund: {} (request {})", e.getCode(), e.getRequestId());
+            throw new RefundRefused(e.getCode() == null ? "invalid_request" : e.getCode());
+        } catch (StripeException e) {
+            log.warn("Stripe refund failed: {} {} (request {})", e.getClass().getSimpleName(), e.getCode(),
+                    e.getRequestId());
+            throw new ServiceUnavailableException(
+                    "PAYMENT_PROVIDER_UNAVAILABLE", "The payment service is not available right now. Please try again.", e);
+        }
     }
 
     private StripeClient stripe() {

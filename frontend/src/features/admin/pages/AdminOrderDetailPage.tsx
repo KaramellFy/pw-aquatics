@@ -18,6 +18,7 @@ import {
   useAdminOrder,
   useRemoveShipment,
   type AdminOrder,
+  type PaymentRefund,
   type Shipment,
 } from '../api/orders';
 import { AdminCard } from '../components/AdminCard';
@@ -27,12 +28,13 @@ import { LoadState } from '../components/LoadState';
 import {
   CancelOrderDialog,
   MarkPaidDialog,
+  RefundDialog,
   ShipmentDialog,
   StatusDialog,
 } from '../components/orders/OrderActionDialogs';
 import { Pill } from '../components/StatusBadge';
 
-type DialogKind = 'markPaid' | 'processing' | 'delivered' | 'ship' | 'correct' | 'cancel';
+type DialogKind = 'markPaid' | 'processing' | 'delivered' | 'ship' | 'correct' | 'cancel' | 'refund';
 
 /** One order for the shop owner: what to do next, parcels, notes, history and all details. */
 export function AdminOrderDetailPage() {
@@ -232,7 +234,7 @@ function OrderDetail({ order, back }: { order: AdminOrder; back: { to: string; l
             <AddressBlock address={detail.billingAddress} className="mt-2" />
           </AdminCard>
 
-          <PaymentCard order={order} />
+          <PaymentCard order={order} onRefund={() => open('refund')} />
         </div>
       </div>
 
@@ -270,6 +272,12 @@ function OrderDetail({ order, back }: { order: AdminOrder; back: { to: string; l
         key={`cancel-${dialogKey}`}
         order={order}
         open={dialog === 'cancel'}
+        onOpenChange={close}
+      />
+      <RefundDialog
+        key={`refund-${dialogKey}`}
+        order={order}
+        open={dialog === 'refund'}
         onOpenChange={close}
       />
     </>
@@ -447,7 +455,7 @@ function HistoryCard({ order }: { order: AdminOrder }) {
   );
 }
 
-function PaymentCard({ order }: { order: AdminOrder }) {
+function PaymentCard({ order, onRefund }: { order: AdminOrder; onRefund: () => void }) {
   const { t } = useTranslation();
   const locale = useIntlLocale();
   const detail = order.order;
@@ -511,9 +519,62 @@ function PaymentCard({ order }: { order: AdminOrder }) {
           <span className="sr-only">{t('common.opensInNewTab')}</span>
         </a>
       )}
+      {order.payment && order.payment.refunds.length > 0 && <RefundList refunds={order.payment.refunds} />}
       {order.paidAt && detail.status === 'CANCELLED' && detail.paymentStatus === 'PAID' && (
-        <p className="mt-4 text-sm text-ink-soft">{t('admin.orders.refundReminder')}</p>
+        <p className="mt-4 text-sm text-ink-soft">
+          {t(
+            detail.paymentMethod === 'BANK_TRANSFER'
+              ? 'admin.orders.refundReminderTransfer'
+              : 'admin.orders.refundReminder',
+          )}
+        </p>
+      )}
+      {order.actions.refund && (
+        <div className="mt-4">
+          <Button variant="secondary" onClick={onRefund}>
+            {t('admin.orders.actions.refund')}
+          </Button>
+        </div>
       )}
     </AdminCard>
+  );
+}
+
+/** Refunds made from this page, oldest first; what they are and who made them comes from the server. */
+function RefundList({ refunds }: { refunds: PaymentRefund[] }) {
+  const { t } = useTranslation();
+  const locale = useIntlLocale();
+  return (
+    <section aria-labelledby="refunds-heading" className="mt-5">
+      <h3 id="refunds-heading" className="text-sm font-medium text-ink-soft">
+        {t('admin.orders.refunds')}
+      </h3>
+      <ul className="mt-2 divide-y divide-line border-y border-line">
+        {refunds.map((refund) => (
+          <li key={refund.id} className="py-3 text-[0.9375rem]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium text-ink tabular-nums">{formatMoney(refund.amount, locale)}</span>
+              <Pill
+                tone={
+                  refund.status === 'SUCCEEDED' ? 'ok' : refund.status === 'FAILED' ? 'warning' : 'neutral'
+                }
+              >
+                {t(`admin.orders.refundStatuses.${refund.status}`)}
+              </Pill>
+            </div>
+            <p className="text-sm text-ink-soft">
+              {formatInstantDateTime(refund.createdAt, locale)}
+              {refund.requestedBy && ` · ${t('admin.orders.refundBy', { name: refund.requestedBy })}`}
+            </p>
+            {refund.reason && <p className="text-sm text-ink-soft">{refund.reason}</p>}
+            {refund.failureCode && (
+              <p className="text-sm text-ink-soft">
+                {t('admin.orders.refundFailedBecause', { code: refund.failureCode })}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

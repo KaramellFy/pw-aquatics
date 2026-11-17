@@ -4,7 +4,8 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { CheckboxField, SelectField, TextAreaField, TextField } from '@/components/ui/Field';
-import { formatMoney } from '@/lib/format/money';
+import { ApiError } from '@/lib/api/client';
+import { formatMoney, moneyInputValue, parseMoneyInput } from '@/lib/format/money';
 import { useIntlLocale } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
 import {
@@ -13,6 +14,7 @@ import {
   useChangeOrderStatus,
   useCorrectShipment,
   useMarkPaid,
+  useRefund,
   type AdminOrder,
   type Shipment,
 } from '../../api/orders';
@@ -33,6 +35,7 @@ function ActionDialog({
   title,
   description,
   error,
+  errorDetail,
   pending,
   confirmLabel,
   danger = false,
@@ -44,6 +47,8 @@ function ActionDialog({
   title: string;
   description?: string;
   error: unknown;
+  /** Extra words from the server under the error, e.g. why a provider refused. */
+  errorDetail?: string;
   pending: boolean;
   confirmLabel: string;
   danger?: boolean;
@@ -59,7 +64,12 @@ function ActionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={title} description={description}>
       <form onSubmit={submit} noValidate className="space-y-5">
-        {error != null && <Alert tone="error">{errorMessage(error)}</Alert>}
+        {error != null && (
+          <Alert tone="error">
+            {errorMessage(error)}
+            {errorDetail && <span className="mt-1 block text-sm">{errorDetail}</span>}
+          </Alert>
+        )}
         {children}
         <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
@@ -333,11 +343,9 @@ export function CancelOrderDialog({ order, open, onOpenChange }: DialogProps) {
       {paid && (
         <Alert tone="info">
           {t(
-            order.order.paymentMethod === 'STRIPE'
-              ? 'admin.orders.dialogs.refundCard'
-              : order.order.paymentMethod === 'PAYPAL'
-                ? 'admin.orders.dialogs.refundPayPal'
-                : 'admin.orders.dialogs.refundTransfer',
+            order.order.paymentMethod === 'BANK_TRANSFER'
+              ? 'admin.orders.dialogs.refundTransfer'
+              : 'admin.orders.dialogs.refundOnline',
             { amount: formatMoney(order.order.totals.total, locale) },
           )}
         </Alert>
@@ -356,6 +364,95 @@ export function CancelOrderDialog({ order, open, onOpenChange }: DialogProps) {
         checked={restock}
         onChange={(event) => setRestock(event.target.checked)}
       />
+      <NotifyField checked={notify} onChange={setNotify} />
+    </ActionDialog>
+  );
+}
+
+/**
+ * Pays all or part of a card or PayPal payment back through the provider. The amount left to
+ * refund comes from the server; the field starts with it and can be lowered for a partial refund.
+ */
+export function RefundDialog({ order, open, onOpenChange }: DialogProps) {
+  const { t } = useTranslation();
+  const locale = useIntlLocale();
+  const refund = useRefund(order.order.orderNumber);
+  const payment = order.payment;
+  const refundable = payment?.refundable ?? { amount: 0, currency: order.order.totals.total.currency };
+  const [amount, setAmount] = useState(() => moneyInputValue(refundable.amount, refundable.currency));
+  const [reason, setReason] = useState('');
+  const [message, setMessage] = useState('');
+  const [notify, setNotify] = useState(true);
+  const [invalidAmount, setInvalidAmount] = useState(false);
+  const cents = parseMoneyInput(amount, refundable.currency);
+  const valid = cents !== null && cents > 0 && cents <= refundable.amount;
+  const max = formatMoney(refundable, locale);
+  // A provider's refusal comes with its reason (e.g. "charge_disputed"); show it under the message.
+  const refusal =
+    refund.error instanceof ApiError && refund.error.code === 'REFUND_REFUSED'
+      ? refund.error.message
+      : undefined;
+  if (!payment) return null;
+  return (
+    <ActionDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('admin.orders.dialogs.refundTitle', { number: order.order.orderNumber })}
+      description={t(
+        payment.provider === 'PAYPAL'
+          ? 'admin.orders.dialogs.refundTextPayPal'
+          : 'admin.orders.dialogs.refundTextCard',
+      )}
+      error={refund.error}
+      errorDetail={refusal}
+      pending={refund.isPending}
+      confirmLabel={
+        valid
+          ? t('admin.orders.dialogs.refundConfirm', {
+              amount: formatMoney({ amount: cents, currency: refundable.currency }, locale),
+            })
+          : t('admin.orders.actions.refund')
+      }
+      onSubmit={() => {
+        if (!valid) {
+          setInvalidAmount(true);
+          return;
+        }
+        setInvalidAmount(false);
+        refund.mutate(
+          {
+            amountCents: cents,
+            expectedRefundableCents: refundable.amount,
+            reason: reason.trim() || undefined,
+            customerMessage: message.trim() || undefined,
+            notifyCustomer: notify,
+          },
+          { onSuccess: () => onOpenChange(false) },
+        );
+      }}
+    >
+      <p className="text-sm text-ink-soft">
+        {t('admin.orders.dialogs.refundSummary', {
+          paid: formatMoney(payment.amount, locale),
+          refunded: formatMoney(payment.refunded, locale),
+        })}
+      </p>
+      <TextField
+        label={t('admin.orders.dialogs.refundAmount')}
+        hint={t('admin.orders.dialogs.refundAmountHint', { max })}
+        inputMode="decimal"
+        value={amount}
+        onChange={(event) => setAmount(event.target.value)}
+        error={invalidAmount ? t('admin.orders.dialogs.refundAmountInvalid', { max }) : undefined}
+      />
+      <TextField
+        label={`${t('admin.orders.dialogs.refundReason')} (${t('admin.common.optional')})`}
+        hint={t('admin.orders.dialogs.refundReasonHint')}
+        maxLength={500}
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+      />
+      <CustomerMessageField value={message} onChange={setMessage} />
       <NotifyField checked={notify} onChange={setNotify} />
     </ActionDialog>
   );
