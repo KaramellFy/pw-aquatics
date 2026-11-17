@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.support;
 
+import com.pwaquatics.shop.pages.application.AppRoutes;
 import com.pwaquatics.shop.pages.application.PageShell;
 import com.pwaquatics.shop.pages.application.PageTexts;
 import com.pwaquatics.shop.pages.application.ShellSource;
@@ -8,7 +9,8 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Stands in for the frontend container in integration tests: a template shaped like the built
- * {@code index.html} and a few page texts in both languages.
+ * {@code index.html}, and a {@code pages.json} with some of the app's routes and a few page
+ * texts in both languages.
  */
 @Primary
 public class FakeShellSource implements ShellSource {
@@ -59,8 +61,24 @@ public class FakeShellSource implements ShellSource {
             }
             """;
 
-    private final PageShell shell = PageShell.parse(TEMPLATE, PageTexts.of(new ObjectMapper().readTree(TEXTS)));
+    /** A part of frontend/src/app/routePaths.ts. */
+    public static final String ROUTES = """
+            ["/", "/about", "/gallery", "/contact", "/legal/:page", "/shop", "/shop/:categorySlug",
+             "/products/:slug", "/species/:slug", "/login", "/account", "/account/orders",
+             "/account/orders/:orderNumber", "/cart", "/checkout", "/admin", "/admin/*"]
+            """;
+
+    /** {@code pages.json} as the frontend build writes it. */
+    public static final String PAGES = "{\"routes\": " + ROUTES + ", \"texts\": " + TEXTS + "}";
+
+    private final PageShell shell = shell();
     private volatile boolean unavailable;
+
+    /** The template with these routes and texts. */
+    public static PageShell shell() {
+        var pages = new ObjectMapper().readTree(PAGES);
+        return PageShell.parse(TEMPLATE, PageTexts.of(pages.path("texts")), AppRoutes.of(pages.path("routes")));
+    }
 
     @Override
     public PageShell current() {

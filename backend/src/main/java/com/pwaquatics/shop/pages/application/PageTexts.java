@@ -6,7 +6,7 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * Interface texts of the server-filled pages (page titles, navigation, labels), generated from
- * the frontend's translations when the frontend is built ({@code page-texts.json}), so both
+ * the frontend's translations when the frontend is built ({@code pages.json}, "texts"), so both
  * show the same words. Owner-written texts come from the catalog, not from here.
  */
 public final class PageTexts {
@@ -17,10 +17,10 @@ public final class PageTexts {
         this.root = root;
     }
 
-    /** @throws IllegalArgumentException if the file has no English texts */
+    /** @throws IllegalArgumentException if there are no English texts */
     public static PageTexts of(JsonNode root) {
         if (root == null || !root.path("en").isObject()) {
-            throw new IllegalArgumentException("page-texts.json has no English texts");
+            throw new IllegalArgumentException("pages.json has no English texts");
         }
         return new PageTexts(root);
     }

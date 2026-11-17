@@ -15,8 +15,10 @@
 		X-Frame-Options "DENY"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		# 'unsafe-inline' for styles is needed for React style attributes; scripts stay strict.
-		# Extend connect-src/frame-src/script-src for Stripe and PayPal in Phase 9.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		# Stripe (card payment page, ADR-010): Stripe.js from js.stripe.com, its card form and the
+		# 3-D Secure check in frames from js.stripe.com / hooks.stripe.com, calls to api.stripe.com.
+		# Add PayPal's hosts when PayPal is built.
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://js.stripe.com https://*.js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.stripe.com; font-src 'self'; connect-src 'self' https://api.stripe.com; frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
 	}
 
 	# Hashed build assets can be cached forever; pages and index.html must always be revalidated.
@@ -50,10 +52,18 @@
 		}
 	}
 
-	# Files, and client-side routing for anything else: unknown paths fall back to index.html.
+	# Files (paths with an extension). A missing one answers 404: with the app's "not found"
+	# page, except for build assets, where a page would only confuse the browser.
 	handle {
-		try_files {path} /index.html
 		file_server
+	}
+
+	handle_errors 404 {
+		@notAsset not path /assets/*
+		handle @notAsset {
+			rewrite * /index.html
+			file_server
+		}
 	}
 
 	handle_errors 502 503 504 {

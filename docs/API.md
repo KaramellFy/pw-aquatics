@@ -916,7 +916,7 @@ calculated on the server.
 | `/actuator/health/liveness`, `/actuator/health/readiness` | internal network only | Container health checks |
 | `/actuator/prometheus` | internal network only | Metrics |
 | `/api/v3/api-docs`, `/swagger-ui` | dev/staging only | Disabled in production |
-| `GET /_pages/<path>` | public (called by the frontend's Caddy) | Not JSON: the page `<path>` as HTML, filled in from the frontend build (ADR-013). `200`, `404` for unknown products, species and categories (with `noindex`), `503` when no page template is available (Caddy then serves the plain `index.html`). `Cache-Control: no-cache`. Embeds the API responses the app requests first in `<script type="application/json" id="page-data">`, keyed by API path (`/products/{slug}`, `/species/{slug}`, `/categories`, `/products?…`) |
+| `GET /_pages/<path>` | public (called by the frontend's Caddy) | Not JSON: the page `<path>` as HTML, filled in from the frontend build (ADR-013). `200`, `404` (with `noindex`) for unknown products, species and categories and for addresses the app has no page for (its route list comes with the frontend build), `503` when no page template is available (Caddy then serves the plain `index.html`). `Cache-Control: no-cache`. Embeds the API responses the app requests first in `<script type="application/json" id="page-data">`, keyed by API path (`/products/{slug}`, `/species/{slug}`, `/categories`, `/products?…`) |
 
 ---
 

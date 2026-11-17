@@ -11,10 +11,11 @@ import tools.jackson.databind.ObjectMapper;
 class PageShellTest {
 
     private final PageTexts texts = PageTexts.of(new ObjectMapper().readTree(FakeShellSource.TEXTS));
+    private final AppRoutes routes = AppRoutes.of(new ObjectMapper().readTree(FakeShellSource.ROUTES));
 
     @Test
     void fillsInTheLanguageHeadTextAndData() {
-        PageShell shell = PageShell.parse(FakeShellSource.TEMPLATE, texts);
+        PageShell shell = PageShell.parse(FakeShellSource.TEMPLATE, texts, routes);
         String html = shell.render("de", "<title data-page>Seite</title>", "<h1>Hallo</h1>", "{\"/x\":\"</script>\"}");
 
         assertThat(html)
@@ -28,7 +29,7 @@ class PageShellTest {
 
     @Test
     void pagesThatAreNotFilledInKeepTheDefaultTitle() {
-        String html = PageShell.parse(FakeShellSource.TEMPLATE, texts).render("en", null, null, null);
+        String html = PageShell.parse(FakeShellSource.TEMPLATE, texts, routes).render("en", null, null, null);
         assertThat(html)
                 .contains("<html lang=\"en\">", "<title>PW Aquatics</title>", "Default description.", "<div id=\"root\"></div>")
                 .doesNotContain("page-data");
@@ -36,7 +37,7 @@ class PageShellTest {
 
     @Test
     void refusesATemplateWithoutTheMarkedPlaces() {
-        assertThatThrownBy(() -> PageShell.parse("<html lang=\"en\"><head></head><body><div id=\"app\"></div></body></html>", texts))
+        assertThatThrownBy(() -> PageShell.parse("<html lang=\"en\"><head></head><body><div id=\"app\"></div></body></html>", texts, routes))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("<div id=\"root\"></div>");
     }
@@ -47,6 +48,21 @@ class PageShellTest {
         assertThat(texts.get(ContentLanguage.DE, "pages.contact.title")).isEqualTo("Contact – PW Aquatics");
         assertThat(texts.get(ContentLanguage.DE, "no.such.key")).isEmpty();
         assertThat(texts.format(ContentLanguage.DE, "product.from", "price", "3,00 €")).isEqualTo("ab 3,00 €");
+    }
+
+    @Test
+    void knowsTheAppsAddressesLikeItsRouter() {
+        assertThat(routes.knows("/")).isTrue();
+        assertThat(routes.knows("/account/orders/PW-2026-000001")).isTrue();
+        assertThat(routes.knows("/Account/Orders")).isTrue();
+        assertThat(routes.knows("/admin/anything/below")).isTrue();
+        assertThat(routes.knows("/admin")).isTrue();
+        assertThat(routes.knows("/products")).isFalse();
+        assertThat(routes.knows("/products/a/b")).isFalse();
+        assertThat(routes.knows("/foo")).isFalse();
+        assertThat(routes.knows("/wp-login")).isFalse();
+        // A build without the list must not turn the app's pages into 404s.
+        assertThat(AppRoutes.of(null).knows("/foo")).isTrue();
     }
 
     @Test

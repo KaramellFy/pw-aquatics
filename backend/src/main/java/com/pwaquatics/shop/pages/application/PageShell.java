@@ -6,7 +6,8 @@ import java.util.regex.Pattern;
 
 /**
  * The built frontend's {@code index.html}, cut where a page's own head, text and data go, plus
- * the texts of the server-filled pages (docs/adr/013-pages-filled-in-by-the-backend.md).
+ * the app's routes and the texts of the server-filled pages from {@code pages.json}
+ * (docs/adr/013-pages-filled-in-by-the-backend.md).
  *
  * <p>The template must contain {@code <html lang="en">}, {@code </head>},
  * {@code <div id="root"></div>} and {@code </body>} (frontend/index.html says so). Its default
@@ -30,9 +31,11 @@ public final class PageShell {
     private final String rest;
     private final String defaultHead;
     private final PageTexts texts;
+    private final AppRoutes routes;
 
-    private PageShell(String html, PageTexts texts) {
+    private PageShell(String html, PageTexts texts, AppRoutes routes) {
         this.texts = Objects.requireNonNull(texts, "texts");
+        this.routes = Objects.requireNonNull(routes, "routes");
         int htmlTag = indexOf(html, HTML_TAG, 0);
         int headEnd = indexOf(html, HEAD_END, htmlTag);
         int root = indexOf(html, ROOT, headEnd);
@@ -54,12 +57,16 @@ public final class PageShell {
     /**
      * @throws IllegalArgumentException if the template lacks one of the places pages are filled in
      */
-    public static PageShell parse(String html, PageTexts texts) {
-        return new PageShell(html, texts);
+    public static PageShell parse(String html, PageTexts texts, AppRoutes routes) {
+        return new PageShell(html, texts, routes);
     }
 
     public PageTexts texts() {
         return texts;
+    }
+
+    public AppRoutes routes() {
+        return routes;
     }
 
     /**

@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
-import { z } from 'zod';
+import { z } from '@/lib/validation/zod';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { CheckboxField, TextField } from '@/components/ui/Field';

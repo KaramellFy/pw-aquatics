@@ -1,11 +1,11 @@
-import type { Messages } from '../i18n/locales/en';
+import type { Messages } from '../i18n/locales/en.ts';
 
 /**
  * Interface texts of the pages the backend fills in for the first page load
  * (docs/adr/013-pages-filled-in-by-the-backend.md). The build writes them for every language
- * into `page-texts.json`, so the backend's page shows the same words as the app.
+ * into `pages.json`, so the backend's page shows the same words as the app.
  *
- * Imported by vite.config.ts, so only relative imports here.
+ * Imported by vite.config.ts: only relative imports, with file extensions (Vite's config loader).
  */
 export function pageTexts(t: Messages) {
   const page = (meta: { title: string; description: string }, heading: string, lead: string) => ({

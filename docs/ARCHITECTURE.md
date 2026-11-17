@@ -485,9 +485,12 @@ payment module                                 order module
   money or is processing it, the order stays and the webhook marks it paid.
 - Refunds are made in the Stripe Dashboard; `charge.refunded` updates `paymentStatus`.
 - Apple Pay needs the shop's domain verified in the Stripe Dashboard; Google Pay needs HTTPS.
-- **CSP for Stripe** (when Caddy sets one): `script-src https://js.stripe.com`,
-  `frame-src https://js.stripe.com https://hooks.stripe.com`,
-  `connect-src https://api.stripe.com` (Stripe's CSP guide lists the current set).
+- **CSP for Stripe** (set by the frontend's Caddy, `frontend/Caddyfile`): `script-src
+  https://js.stripe.com https://*.js.stripe.com`, `frame-src https://js.stripe.com
+  https://*.js.stripe.com https://hooks.stripe.com`, `connect-src https://api.stripe.com`,
+  `img-src https://*.stripe.com`. Checked with a card payment and the 3-D Secure window behind
+  Caddy without violations; Stripe's CSP guide lists the current set. Zod is set to `jitless`
+  (`lib/validation/zod.ts`) because the policy forbids `eval`.
 
 ### 5.6 Security architecture
 
@@ -691,7 +694,7 @@ design-led studio than a pet-supply store. Tokens live in
   we already run (ADR-013; no extra server, owner decision 2026-11-16): the frontend's Caddy asks
   `GET /_pages/<path>`, and the backend puts the page's head tags, main text and first API
   responses into the frontend build's `index.html`; the app takes over without a loading state.
-  Unknown products, species and categories answer 404. Planned (roadmap "SEO", brought forward
+  Unknown addresses, products, species and categories answer 404. Planned (roadmap "SEO", brought forward
   from Phase 10 at the owner's request): backend-generated `sitemap.xml`, canonical links for
   filtered shop pages, `BreadcrumbList`/`Organization` data (see risk R3).
 - Responsive images: backend generates WebP sizes (e.g. 400/800/1200/2000 px);

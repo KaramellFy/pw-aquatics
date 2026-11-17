@@ -12,7 +12,7 @@ import org.springframework.validation.annotation.Validated;
  * Pages filled in by the backend (docs/adr/013-pages-filled-in-by-the-backend.md).
  *
  * @param shellUrl where the built frontend is served inside the deployment, e.g.
- *     {@code http://frontend:8080/}; its {@code index.html} and {@code page-texts.json} are the
+ *     {@code http://frontend:8080/}; its {@code index.html} and {@code pages.json} are the
  *     template of every page. Empty: pages are not filled in (local development with Vite).
  * @param timeout how long to wait for the frontend before serving the last known template
  */

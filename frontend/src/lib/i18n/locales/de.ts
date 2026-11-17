@@ -1,4 +1,5 @@
-import type { Messages } from './en';
+// With extension: vite.config.ts loads this file (lib/seo/pageTexts.ts).
+import type { Messages } from './en.ts';
 
 /** German UI texts. Must provide exactly the keys defined in `en.ts`. */
 export const de: Messages = {

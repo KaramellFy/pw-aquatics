@@ -200,8 +200,8 @@ working around them.
   `languages` (`catalog.application.Translations`).
 - **Pages module** (ADR-013): `pages.application.PageService` fills public pages from the
   frontend build's `index.html` (loaded by `FrontendShellSource` from `app.pages.shell-url`).
-  Its head must match what the app's `PageMeta` writes for the same page; interface words come
-  from `page-texts.json` (never hard-coded), catalog data from the catalog services; escape
+  Its head must match what the app's `PageMeta` writes for the same page; interface words and
+  the app's routes come from `pages.json` (never hard-coded), catalog data from the catalog services; escape
   everything with `Html` except sanitised HTML from the API. A new public page or a change to
   the API paths and page sizes the app requests first means updating `PageService` too.
 - **Personal data:** every new place that stores personal data gets a row in
@@ -277,8 +277,9 @@ working around them.
   German version of a text as its own field, labelled `admin.common.inGerman`, with
   `lang="de"` on the input.
 - **Pages filled in by the backend** (ADR-013): `index.html` keeps its markers (see the comment in
-  it); texts the backend needs go through `lib/seo/pageTexts.ts` (written to `page-texts.json` at
-  build). On start the app takes the page's data (`app/serverPage.ts`, `lib/api/preload.ts` maps
+  it); texts the backend needs go through `lib/seo/pageTexts.ts` and every route is listed in
+  `app/routePaths.ts` (a test compares it with the route tree); the build writes both to
+  `pages.json`. Files that vite.config.ts imports use relative imports with `.ts` extensions. On start the app takes the page's data (`app/serverPage.ts`, `lib/api/preload.ts` maps
   API paths to query keys) and waits for the router before rendering. Style the backend's text
   only through the `.page-preview` classes.
 - **Server state in TanStack Query**; no global store for API data. Mutations
@@ -333,7 +334,10 @@ working around them.
   timelines: no fade-up-on-scroll, no hiding until revealed. Disabled buttons drop keyboard
   focus, so a button that is busy uses `aria-busy`/`aria-disabled` and ignores clicks instead.
 - Forms: React Hook Form + Zod for UX validation; always display server
-  validation errors too.
+  validation errors too. Import `z` from `@/lib/validation/zod` (never from `zod`; ESLint
+  enforces it): it keeps Zod from trying `eval`, which our Content-Security-Policy forbids.
+- **Content-Security-Policy** is set in `frontend/Caddyfile`. A new third-party script, frame or
+  API host (e.g. PayPal) needs its hosts added there, checked in a browser behind Caddy.
 - Styling: Tailwind utilities and design tokens only; build variants in
   `components/ui` instead of one-off styles. No inline hex colours.
 - Accessibility: semantic HTML, labels for every input, visible focus, keyboard

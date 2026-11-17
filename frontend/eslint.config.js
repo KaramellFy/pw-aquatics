@@ -17,6 +17,23 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'zod',
+              message:
+                "Import z from '@/lib/validation/zod': it keeps Zod from trying eval, which our CSP forbids.",
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
     },
+  },
+  {
+    files: ['src/lib/validation/zod.ts'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 );

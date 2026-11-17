@@ -1,0 +1,56 @@
+/**
+ * Every address the app has a page for, as patterns like those in routes.tsx (":name" is one
+ * segment, a final "*" is the rest). The build hands this list to the backend (`pages.json`),
+ * which answers 404 for any other address (docs/adr/013-pages-filled-in-by-the-backend.md);
+ * the app still shows its "not found" page there. routePaths.test.ts keeps it equal to the
+ * route tree.
+ *
+ * Imported by vite.config.ts, so no imports here.
+ */
+export const ROUTE_PATHS = [
+  '/',
+  '/about',
+  '/gallery',
+  '/contact',
+  '/legal/:page',
+  '/shop',
+  '/shop/:categorySlug',
+  '/products/:slug',
+  '/species/:slug',
+  '/login',
+  '/register',
+  '/verify-email',
+  '/forgot-password',
+  '/reset-password',
+  '/account',
+  '/account/orders',
+  '/account/orders/:orderNumber',
+  '/account/addresses',
+  '/account/profile',
+  '/cart',
+  '/checkout',
+  '/checkout/pay/:orderNumber',
+  '/checkout/complete/:orderNumber',
+  '/admin',
+  '/admin/products',
+  '/admin/products/new',
+  '/admin/products/:id',
+  '/admin/inventory',
+  '/admin/inventory/:productId',
+  '/admin/categories',
+  '/admin/species',
+  '/admin/species/:id',
+  '/admin/colours',
+  '/admin/grades',
+  '/admin/orders',
+  '/admin/orders/:orderNumber',
+  '/admin/customers',
+  '/admin/customers/:id',
+  '/admin/coupons',
+  '/admin/coupons/:id',
+  '/admin/inbox',
+  '/admin/gallery',
+  '/admin/shipping',
+  '/admin/*',
+  '/admin/orders/:orderNumber/packing-slip',
+] as const;

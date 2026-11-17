@@ -43,7 +43,8 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>Filled in are the home page, shop and category pages, products, species, gallery, about
  * and contact, in English and under "/de" in German. Unknown products, species and categories
- * answer 404. Every other path gets the template with only the language set.
+ * answer 404, and so does every address the app has no page for ({@link AppRoutes}). The app's
+ * other pages (account, cart, checkout, admin, …) get the template with only the language set.
  */
 @Service
 public class PageService {
@@ -102,7 +103,7 @@ public class PageService {
         LocaleContext previous = LocaleContextHolder.getLocaleContext();
         LocaleContextHolder.setLocale(page.locale());
         try {
-            FilledPage filled = route(inLanguage, page);
+            FilledPage filled = route(inLanguage, page, shell.routes());
             String head = filled.head() == null ? null : writer.head(filled.head(), page);
             String data = filled.data().isEmpty() ? null : json.writeValueAsString(filled.data());
             return new RenderedPage(filled.status(), shell.render(page.code(), head, filled.body(), data));
@@ -111,7 +112,7 @@ public class PageService {
         }
     }
 
-    private FilledPage route(String path, PageContext page) {
+    private FilledPage route(String path, PageContext page, AppRoutes routes) {
         List<String> segments = "/".equals(path) ? List.of() : List.of(path.substring(1).split("/"));
         try {
             return switch (segments.size()) {
@@ -120,19 +121,24 @@ public class PageService {
                     case "shop" -> shop(page, null);
                     case "gallery" -> gallery(page);
                     case "about", "contact" -> intro(page, segments.getFirst());
-                    default -> FilledPage.plain();
+                    default -> other(path, page, routes);
                 };
                 case 2 -> switch (segments.getFirst()) {
                     case "shop" -> shop(page, slug(segments.get(1)));
                     case "products" -> product(page, slug(segments.get(1)));
                     case "species" -> species(page, slug(segments.get(1)));
-                    default -> FilledPage.plain();
+                    default -> other(path, page, routes);
                 };
-                default -> FilledPage.plain();
+                default -> other(path, page, routes);
             };
         } catch (NotFoundException e) {
             return notFound(page);
         }
+    }
+
+    /** A page of the app the backend does not fill in, or "not found" where the app has no page. */
+    private FilledPage other(String path, PageContext page, AppRoutes routes) {
+        return routes.knows(path) ? FilledPage.plain() : notFound(page);
     }
 
     private FilledPage home(PageContext page) {

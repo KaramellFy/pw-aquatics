@@ -4,7 +4,7 @@ import { Pencil, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import { z } from '@/lib/validation/zod';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';

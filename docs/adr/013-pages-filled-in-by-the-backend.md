@@ -21,7 +21,7 @@ was dropped earlier: prices, stock and products change daily through the admin.
   path without a file extension) to the backend as `GET /_pages/<path>` and passes the answer
   on. Scripts, styles, photos and other files are served as before. If the backend answers 5xx
   or cannot be reached, Caddy serves the plain `index.html`, so the shop never depends on this.
-- **The template is the frontend build.** The backend loads `index.html` and `page-texts.json`
+- **The template is the frontend build.** The backend loads `index.html` and `pages.json`
   from the frontend container (`app.pages.shell-url`) and checks them again at most once a second
   with a conditional request, so a page never points at the scripts of an older build. Without
   `app.pages.shell-url` (local development with Vite) nothing changes.
@@ -34,12 +34,15 @@ was dropped earlier: prices, stock and products change daily through the admin.
     links and prices, product and species descriptions, gallery photos;
   - the API responses the app requests first (`<script type="application/json" id="page-data">`),
     keyed by their API path.
-  Unknown products, species and categories answer `404`. All other paths (account, cart,
-  checkout, admin, legal pages) get the template with only the language set.
-- **Interface texts come from the frontend.** The build writes the few texts the backend needs
-  (page titles and descriptions, navigation, labels) from the app's translations into
-  `page-texts.json` (`lib/seo/pageTexts.ts`). Owner-written texts come from the database as in the
-  API. There is one source for every word.
+  Unknown products, species and categories answer `404`, and so does every address the app has no
+  page for (the app's route list is in `pages.json`). The app's other pages (account, cart,
+  checkout, admin, legal pages) get the template with only the language set. Caddy answers a
+  missing file (an address with an extension) with `404` and the app's "not found" page.
+- **Interface texts and routes come from the frontend.** The build writes `pages.json` with the
+  few texts the backend needs (page titles and descriptions, navigation, labels) from the app's
+  translations (`lib/seo/pageTexts.ts`) and the app's route list (`app/routePaths.ts`, which a
+  test keeps equal to the route tree). Owner-written texts come from the database as in the API.
+  There is one source for every word and every route.
 - **The app takes over.** On start it puts `page-data` into the query cache, removes the backend's
   head tags (its own `PageMeta` writes them from then on) and waits until the router has loaded
   the page's code before it renders. The backend's text stays visible until the app renders the
@@ -51,9 +54,8 @@ was dropped earlier: prices, stock and products change daily through the admin.
 
 - Every public page has its title, description, language links, structured data and text in the
   first response; German pages are German before any JavaScript runs; link previews work.
-- Unknown products, species and categories are real `404`s. Unknown paths outside these routes
-  still answer `200` with the app's "not found" page; the backend would need the app's route table
-  to tell them apart.
+- Unknown addresses, products, species and categories are real `404`s (no "soft 404s"); the app
+  still shows its "not found" page there.
 - One more request per page view inside the deployment (backend → frontend container, usually a
   `304`). Page views run the same queries as the API calls they replace.
 - The backend knows a few frontend details: the template's markers (`frontend/index.html` says

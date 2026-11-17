@@ -137,6 +137,21 @@ class PageApiTest {
     }
 
     @Test
+    void addressesTheAppHasNoPageForAnswerNotFound() throws Exception {
+        for (String path : new String[] {"/_pages/foo", "/_pages/de/bar/baz", "/_pages/products", "/_pages/de/de/shop"}) {
+            String html = mvc.perform(get(path))
+                    .andExpect(status().isNotFound())
+                    .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+            assertThat(html).as(path)
+                    .contains("<meta data-page name=\"robots\" content=\"noindex\">", "<h1>This page has drifted away</h1>");
+        }
+        // The app's own pages, in any letter case, and everything under /admin (it redirects).
+        for (String path : new String[] {"/_pages/Cart", "/_pages/de/account/orders/PW-2026-000001", "/_pages/admin/whatever"}) {
+            mvc.perform(get(path)).andExpect(status().isOk());
+        }
+    }
+
+    @Test
     void otherPagesKeepTheTemplateWithTheirLanguage() throws Exception {
         String account = page("/_pages/de/account/orders");
         assertThat(account)

@@ -47,7 +47,7 @@ class FrontendShellSourceTest {
             exchange.getResponseHeaders().add("ETag", etag);
             send(exchange, template);
         });
-        frontend.createContext("/page-texts.json", exchange -> send(exchange, FakeShellSource.TEXTS));
+        frontend.createContext("/pages.json", exchange -> send(exchange, FakeShellSource.PAGES));
         frontend.start();
     }
 
