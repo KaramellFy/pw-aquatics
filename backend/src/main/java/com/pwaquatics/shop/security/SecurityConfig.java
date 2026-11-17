@@ -49,8 +49,9 @@ public class SecurityConfig {
         "/api/v1/colours", "/api/v1/grades",
         "/api/v1/gallery", "/api/v1/shop-info",
         "/media/**",
-        // Pages filled in for the first page load (pages module); the frontend's Caddy calls them.
-        "/_pages", "/_pages/**",
+        // Pages filled in for the first page load, sitemap and robots.txt (pages module); the
+        // frontend's Caddy calls them.
+        "/_pages", "/_pages/**", "/_site/sitemap.xml", "/_site/robots.txt",
         "/actuator/health", "/actuator/health/**",
     };
 

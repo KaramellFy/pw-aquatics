@@ -34,6 +34,11 @@ export function pageTexts(t: Messages) {
     notFound: { title: t.notFound.meta.title, heading: t.notFound.title, text: t.notFound.text },
     product: { from: t.product.from, availability: t.product.availability },
     species: { available: t.species.available },
+    pagination: {
+      label: t.shop.pagination.label,
+      previous: t.shop.pagination.previous,
+      next: t.shop.pagination.next,
+    },
   };
 }
 

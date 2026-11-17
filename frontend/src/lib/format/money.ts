@@ -27,7 +27,7 @@ function fractionDigitsOf(currency: string): number {
   return formatterFor('en', currency).resolvedOptions().maximumFractionDigits ?? 2;
 }
 
-/** "3.90" — plain decimal string for structured data (JSON-LD). Formatting only. */
+/** "3.90" — plain decimal string (form fields). Formatting only. */
 export function toDecimalString(money: Money): string {
   const digits = fractionDigitsOf(money.currency);
   return (money.amount / 10 ** digits).toFixed(digits);

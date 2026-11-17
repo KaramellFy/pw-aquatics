@@ -1,13 +1,15 @@
 package com.pwaquatics.shop.pages.application;
 
+import jakarta.annotation.Nullable;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import tools.jackson.databind.JsonNode;
 
 /**
  * The built frontend's {@code index.html}, cut where a page's own head, text and data go, plus
- * the app's routes and the texts of the server-filled pages from {@code pages.json}
- * (docs/adr/013-pages-filled-in-by-the-backend.md).
+ * the app's routes, the texts of the server-filled pages and the build's {@code robots.txt}
+ * rules from {@code pages.json} (docs/adr/013-pages-filled-in-by-the-backend.md).
  *
  * <p>The template must contain {@code <html lang="en">}, {@code </head>},
  * {@code <div id="root"></div>} and {@code </body>} (frontend/index.html says so). Its default
@@ -32,10 +34,12 @@ public final class PageShell {
     private final String defaultHead;
     private final PageTexts texts;
     private final AppRoutes routes;
+    private final @Nullable String robots;
 
-    private PageShell(String html, PageTexts texts, AppRoutes routes) {
+    private PageShell(String html, PageTexts texts, AppRoutes routes, @Nullable String robots) {
         this.texts = Objects.requireNonNull(texts, "texts");
         this.routes = Objects.requireNonNull(routes, "routes");
+        this.robots = robots;
         int htmlTag = indexOf(html, HTML_TAG, 0);
         int headEnd = indexOf(html, HEAD_END, htmlTag);
         int root = indexOf(html, ROOT, headEnd);
@@ -58,7 +62,17 @@ public final class PageShell {
      * @throws IllegalArgumentException if the template lacks one of the places pages are filled in
      */
     public static PageShell parse(String html, PageTexts texts, AppRoutes routes) {
-        return new PageShell(html, texts, routes);
+        return new PageShell(html, texts, routes, null);
+    }
+
+    /**
+     * @param pages {@code pages.json}: {@code routes}, {@code texts} and {@code robots}
+     * @throws IllegalArgumentException if the template lacks one of the places pages are filled in
+     */
+    public static PageShell parse(String html, JsonNode pages) {
+        JsonNode robots = pages.path("robots");
+        return new PageShell(html, PageTexts.of(pages.path("texts")), AppRoutes.of(pages.path("routes")),
+                robots.isString() ? robots.asString() : null);
     }
 
     public PageTexts texts() {
@@ -67,6 +81,11 @@ public final class PageShell {
 
     public AppRoutes routes() {
         return routes;
+    }
+
+    /** The rules of the build's {@code robots.txt}; null if the build did not include them. */
+    public @Nullable String robots() {
+        return robots;
     }
 
     /**

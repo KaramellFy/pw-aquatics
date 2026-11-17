@@ -63,6 +63,35 @@ was dropped earlier: prices, stock and products change daily through the admin.
   `.page-preview` class names. A mismatch only costs an extra API request or a plainer first
   paint, never a broken page; `PageApiTest` and the frontend tests cover the contract.
 
+## Addendum (2026-11-17): sitemap, robots.txt, list pages and structured data
+
+- **Sitemap and robots.txt come from the backend**, the only part that knows the catalog and the
+  shop's full link (`app.base-url`). The frontend's Caddy forwards `/sitemap.xml` and
+  `/robots.txt` to `GET /_site/sitemap.xml` and `GET /_site/robots.txt`:
+  - the sitemap lists the home page, shop, gallery, about, contact, every category, species and
+    published product, each in the languages it is written in (a German page whose texts are not
+    translated is left out, as it is not indexed), each entry naming all its languages
+    (`xhtml:link hreflang`, English as `x-default`), products with their last change;
+  - `robots.txt` is the build's `public/robots.txt` (the build copies it into `pages.json`) with a
+    `Sitemap:` line added.
+  Without the backend, Caddy serves the build's own `robots.txt` (without the sitemap line) and
+  answers `503` for the sitemap, so search engines come back later.
+- **Each page of the plain product list is a page of its own.** `/shop?page=2` (and
+  `/shop/<category>?page=2`) is filled in with that page's products, links to the previous and
+  next page, and names itself (`?page=2`) as canonical link and in its language alternates. A
+  filtered, searched or sorted view points to the plain list's first page. The app's `PageMeta`
+  (`page` from `canonicalPage` in `shopFilters.ts`) and `PageService.listPage` follow the same
+  rule. A page after the last answers `404`.
+- **Structured data is written only by the backend**, into the first page load: `Product` with one
+  `Offer` per pack size (price, SKU, whether that pack size can be bought now) and a
+  `BreadcrumbList` on product pages, a `BreadcrumbList` on category pages, `Organization` (with the
+  logo) and `WebSite` on the home page. Search engines load every page on its own, so they always
+  find it; the app keeps the backend's blocks until it shows another page and writes none of its
+  own, so prices in structured data never come from the browser.
+- When the backend cannot be reached at all, a page answers with the plain `index.html` and the
+  status Caddy got (`502`/`503`/`504`): visitors still get the app, and search engines are told to
+  come back later instead of indexing an empty page.
+
 ## Alternatives considered
 
 - **Node.js server-side rendering or a prerender service:** another server in production
@@ -71,3 +100,5 @@ was dropped earlier: prices, stock and products change daily through the admin.
 - **Only head tags, no text:** cheaper, but crawlers without JavaScript would still see an empty
   page and no links to the products.
 - **Hydrating the backend's HTML:** would require rendering React on the server.
+- **A static `sitemap.xml` from the build:** new products would only appear after a deploy, and
+  the build does not know the shop's domain.

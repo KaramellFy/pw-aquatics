@@ -36,7 +36,7 @@ class PageController {
     ResponseEntity<String> page(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length() + PREFIX.length());
         try {
-            RenderedPage page = pages.render(path);
+            RenderedPage page = pages.render(path, request.getQueryString());
             return ResponseEntity.status(page.status())
                     .contentType(HTML)
                     // Prices and stock change all the time: browsers check again on every visit.

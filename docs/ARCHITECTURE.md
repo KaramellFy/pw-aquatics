@@ -176,7 +176,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 | `notification` | Transactional email via an outbox |
 | `media` | Image upload, processing, storage abstraction |
 | `content` | Gallery, contact messages |
-| `pages` | Public pages filled in for the first page load: head tags, main text and first API responses in the frontend's `index.html` (`GET /_pages/**`, ADR-013) |
+| `pages` | Public pages filled in for the first page load: head tags, structured data, main text and first API responses in the frontend's `index.html` (`GET /_pages/**`); `sitemap.xml` and `robots.txt` (`GET /_site/…`) (ADR-013) |
 | `admin` | Dashboard, sales and coupon statistics and the customer view (read models); other admin controllers live in their feature modules |
 | `audit` | Audit log of admin and security-relevant actions |
 
@@ -551,7 +551,7 @@ frontend/src/
 │   ├── format/                  # Intl formatters: money, dates, units
 │   ├── i18n/
 │   ├── motion/                  # Motion tokens (curves, durations), LazyMotion provider
-│   └── seo/                     # <title>/meta helpers, JSON-LD builders
+│   └── seo/                     # PageMeta (title, meta, canonical, hreflang), texts for pages.json
 ├── components/
 │   ├── ui/                      # Design system primitives
 │   │   ├── Button.tsx, Input.tsx, Select.tsx, Checkbox.tsx, Badge.tsx
@@ -687,16 +687,20 @@ design-led studio than a pet-supply store. Tokens live in
 
 - A client-rendered SPA is weak for SEO, which matters for a shop. Built: per-route
   `<title>`/meta (React 19 metadata support) with canonical link and `hreflang` alternates
-  for both languages (ADR-012), JSON-LD `Product`, and German catalog texts: the owner
+  for both languages (ADR-012), and German catalog texts: the owner
   writes them next to the English ones in the admin, the API answers in the language of the
   page (`Accept-Language`), and a German product or species page stays out of the index
   (`noindex`) until its German text is written. **Public pages are filled in by the backend**
   we already run (ADR-013; no extra server, owner decision 2026-11-16): the frontend's Caddy asks
   `GET /_pages/<path>`, and the backend puts the page's head tags, main text and first API
   responses into the frontend build's `index.html`; the app takes over without a loading state.
-  Unknown addresses, products, species and categories answer 404. Planned (roadmap "SEO", brought forward
-  from Phase 10 at the owner's request): backend-generated `sitemap.xml`, canonical links for
-  filtered shop pages, `BreadcrumbList`/`Organization` data (see risk R3).
+  Unknown addresses, products, species and categories answer 404. The backend also writes the
+  structured data (`Product` with an offer per pack size, `BreadcrumbList`, `Organization`,
+  `WebSite`; the app writes none), `sitemap.xml` (every public page in its languages, with
+  `hreflang` alternates) and `robots.txt` with the sitemap link (`GET /_site/…`). Pages of the
+  plain shop list (`?page=2`) are pages of their own; filtered, searched or sorted views point to
+  the list's first page (ADR-013 addendum, risk R3). Still open for launch: return policy and
+  shipping details in the product data (they wait for the final legal texts), Search Console.
 - Responsive images: backend generates WebP sizes (e.g. 400/800/1200/2000 px);
   `ResponsiveImage` uses `srcset` + `sizes`, lazy loading below the fold,
   explicit width/height to avoid layout shift.

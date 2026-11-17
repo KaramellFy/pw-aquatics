@@ -20,12 +20,15 @@ import com.pwaquatics.shop.content.application.GalleryService;
 import com.pwaquatics.shop.content.application.view.GalleryImageView;
 import com.pwaquatics.shop.media.application.ImageView;
 import com.pwaquatics.shop.pages.application.PageWriter.Crumb;
+import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,11 +62,13 @@ public class PageService {
 
     private static final Pattern SLUG = Pattern.compile("[a-z0-9][a-z0-9-]{0,199}");
     private static final int DESCRIPTION_LENGTH = 160;
-    private static final Map<Availability, String> SCHEMA_AVAILABILITY = Map.of(
-            Availability.IN_STOCK, "https://schema.org/InStock",
-            Availability.LOW_STOCK, "https://schema.org/LimitedAvailability",
-            Availability.COMING_SOON, "https://schema.org/PreOrder",
-            Availability.OUT_OF_STOCK, "https://schema.org/OutOfStock");
+    private static final String SCHEMA = "https://schema.org";
+    /** The shop's logo mark in the frontend build (frontend/public/brand). */
+    private static final String LOGO = "/brand/pw-aquatics-mark.svg";
+    /** Shop parameters that make a filtered, searched or sorted view of the list (frontend shopFilters.ts). */
+    private static final Set<String> SHOP_VIEW_PARAMETERS =
+            Set.of("q", "species", "colour", "grade", "availability", "min", "max", "sort");
+    private static final Pattern PAGE_NUMBER = Pattern.compile("[1-9][0-9]{0,5}");
 
     private final ShellSource shells;
     private final CatalogQueryService catalog;
@@ -88,10 +93,11 @@ public class PageService {
     }
 
     /**
-     * @param path the requested page, e.g. "/de/products/blue-dream" (no query)
+     * @param path the requested page, e.g. "/de/products/blue-dream"
+     * @param query the request's query string, or null; the shop reads its page number from it
      * @throws ShellSource.ShellUnavailableException if there is no template to fill in
      */
-    public RenderedPage render(String path) {
+    public RenderedPage render(String path, @Nullable String query) {
         PageShell shell = shells.current();
         String normalised = normalise(path);
         boolean german = normalised.equals("/de") || normalised.startsWith("/de/");
@@ -103,7 +109,7 @@ public class PageService {
         LocaleContext previous = LocaleContextHolder.getLocaleContext();
         LocaleContextHolder.setLocale(page.locale());
         try {
-            FilledPage filled = route(inLanguage, page, shell.routes());
+            FilledPage filled = route(inLanguage, listPage(query), page, shell.routes());
             String head = filled.head() == null ? null : writer.head(filled.head(), page);
             String data = filled.data().isEmpty() ? null : json.writeValueAsString(filled.data());
             return new RenderedPage(filled.status(), shell.render(page.code(), head, filled.body(), data));
@@ -112,19 +118,20 @@ public class PageService {
         }
     }
 
-    private FilledPage route(String path, PageContext page, AppRoutes routes) {
+    /** @param listPage the shop's page number (1-based), see {@link #listPage} */
+    private FilledPage route(String path, int listPage, PageContext page, AppRoutes routes) {
         List<String> segments = "/".equals(path) ? List.of() : List.of(path.substring(1).split("/"));
         try {
             return switch (segments.size()) {
                 case 0 -> home(page);
                 case 1 -> switch (segments.getFirst()) {
-                    case "shop" -> shop(page, null);
+                    case "shop" -> shop(page, null, listPage);
                     case "gallery" -> gallery(page);
                     case "about", "contact" -> intro(page, segments.getFirst());
                     default -> other(path, page, routes);
                 };
                 case 2 -> switch (segments.getFirst()) {
-                    case "shop" -> shop(page, slug(segments.get(1)));
+                    case "shop" -> shop(page, slug(segments.get(1)), listPage);
                     case "products" -> product(page, slug(segments.get(1)));
                     case "species" -> species(page, slug(segments.get(1)));
                     default -> other(path, page, routes);
@@ -150,7 +157,8 @@ public class PageService {
         writer.products(body, page, featured.getContent());
         return new FilledPage(
                 200,
-                PageHead.of(page.text("pages.home.title"), page.text("pages.home.description"), "/"),
+                PageHead.of(page.text("pages.home.title"), page.text("pages.home.description"), "/",
+                        List.of(organisationData(page), webSiteData(page))),
                 close(body),
                 Map.of("/products?featured=true&availability=IN_STOCK&size=" + FEATURED_SIZE, PageResponse.of(featured)));
     }
@@ -165,7 +173,8 @@ public class PageService {
                 Map.of());
     }
 
-    private FilledPage shop(PageContext page, String categorySlug) {
+    /** @param listPage the list's page (1-based); a page after the last answers 404 */
+    private FilledPage shop(PageContext page, String categorySlug, int listPage) {
         List<CategoryNodeView> tree = catalog.categoryTree();
         List<CategoryNodeView> path = categorySlug == null ? List.of() : pathTo(tree, categorySlug);
         if (categorySlug != null && path.isEmpty()) {
@@ -173,7 +182,11 @@ public class PageService {
         }
         CategoryNodeView category = path.isEmpty() ? null : path.getLast();
         Page<ProductSummaryView> products = catalog.searchProducts(new ProductSearch(
-                null, categorySlug, null, null, null, null, null, null, false, ProductSort.RELEVANCE, 0, SHOP_PAGE_SIZE));
+                null, categorySlug, null, null, null, null, null, null, false, ProductSort.RELEVANCE,
+                listPage - 1, SHOP_PAGE_SIZE));
+        if (listPage > 1 && products.isEmpty()) {
+            throw new NotFoundException("Page not found.");
+        }
 
         String brand = page.text("brand");
         String title = category == null ? page.text("pages.shop.title") : category.name() + " – " + brand;
@@ -202,13 +215,24 @@ public class PageService {
             body.append("</ul>");
         }
         writer.products(body, page, products.getContent());
+        String list = categorySlug == null ? "/shop" : "/shop/" + categorySlug;
+        writer.pagination(body, page, list, listPage, products.getTotalPages());
 
+        // The app's query for this list (frontend shopFilters.ts toProductQuery).
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("/categories", tree);
-        data.put("/products?" + (categorySlug == null ? "" : "category=" + categorySlug + "&") + "size=" + SHOP_PAGE_SIZE,
+        data.put("/products?" + (categorySlug == null ? "" : "category=" + categorySlug + "&")
+                        + (listPage > 1 ? "page=" + (listPage - 1) + "&" : "") + "size=" + SHOP_PAGE_SIZE,
                 PageResponse.of(products));
-        String own = categorySlug == null ? "/shop" : "/shop/" + categorySlug;
-        return new FilledPage(200, PageHead.of(title, description, own), close(body), data);
+        List<Map<String, Object>> structured = category == null
+                ? List.of()
+                : List.of(breadcrumbData(Stream.concat(
+                        crumbs.stream(), Stream.of(new Crumb(category.name(), page.link(list)))).toList()));
+        return new FilledPage(
+                200,
+                PageHead.of(title, description, listPage > 1 ? list + "?page=" + listPage : list, structured),
+                close(body),
+                data);
     }
 
     private FilledPage product(PageContext page, String slug) {
@@ -254,7 +278,8 @@ public class PageService {
                 false,
                 "product",
                 photo == null ? null : photo.url(),
-                productData(product, page));
+                List.of(productData(product, page), breadcrumbData(Stream.concat(
+                        crumbs.stream(), Stream.of(new Crumb(product.name(), page.link(own)))).toList())));
         return new FilledPage(200, head, close(body), Map.of("/products/" + slug, product));
     }
 
@@ -286,7 +311,7 @@ public class PageService {
                 false,
                 "website",
                 null,
-                null);
+                List.of());
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("/species/" + slug, species);
         data.put("/products?species=" + slug + "&size=" + SPECIES_PAGE_SIZE, PageResponse.of(products));
@@ -324,10 +349,14 @@ public class PageService {
         return new FilledPage(404, PageHead.notIndexed(page.text("notFound.title")), close(body), Map.of());
     }
 
-    /** schema.org Product, as the app's product page writes it (step 4 adds one offer per pack size). */
+    /**
+     * schema.org Product with one offer per pack size. Only the backend writes structured data:
+     * search engines read it from the first page load (the app keeps it until it leaves the page).
+     */
     private Map<String, Object> productData(ProductDetailView product, PageContext page) {
+        String url = links.page(page.code(), "/products/" + product.slug());
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("@context", "https://schema.org");
+        data.put("@context", SCHEMA);
         data.put("@type", "Product");
         data.put("name", product.species() == null
                 ? product.name() : product.name() + " (" + product.species().scientificName() + ")");
@@ -339,20 +368,77 @@ public class PageService {
             data.put("sku", product.variants().getFirst().sku());
         }
         data.put("category", product.categoryPath().stream().map(CategoryRef::name).collect(Collectors.joining(" > ")));
-        data.put("image", product.images().stream().map(image -> links.file(image.url())).toList());
-        data.put("url", links.page(page.code(), "/products/" + product.slug()));
-        List<Money> prices = product.variants().stream().map(VariantView::price).toList();
-        if (!prices.isEmpty()) {
-            Comparator<Money> byAmount = Comparator.comparingLong(Money::amount);
-            Map<String, Object> offers = new LinkedHashMap<>();
-            offers.put("@type", "AggregateOffer");
-            offers.put("priceCurrency", prices.getFirst().currency());
-            offers.put("lowPrice", decimal(prices.stream().min(byAmount).orElseThrow()));
-            offers.put("highPrice", decimal(prices.stream().max(byAmount).orElseThrow()));
-            offers.put("offerCount", prices.size());
-            offers.put("availability", SCHEMA_AVAILABILITY.get(product.availability()));
-            data.put("offers", offers);
+        if (!product.images().isEmpty()) {
+            data.put("image", product.images().stream().map(image -> links.file(image.url())).toList());
         }
+        data.put("url", url);
+        if (!product.variants().isEmpty()) {
+            data.put("offers", product.variants().stream().map(variant -> offer(product, variant, url)).toList());
+        }
+        return data;
+    }
+
+    private static Map<String, Object> offer(ProductDetailView product, VariantView variant, String url) {
+        Map<String, Object> offer = new LinkedHashMap<>();
+        offer.put("@type", "Offer");
+        offer.put("name", variant.name());
+        offer.put("sku", variant.sku());
+        offer.put("price", decimal(variant.price()));
+        offer.put("priceCurrency", variant.price().currency());
+        offer.put("availability", offerAvailability(product.availability(), variant.available()));
+        offer.put("url", url);
+        return offer;
+    }
+
+    /**
+     * A pack size that can be bought now is in stock (limited when the product is low on stock);
+     * one that cannot is out of stock, also while the product is "coming soon", since it cannot be
+     * ordered in advance.
+     */
+    static String offerAvailability(Availability product, boolean variantAvailable) {
+        if (!variantAvailable) {
+            return SCHEMA + "/OutOfStock";
+        }
+        return product == Availability.LOW_STOCK ? SCHEMA + "/LimitedAvailability" : SCHEMA + "/InStock";
+    }
+
+    /** schema.org BreadcrumbList: the way from the shop to this page, the page itself last. */
+    private Map<String, Object> breadcrumbData(List<Crumb> crumbs) {
+        List<Map<String, Object>> items = new ArrayList<>(crumbs.size());
+        for (int i = 0; i < crumbs.size(); i++) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("@type", "ListItem");
+            item.put("position", i + 1);
+            item.put("name", crumbs.get(i).label());
+            item.put("item", links.file(crumbs.get(i).href()));
+            items.add(item);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("@context", SCHEMA);
+        data.put("@type", "BreadcrumbList");
+        data.put("itemListElement", items);
+        return data;
+    }
+
+    /** schema.org Organization (the shop, with its logo) for the home page. */
+    private Map<String, Object> organisationData(PageContext page) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("@context", SCHEMA);
+        data.put("@type", "Organization");
+        data.put("name", page.text("brand"));
+        data.put("url", links.page("en", "/"));
+        data.put("logo", links.file(LOGO));
+        return data;
+    }
+
+    /** schema.org WebSite (the shop's name for search results) for the home page. */
+    private Map<String, Object> webSiteData(PageContext page) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("@context", SCHEMA);
+        data.put("@type", "WebSite");
+        data.put("name", page.text("brand"));
+        data.put("url", links.page(page.code(), "/"));
+        data.put("inLanguage", page.code());
         return data;
     }
 
@@ -392,6 +478,30 @@ public class PageService {
             throw new NotFoundException("Not found.");
         }
         return segment;
+    }
+
+    /**
+     * The page of the plain product list a shop link asks for ({@code ?page=2}); 1 for a filtered,
+     * searched or sorted view, which the app's canonical link points to the list's first page for
+     * (frontend shopFilters.ts {@code canonicalPage}).
+     */
+    static int listPage(@Nullable String query) {
+        if (query == null || query.isBlank()) {
+            return 1;
+        }
+        int page = 1;
+        for (String parameter : query.split("&")) {
+            int equals = parameter.indexOf('=');
+            String name = URLDecoder.decode(equals < 0 ? parameter : parameter.substring(0, equals), StandardCharsets.UTF_8);
+            String value = equals < 0 ? "" : URLDecoder.decode(parameter.substring(equals + 1), StandardCharsets.UTF_8);
+            if (SHOP_VIEW_PARAMETERS.contains(name) && !value.isBlank()) {
+                return 1;
+            }
+            if (name.equals("page") && PAGE_NUMBER.matcher(value).matches()) {
+                page = Integer.parseInt(value);
+            }
+        }
+        return page;
     }
 
     /** "/shop/" → "/shop", "" → "/"; repeated slashes collapse. */

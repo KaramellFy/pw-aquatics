@@ -19,6 +19,12 @@ interface PageMetaProps {
    * the written languages.
    */
   languages?: readonly string[];
+  /**
+   * The page of a paged list (1-based) that is a page of its own for search engines; pages after
+   * the first keep `?page=N` in their canonical and alternate links. Other query parameters are
+   * never part of them.
+   */
+  page?: number;
 }
 
 /** Open Graph locale per language. */
@@ -27,15 +33,23 @@ const OG_LOCALES: Record<Language, string> = { en: 'en_GB', de: 'de_DE' };
 /**
  * Per-page document metadata. React 19 hoists <title>, <meta> and <link> into <head>.
  *
- * Indexable pages also name their canonical link (without query string) and the same page in
+ * Indexable pages also name their canonical link (without query string, except a list's page
+ * number) and the same page in
  * every language (`hreflang`, English as `x-default`), so search engines show each visitor the
  * right language (docs/adr/012-language-in-links.md).
  */
-export function PageMeta({ title, description, noIndex: hidden = false, languages }: PageMetaProps) {
+export function PageMeta({
+  title,
+  description,
+  noIndex: hidden = false,
+  languages,
+  page = 1,
+}: PageMetaProps) {
   const language = useLanguage();
   const { pathname } = useLocation();
   const origin = window.location.origin;
-  const url = (lang: Language) => origin + pathInLanguage(pathname, lang);
+  const query = page > 1 ? `?page=${page}` : '';
+  const url = (lang: Language) => origin + pathInLanguage(pathname, lang) + query;
   const written = SUPPORTED_LANGUAGES.filter((lang) => !languages || languages.includes(lang));
   const noIndex = hidden || !written.includes(language);
   return (

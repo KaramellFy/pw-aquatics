@@ -71,7 +71,10 @@ and some species may not be traded legally.
   `hreflang` links, emails link in the customer's language. The owner writes German catalog
   texts next to the English ones; the API answers in the page's language with English as the
   fallback. Public pages are filled in by the backend for the first page load (ADR-013:
-  Caddy asks `GET /_pages/**`). Next: sitemap and structured data.
+  Caddy asks `GET /_pages/**`). The backend also serves `sitemap.xml` and `robots.txt`
+  (`GET /_site/…`) and writes all structured data; each page of the plain shop list is its own
+  page (`?page=2`). Open for launch: return policy and shipping in the product data (after the
+  legal texts), Search Console.
 
 - **Design refresh** (follow-up to Phase 1) is built: Home and About rewritten in EN/DE, and a
   motion system with Motion (`motion`) behind `LazyMotion` — tokens in `lib/motion`, shared
@@ -203,7 +206,9 @@ working around them.
   Its head must match what the app's `PageMeta` writes for the same page; interface words and
   the app's routes come from `pages.json` (never hard-coded), catalog data from the catalog services; escape
   everything with `Html` except sanitised HTML from the API. A new public page or a change to
-  the API paths and page sizes the app requests first means updating `PageService` too.
+  the API paths and page sizes the app requests first means updating `PageService` too, and a
+  new indexable page without catalog data belongs in `CrawlerFiles.FIXED_PAGES` (sitemap).
+  Structured data (schema.org) is written only here, never by the app.
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
   keeping it, a deletion path (`app.retention.*` job or account deletion via
@@ -281,7 +286,10 @@ working around them.
   `app/routePaths.ts` (a test compares it with the route tree); the build writes both to
   `pages.json`. Files that vite.config.ts imports use relative imports with `.ts` extensions. On start the app takes the page's data (`app/serverPage.ts`, `lib/api/preload.ts` maps
   API paths to query keys) and waits for the router before rendering. Style the backend's text
-  only through the `.page-preview` classes.
+  only through the `.page-preview` classes. The app writes no structured data (JSON-LD): the
+  backend's stays until the app shows another page. `public/robots.txt` goes into `pages.json`
+  (the backend adds the sitemap link). A paged list passes its page to `PageMeta` (`page`; the
+  shop uses `canonicalPage`), the same rule as `PageService.listPage`.
 - **Server state in TanStack Query**; no global store for API data. Mutations
   invalidate or update the relevant query keys.
 - **Login state** comes from `useSession()` (`GET /auth/me`); nothing auth-related is kept

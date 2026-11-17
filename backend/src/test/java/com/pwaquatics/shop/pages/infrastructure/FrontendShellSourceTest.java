@@ -61,6 +61,7 @@ class FrontendShellSourceTest {
         FrontendShellSource source = source();
         PageShell first = source.current();
         assertThat(first.render("en", null, null, null)).contains("index-abc.js");
+        assertThat(first.robots()).isEqualTo(FakeShellSource.ROBOTS);
 
         // Within a second the known template is used as it is.
         assertThat(source.current()).isSameAs(first);

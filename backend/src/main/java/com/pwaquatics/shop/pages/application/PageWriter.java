@@ -61,9 +61,10 @@ class PageWriter {
         if (head.image() != null) {
             meta(html, "property", "og:image", links.file(head.image()));
         }
-        if (head.structuredData() != null) {
+        // Search engines read these from the first page load; the app keeps them until it leaves the page.
+        for (Map<String, Object> block : head.structuredData()) {
             html.append("<script data-page type=\"application/ld+json\">")
-                    .append(Html.jsonInScript(json.writeValueAsString(head.structuredData())))
+                    .append(Html.jsonInScript(json.writeValueAsString(block)))
                     .append("</script>");
         }
         return html.toString();
@@ -89,6 +90,31 @@ class PageWriter {
             html.append("</li>");
         }
         html.append("</ol>");
+    }
+
+    /**
+     * Links to the list's previous and next page ("?page=N", the first page without), so search
+     * engines that do not run the app find every page of it.
+     *
+     * @param list the list's path, e.g. "/shop/shrimp"
+     * @param current 1-based
+     */
+    void pagination(StringBuilder html, PageContext page, String list, int current, int totalPages) {
+        if (totalPages <= 1) {
+            return;
+        }
+        html.append("<nav class=\"page-preview-pagination\" aria-label=\"")
+                .append(Html.attribute(page.text("pagination.label"))).append("\">");
+        if (current > 1) {
+            String previous = current == 2 ? list : list + "?page=" + (current - 1);
+            html.append("<a rel=\"prev\" href=\"").append(Html.attribute(page.link(previous))).append("\">")
+                    .append(Html.text(page.text("pagination.previous"))).append("</a>");
+        }
+        if (current < totalPages) {
+            html.append("<a rel=\"next\" href=\"").append(Html.attribute(page.link(list + "?page=" + (current + 1))))
+                    .append("\">").append(Html.text(page.text("pagination.next"))).append("</a>");
+        }
+        html.append("</nav>");
     }
 
     void heading(StringBuilder html, String heading, String lead) {

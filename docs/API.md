@@ -267,7 +267,6 @@ object is always present (marked `required` in OpenAPI); properties that can be
 | GET | `/gallery?page=0&size=24` | Published gallery photos in the owner's order (paged, `size` ≤ 48): `id`, `title`, `caption`, `image` (`url`, `srcSet`, `alt`, `width`, `height`) |
 | POST | `/contact` | `{ name, email, subject, message, orderNumber?, website (honeypot) }` → `202`. Rate limited |
 | GET | `/shop-info` | Shop-wide notices for every page: `{ shippingPause: { message, until } \| null }` — set only while a pause is in force (`until` is its last day; `null` for an open-ended pause). Free-shipping threshold and bank-transfer note may follow |
-| GET | `/sitemap.xml` | Generated sitemap (served at `/sitemap.xml` via proxy) |
 
 ### 2.4 Cart — `/api/v1/cart` (public; guest or customer)
 
@@ -916,7 +915,9 @@ calculated on the server.
 | `/actuator/health/liveness`, `/actuator/health/readiness` | internal network only | Container health checks |
 | `/actuator/prometheus` | internal network only | Metrics |
 | `/api/v3/api-docs`, `/swagger-ui` | dev/staging only | Disabled in production |
-| `GET /_pages/<path>` | public (called by the frontend's Caddy) | Not JSON: the page `<path>` as HTML, filled in from the frontend build (ADR-013). `200`, `404` (with `noindex`) for unknown products, species and categories and for addresses the app has no page for (its route list comes with the frontend build), `503` when no page template is available (Caddy then serves the plain `index.html`). `Cache-Control: no-cache`. Embeds the API responses the app requests first in `<script type="application/json" id="page-data">`, keyed by API path (`/products/{slug}`, `/species/{slug}`, `/categories`, `/products?…`) |
+| `GET /_pages/<path>` | public (called by the frontend's Caddy) | Not JSON: the page `<path>` as HTML, filled in from the frontend build (ADR-013). `200`, `404` (with `noindex`) for unknown products, species and categories and for addresses the app has no page for (its route list comes with the frontend build), `503` when no page template is available (Caddy then serves the plain `index.html`). `Cache-Control: no-cache`. Shop and category pages read `?page=N` (the plain list's page N, with previous/next links and `?page=N` in the canonical link; a filtered, searched or sorted view is filled in as its list's first page; a page after the last answers `404`). Structured data (`application/ld+json`): `Product` with an `Offer` per pack size and `BreadcrumbList` on product pages, `BreadcrumbList` on category pages, `Organization` and `WebSite` on the home page. Embeds the API responses the app requests first in `<script type="application/json" id="page-data">`, keyed by API path (`/products/{slug}`, `/species/{slug}`, `/categories`, `/products?…`) |
+| `GET /_site/sitemap.xml` | public (called by the frontend's Caddy for `/sitemap.xml`) | Not JSON: the sitemap (`application/xml`). Home, shop, gallery, about, contact, every category, species and published product, one `<url>` per language the page is written in (German only when translated), each with `xhtml:link` alternates (`en`, `de`, `x-default`); products carry `<lastmod>`. Full links from `app.base-url`. `Cache-Control: no-cache` (ADR-013 addendum) |
+| `GET /_site/robots.txt` | public (called by the frontend's Caddy for `/robots.txt`) | Not JSON: the frontend build's `robots.txt` (from `pages.json`) plus `Sitemap: <app.base-url>/sitemap.xml`. `503` without a frontend build; Caddy then serves the build's own file |
 
 ---
 

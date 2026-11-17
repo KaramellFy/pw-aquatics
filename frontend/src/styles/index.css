@@ -294,4 +294,7 @@
   .page-preview-text ul {
     @apply list-disc space-y-1 pl-5;
   }
+  .page-preview-pagination {
+    @apply mt-8 flex gap-6;
+  }
 }

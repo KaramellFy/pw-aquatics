@@ -9,9 +9,7 @@ import { Container } from '@/components/ui/Container';
 import { Price } from '@/components/ui/Price';
 import { StatusPage } from '@/app/pages/StatusPage';
 import { ApiError } from '@/lib/api/client';
-import { toDecimalString } from '@/lib/format/money';
 import { useIntlLocale } from '@/lib/i18n';
-import { JsonLd } from '@/lib/seo/jsonLd';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { useProduct, useRelatedProducts, type ProductDetail } from '../api/catalog';
 import { AddToCart } from '../components/AddToCart';
@@ -22,13 +20,6 @@ import { GradeBadge } from '../components/GradeBadge';
 import { ProductGrid } from '../components/ProductGrid';
 import { ProductGallery } from '../components/ProductGallery';
 import { VariantSelector } from '../components/VariantSelector';
-
-const SCHEMA_AVAILABILITY: Record<ProductDetail['availability'], string> = {
-  IN_STOCK: 'https://schema.org/InStock',
-  LOW_STOCK: 'https://schema.org/LimitedAvailability',
-  COMING_SOON: 'https://schema.org/PreOrder',
-  OUT_OF_STOCK: 'https://schema.org/OutOfStock',
-};
 
 export function ProductPage() {
   const { slug = '' } = useParams();
@@ -73,27 +64,6 @@ function ProductView({ product }: { product: ProductDetail }) {
   // availableFrom is a calendar date (YYYY-MM-DD); format it in UTC so it never shifts by a day.
   const dateFormat = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeZone: 'UTC' });
 
-  const prices = product.variants.map((v) => v.price);
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.species ? `${product.name} (${product.species.scientificName})` : product.name,
-    description: product.seo.description ?? product.shortDescription ?? undefined,
-    sku: product.variants[0]?.sku,
-    category: product.categoryPath.map((c) => c.name).join(' > '),
-    image: product.images.map((image) => image.url),
-    offers: prices.length
-      ? {
-          '@type': 'AggregateOffer',
-          priceCurrency: prices[0]?.currency,
-          lowPrice: toDecimalString(prices.reduce((a, b) => (a.amount <= b.amount ? a : b))),
-          highPrice: toDecimalString(prices.reduce((a, b) => (a.amount >= b.amount ? a : b))),
-          offerCount: prices.length,
-          availability: SCHEMA_AVAILABILITY[product.availability],
-        }
-      : undefined,
-  };
-
   return (
     <>
       <PageMeta
@@ -101,7 +71,6 @@ function ProductView({ product }: { product: ProductDetail }) {
         description={product.seo.description ?? undefined}
         languages={product.languages}
       />
-      <JsonLd data={jsonLd} />
 
       <Container className="pt-10 pb-20 sm:pt-14">
         <Breadcrumbs

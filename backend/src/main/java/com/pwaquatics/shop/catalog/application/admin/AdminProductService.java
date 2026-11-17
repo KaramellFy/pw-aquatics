@@ -281,8 +281,8 @@ public class AdminProductService {
         return toView(product);
     }
 
-    @Transactional
     /** @param altTextDe the German alt text, or null */
+    @Transactional
     public AdminProductView changeAltText(UUID productId, UUID imageId, String altText, String altTextDe, Actor actor) {
         Product product = load(productId);
         ownImage(product, imageId).changeAltText(altText, altTextDe);

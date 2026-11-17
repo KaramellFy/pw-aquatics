@@ -5,6 +5,18 @@
 	auto_https off
 }
 
+# What the backend's pages and files may carry: they are the same for everyone, so no cookies
+# go to the backend and none come back; the headers set below for every response are not
+# repeated.
+(from_backend) {
+	header_up -Cookie
+	header_down -Set-Cookie
+	header_down -Cache-Control
+	header_down -X-Content-Type-Options
+	header_down -X-Frame-Options
+	header_down -Referrer-Policy
+}
+
 :8080 {
 	root * /srv
 	encode zstd gzip
@@ -36,14 +48,7 @@
 	handle @page {
 		reverse_proxy {$PAGES_BACKEND:backend:8080} {
 			rewrite /_pages{uri}
-			# Pages are the same for everyone: no cookies to the backend, none back.
-			header_up -Cookie
-			header_down -Set-Cookie
-			# Set above for every response; not twice.
-			header_down -Cache-Control
-			header_down -X-Content-Type-Options
-			header_down -X-Frame-Options
-			header_down -Referrer-Policy
+			import from_backend
 			@unavailable status 5xx
 			handle_response @unavailable {
 				rewrite * /index.html
@@ -52,22 +57,53 @@
 		}
 	}
 
+	# Sitemap and robots.txt come from the backend, which knows the catalog and the shop's full
+	# link. Without it, the build's robots.txt (without the sitemap link) is served and the
+	# sitemap answers 503, so search engines try again later.
+	handle /robots.txt {
+		reverse_proxy {$PAGES_BACKEND:backend:8080} {
+			rewrite /_site/robots.txt
+			import from_backend
+			@unavailable status 5xx
+			handle_response @unavailable {
+				file_server
+			}
+		}
+	}
+	handle /sitemap.xml {
+		reverse_proxy {$PAGES_BACKEND:backend:8080} {
+			rewrite /_site/sitemap.xml
+			import from_backend
+		}
+	}
+
 	# Files (paths with an extension). A missing one answers 404: with the app's "not found"
-	# page, except for build assets, where a page would only confuse the browser.
+	# page, except for build assets and the sitemap, where a page would only confuse the reader.
 	handle {
 		file_server
 	}
 
 	handle_errors 404 {
-		@notAsset not path /assets/*
+		@notAsset not path /assets/* /sitemap.xml
 		handle @notAsset {
 			rewrite * /index.html
 			file_server
 		}
 	}
 
+	# The backend cannot be reached.
 	handle_errors 502 503 504 {
-		rewrite * /index.html
-		file_server
+		handle /robots.txt {
+			file_server {
+				status 200
+			}
+		}
+		handle /sitemap.xml {
+			respond 503
+		}
+		handle {
+			rewrite * /index.html
+			file_server
+		}
 	}
 }

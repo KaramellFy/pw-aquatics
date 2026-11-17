@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
@@ -14,8 +15,9 @@ import { pageTexts } from './src/lib/seo/pageTexts.ts';
 const backendUrl = process.env.VITE_BACKEND_URL ?? 'http://localhost:8080';
 
 /**
- * Writes `pages.json` next to index.html: the app's routes and the page titles, navigation and
- * labels the backend needs to fill in pages (docs/adr/013-pages-filled-in-by-the-backend.md).
+ * Writes `pages.json` next to index.html: the app's routes, the page titles, navigation and
+ * labels the backend needs to fill in pages, and the rules of `public/robots.txt`, which the
+ * backend serves with the sitemap's link (docs/adr/013-pages-filled-in-by-the-backend.md).
  */
 function pagesFile(): Plugin {
   return {
@@ -25,7 +27,11 @@ function pagesFile(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'pages.json',
-        source: JSON.stringify({ routes: ROUTE_PATHS, texts: { en: pageTexts(en), de: pageTexts(de) } }),
+        source: JSON.stringify({
+          routes: ROUTE_PATHS,
+          texts: { en: pageTexts(en), de: pageTexts(de) },
+          robots: readFileSync(new URL('./public/robots.txt', import.meta.url), 'utf8'),
+        }),
       });
     },
   };

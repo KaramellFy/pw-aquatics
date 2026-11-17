@@ -20,7 +20,13 @@ import { FilterPanel } from '../components/FilterPanel';
 import { MobileFilters } from '../components/MobileFilters';
 import { ProductGrid } from '../components/ProductGrid';
 import { ShopToolbar } from '../components/ShopToolbar';
-import { activeFilterCount, toFacetQuery, toProductQuery, type ShopFilters } from '../model/shopFilters';
+import {
+  activeFilterCount,
+  canonicalPage,
+  toFacetQuery,
+  toProductQuery,
+  type ShopFilters,
+} from '../model/shopFilters';
 import { useShopFilters } from '../model/useShopFilters';
 
 function findCategory(nodes: CategoryNode[] | undefined, slug: string | undefined): CategoryNode[] {
@@ -74,6 +80,7 @@ export function ShopPage() {
       <PageMeta
         title={category ? `${category.name} – ${t('common.brand')}` : t('shop.meta.title')}
         description={category?.description ?? t('shop.meta.description')}
+        page={canonicalPage(filters)}
       />
       <Container className="pt-10 pb-24 sm:pt-14 lg:pb-32">
         <Breadcrumbs

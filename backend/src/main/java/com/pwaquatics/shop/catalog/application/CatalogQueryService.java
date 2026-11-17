@@ -1,5 +1,6 @@
 package com.pwaquatics.shop.catalog.application;
 
+import com.pwaquatics.shop.catalog.application.view.CatalogSitemap;
 import com.pwaquatics.shop.catalog.application.view.CategoryNodeView;
 import com.pwaquatics.shop.catalog.application.view.ColourView;
 import com.pwaquatics.shop.catalog.application.view.FacetsView;
@@ -7,6 +8,7 @@ import com.pwaquatics.shop.catalog.application.view.FacetsView.FacetOption;
 import com.pwaquatics.shop.catalog.application.view.GradeView;
 import com.pwaquatics.shop.catalog.application.view.ProductDetailView;
 import com.pwaquatics.shop.catalog.application.view.ProductSummaryView;
+import com.pwaquatics.shop.catalog.application.view.SitemapEntry;
 import com.pwaquatics.shop.catalog.application.view.SpeciesSummaryView;
 import com.pwaquatics.shop.catalog.application.view.SpeciesView;
 import com.pwaquatics.shop.catalog.domain.Category;
@@ -22,6 +24,7 @@ import com.pwaquatics.shop.catalog.infrastructure.SpeciesRepository;
 import com.pwaquatics.shop.common.text.ContentLanguage;
 import com.pwaquatics.shop.common.error.NotFoundException;
 import com.pwaquatics.shop.common.money.Money;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
@@ -120,6 +123,21 @@ public class CatalogQueryService {
         return species.findBySlugAndTradeRestrictedFalse(slug)
                 .map(mapper::toView)
                 .orElseThrow(() -> new NotFoundException("Species not found."));
+    }
+
+    /** Every catalog page search engines may list, with the languages it is written in. */
+    public CatalogSitemap sitemap() {
+        List<SitemapEntry> productPages = products.findSitemapRows().stream()
+                .map(row -> new SitemapEntry(
+                        (String) row[0], Translations.of((String) row[2], (String) row[3]), (Instant) row[1]))
+                .toList();
+        List<SitemapEntry> categoryPages = categories.findAllActive().stream()
+                .map(category -> new SitemapEntry(category.getSlug(), List.of("en", "de"), null))
+                .toList();
+        List<SitemapEntry> speciesPages = species.findByTradeRestrictedFalseOrderByScientificNameAsc().stream()
+                .map(profile -> new SitemapEntry(profile.getSlug(), Translations.of(profile.getDescriptionDe()), null))
+                .toList();
+        return new CatalogSitemap(productPages, categoryPages, speciesPages);
     }
 
     public List<ColourView> colours() {

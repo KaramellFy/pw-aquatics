@@ -1,8 +1,6 @@
 package com.pwaquatics.shop.pages.infrastructure;
 
-import com.pwaquatics.shop.pages.application.AppRoutes;
 import com.pwaquatics.shop.pages.application.PageShell;
-import com.pwaquatics.shop.pages.application.PageTexts;
 import com.pwaquatics.shop.pages.application.PagesProperties;
 import com.pwaquatics.shop.pages.application.ShellSource;
 import java.io.IOException;
@@ -21,8 +19,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Loads the page template ({@code index.html}) and the app's routes and page texts
- * ({@code pages.json}) from the frontend container ({@code app.pages.shell-url}).
+ * Loads the page template ({@code index.html}) and the app's routes, page texts and
+ * {@code robots.txt} rules ({@code pages.json}) from the frontend container
+ * ({@code app.pages.shell-url}).
  *
  * <p>The template is checked again at most once a second with a conditional request, so a
  * newly deployed frontend is picked up at once and the page never points at scripts of an
@@ -109,8 +108,7 @@ class FrontendShellSource implements ShellSource {
         if (response.statusCode() != 200) {
             throw new IOException("index.html answered " + response.statusCode());
         }
-        JsonNode pages = pages();
-        PageShell shell = PageShell.parse(response.body(), PageTexts.of(pages.path("texts")), AppRoutes.of(pages.path("routes")));
+        PageShell shell = PageShell.parse(response.body(), pages());
         String etag = response.headers().firstValue("ETag").orElse(null);
         log.info("Loaded the page template (ETag {}).", etag);
         return new Loaded(shell, etag, now);

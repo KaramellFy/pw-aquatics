@@ -1,16 +1,14 @@
 package com.pwaquatics.shop.support;
 
-import com.pwaquatics.shop.pages.application.AppRoutes;
 import com.pwaquatics.shop.pages.application.PageShell;
-import com.pwaquatics.shop.pages.application.PageTexts;
 import com.pwaquatics.shop.pages.application.ShellSource;
 import org.springframework.context.annotation.Primary;
 import tools.jackson.databind.ObjectMapper;
 
 /**
  * Stands in for the frontend container in integration tests: a template shaped like the built
- * {@code index.html}, and a {@code pages.json} with some of the app's routes and a few page
- * texts in both languages.
+ * {@code index.html}, and a {@code pages.json} with some of the app's routes, a few page
+ * texts in both languages and robots rules.
  */
 @Primary
 public class FakeShellSource implements ShellSource {
@@ -48,7 +46,8 @@ public class FakeShellSource implements ShellSource {
                 },
                 "notFound": {"title": "Page not found – PW Aquatics", "heading": "This page has drifted away", "text": "It does not exist."},
                 "product": {"from": "from {{price}}", "availability": {"IN_STOCK": "In stock", "LOW_STOCK": "Only a few left", "COMING_SOON": "Coming soon", "OUT_OF_STOCK": "Sold out"}},
-                "species": {"available": "Available now"}
+                "species": {"available": "Available now"},
+                "pagination": {"label": "Pagination", "previous": "Previous", "next": "Next"}
               },
               "de": {
                 "brand": "PW Aquatics", "backToHome": "Zur Startseite",
@@ -68,16 +67,19 @@ public class FakeShellSource implements ShellSource {
              "/account/orders/:orderNumber", "/cart", "/checkout", "/admin", "/admin/*"]
             """;
 
+    /** frontend/public/robots.txt, which the build copies into {@code pages.json}. */
+    public static final String ROBOTS = "User-agent: *\nDisallow: /account\nDisallow: /de/account\n";
+
     /** {@code pages.json} as the frontend build writes it. */
-    public static final String PAGES = "{\"routes\": " + ROUTES + ", \"texts\": " + TEXTS + "}";
+    public static final String PAGES = "{\"routes\": " + ROUTES + ", \"texts\": " + TEXTS
+            + ", \"robots\": \"" + ROBOTS.replace("\n", "\\n") + "\"}";
 
     private final PageShell shell = shell();
     private volatile boolean unavailable;
 
-    /** The template with these routes and texts. */
+    /** The template with these routes, texts and robots rules. */
     public static PageShell shell() {
-        var pages = new ObjectMapper().readTree(PAGES);
-        return PageShell.parse(TEMPLATE, PageTexts.of(pages.path("texts")), AppRoutes.of(pages.path("routes")));
+        return PageShell.parse(TEMPLATE, new ObjectMapper().readTree(PAGES));
     }
 
     @Override

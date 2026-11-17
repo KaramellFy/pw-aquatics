@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeFilterCount,
+  canonicalPage,
   parseShopFilters,
   toFacetQuery,
   toProductQuery,
@@ -73,5 +74,16 @@ describe('shop filters', () => {
     expect(activeFilterCount(filters)).toBe(4);
     expect(toggle(['a', 'b'], 'a')).toEqual(['b']);
     expect(toggle(['a'], 'b')).toEqual(['a', 'b']);
+  });
+
+  it('names list pages of their own only for the plain list', () => {
+    const page = (search: string) => canonicalPage(parseShopFilters(new URLSearchParams(search), 'shrimp'));
+    expect(page('page=3')).toBe(3);
+    expect(page('page=3&utm_source=news')).toBe(3);
+    expect(page('')).toBe(1);
+    // Filtered, searched or sorted views point to the plain list's first page.
+    expect(page('colour=blue&page=3')).toBe(1);
+    expect(page('q=blue&page=3')).toBe(1);
+    expect(page('sort=price-asc&page=3')).toBe(1);
   });
 });
