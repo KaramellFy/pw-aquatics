@@ -2,6 +2,7 @@ package com.pwaquatics.shop.pages;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -95,6 +96,19 @@ class PageApiTest {
         } finally {
             jdbc.update("UPDATE products SET name_de = NULL, description_de = NULL WHERE slug = 'alpha-blue'");
         }
+    }
+
+    @Test
+    void pagesAndHealthAnswerHeadRequestsLikeGet() throws Exception {
+        // Uptime monitors and link checkers often ask with HEAD.
+        mvc.perform(head("/_pages/products/alpha-blue"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/html;charset=UTF-8"));
+        mvc.perform(head("/_pages/products/no-such-animal")).andExpect(status().isNotFound());
+        mvc.perform(head("/actuator/health/readiness")).andExpect(status().isOk());
+        mvc.perform(head("/api/v1/shop-info")).andExpect(status().isOk());
+        // HEAD does not open anything that GET keeps closed.
+        mvc.perform(head("/api/v1/admin/orders")).andExpect(status().isUnauthorized());
     }
 
     @Test

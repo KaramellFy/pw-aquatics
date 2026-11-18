@@ -10,9 +10,10 @@ COPY src src
 RUN ./gradlew bootJar --no-daemon -x test \
     && java -Djarmode=tools -jar build/libs/app.jar extract --destination extracted
 
-# Runtime stage: JRE only, non-root user.
+# Runtime stage: JRE only, non-root user. The user has a fixed id (10001), so uploaded photos keep
+# a known owner across image updates and restores (infra/backup/restore.sh).
 FROM eclipse-temurin:25-jre
-RUN groupadd --system app && useradd --system --gid app --home /app app \
+RUN groupadd --system --gid 10001 app && useradd --system --uid 10001 --gid app --home /app app \
     && mkdir -p /app/media && chown app:app /app/media
 WORKDIR /app
 COPY --from=build --chown=app:app /workspace/extracted/lib ./lib

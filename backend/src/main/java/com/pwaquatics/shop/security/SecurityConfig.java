@@ -89,6 +89,8 @@ public class SecurityConfig {
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
+                        // HEAD is GET without the body; uptime monitors and link checkers use it.
+                        .requestMatchers(HttpMethod.HEAD, PUBLIC_GET).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
                         .requestMatchers(API_DOCS).permitAll()
                         // Cart: guests and customers alike (the service scopes it to the caller).

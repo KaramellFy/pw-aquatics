@@ -1,0 +1,45 @@
+# Edge proxy for production (docker-compose.prod.yml, docs/OPERATIONS.md): the shop's only public
+# entry point. It gets and renews the HTTPS certificate from Let's Encrypt on its own, sends
+# plain HTTP to HTTPS, passes /api and /media to the backend and everything else to the
+# frontend's Caddy (frontend/Caddyfile), which serves the app and its security headers.
+#
+# No access log is written: it would keep visitors' IP addresses (docs/DATABASE.md §6).
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$SHOP_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		# Browsers keep using HTTPS for a year. Subdomains are left out on purpose: the owner may
+		# run other services on them.
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+		-Via
+	}
+
+	# Product and gallery photos are at most 15 MB (the backend refuses more with 413).
+	request_body {
+		max_size 20MB
+	}
+
+	# For uptime monitoring: "UP" while the API and its database work, otherwise 503.
+	handle /health {
+		rewrite * /actuator/health/readiness
+		reverse_proxy backend:8080
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle /media/* {
+		reverse_proxy backend:8080
+	}
+
+	handle {
+		reverse_proxy frontend:8080
+	}
+}

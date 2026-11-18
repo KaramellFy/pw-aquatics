@@ -28,6 +28,15 @@ spring:
     port: ${SMTP_PORT:1025}
     username: ${SMTP_USERNAME:}
     password: ${SMTP_PASSWORD:}
+    # Production: a mail provider on port 587 with login and STARTTLS (docker-compose.prod.yml);
+    # Mailpit locally needs neither. A slow server must not hold up the outbox worker.
+    properties:
+      "[mail.smtp.auth]": ${SMTP_AUTH:false}
+      "[mail.smtp.starttls.enable]": ${SMTP_STARTTLS:false}
+      "[mail.smtp.starttls.required]": ${SMTP_STARTTLS:false}
+      "[mail.smtp.connectiontimeout]": 10000
+      "[mail.smtp.timeout]": 10000
+      "[mail.smtp.writetimeout]": 10000
   mvc:
     problemdetails:
       enabled: true
