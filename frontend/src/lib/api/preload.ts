@@ -9,8 +9,13 @@ import { queryKeys } from './queryKeys';
  */
 export function queryKeyForApiPath(path: string): QueryKey | null {
   const [pathname = '', search = ''] = path.split('?');
-  if (pathname === '/products') return queryKeys.products(Object.fromEntries(new URLSearchParams(search)));
+  const params = Object.fromEntries(new URLSearchParams(search));
+  if (pathname === '/products') return queryKeys.products(params);
+  if (pathname === '/products/facets') return queryKeys.facets(params);
   if (pathname === '/categories') return queryKeys.categories;
+  if (pathname === '/species') return queryKeys.speciesList;
+  if (pathname === '/colours') return queryKeys.colours;
+  if (pathname === '/grades') return queryKeys.grades;
   const product = /^\/products\/([^/]+)$/.exec(pathname);
   if (product?.[1] && product[1] !== 'facets') return queryKeys.product(decodeURIComponent(product[1]));
   const species = /^\/species\/([^/]+)$/.exec(pathname);
@@ -18,10 +23,25 @@ export function queryKeyForApiPath(path: string): QueryKey | null {
   return null;
 }
 
+/**
+ * The cache entry for a response: its query key and the data as the query keeps it. Lists the
+ * app loads page by page (the gallery) keep their pages in `{ pages, pageParams }`.
+ */
+function cacheEntry(path: string, data: unknown): [QueryKey, unknown] | null {
+  const [pathname = '', search = ''] = path.split('?');
+  if (pathname === '/gallery') {
+    const params = new URLSearchParams(search);
+    if (params.get('page') !== '0') return null;
+    return [queryKeys.gallery(Number(params.get('size'))), { pages: [data], pageParams: [0] }];
+  }
+  const key = queryKeyForApiPath(path);
+  return key ? [key, data] : null;
+}
+
 /** Puts the page's API responses into the cache, so the first render already has them. */
 export function preloadQueries(client: QueryClient, responses: Record<string, unknown>): void {
   for (const [path, data] of Object.entries(responses)) {
-    const key = queryKeyForApiPath(path);
-    if (key) client.setQueryData(key, data);
+    const entry = cacheEntry(path, data);
+    if (entry) client.setQueryData(entry[0], entry[1]);
   }
 }

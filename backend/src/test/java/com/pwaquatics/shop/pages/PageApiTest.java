@@ -136,7 +136,12 @@ class PageApiTest {
                 .contains("<a href=\"/products/alpha-blue\">Alpha Blue</a> <span>from €3.00</span> · <span>In stock</span>")
                 .contains("<a href=\"/products/beta-red\">Beta Red</a>")
                 .doesNotContain("Gamma Snail")
-                .contains("\"/categories\":[", "\"/products?category=t-shrimp&size=24\":{\"items\":[");
+                .contains("\"/categories\":[", "\"/products?category=t-shrimp&size=24\":{\"items\":[")
+                // The filter panel's data, so the shop needs no request before it can be used.
+                .contains("\"/products/facets?category=t-shrimp\":{", "\"/species\":[", "\"/colours\":[",
+                        "\"/grades\":[");
+        assertThat(page("/_pages/shop")).contains("\"/products/facets\":{");
+        assertThat(page("/_pages/gallery")).contains("\"/gallery?page=0&size=24\":{\"items\":[");
 
         assertThat(page("/_pages/species/t-visible"))
                 .contains("<title data-page>Visible shrimp (Testus visibilis) – PW Aquatics</title>")

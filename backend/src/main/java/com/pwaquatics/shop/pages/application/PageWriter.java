@@ -149,13 +149,19 @@ class PageWriter {
         html.append("</ul>");
     }
 
-    void image(StringBuilder html, ImageView image, String sizes) {
+    /**
+     * A photo with its renditions. {@code sizes} must be the app's for the same picture, so the
+     * browser picks the same file and the app reuses it; {@code priority} mirrors the app's
+     * {@code ResponsiveImage priority} (fetched first; otherwise loaded when scrolled near).
+     */
+    void image(StringBuilder html, ImageView image, String sizes, boolean priority) {
         html.append("<img src=\"").append(Html.attribute(image.url()))
                 .append("\" srcset=\"").append(Html.attribute(image.srcSet()))
                 .append("\" sizes=\"").append(Html.attribute(sizes))
                 .append("\" alt=\"").append(Html.attribute(image.alt()))
                 .append("\" width=\"").append(image.width())
-                .append("\" height=\"").append(image.height()).append("\">");
+                .append("\" height=\"").append(image.height())
+                .append(priority ? "\" fetchpriority=\"high\">" : "\" loading=\"lazy\">");
     }
 
     void link(StringBuilder html, String href, String label) {

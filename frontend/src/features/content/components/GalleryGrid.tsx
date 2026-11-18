@@ -26,8 +26,10 @@ export function GalleryGrid({ entries }: { entries: GalleryEntry[] }) {
                 className="reveal-wipe overflow-hidden rounded-card bg-mist"
                 style={{ aspectRatio: entry.aspectRatio }}
               >
+                {/* Sizes and first photos as the backend's page (PageService.GALLERY_*). */}
                 <GalleryVisual
                   entry={entry}
+                  priority={index < 2}
                   sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
                   className="transition-transform duration-(--duration-slow) ease-(--ease-out) group-hover:scale-[1.03]"
                 />
