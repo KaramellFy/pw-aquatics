@@ -11,7 +11,7 @@ import type { CouponStats } from '../api/coupons';
 import type { Dashboard, ProductStats, SalesStats, StockStats } from '../api/statistics';
 import { AdminDashboardPage } from './AdminDashboardPage';
 
-const owner: Session = { authenticated: true, user: { ...anna.user!, role: 'ADMIN' } };
+const owner: Session = { ...anna, user: { ...anna.user!, role: 'ADMIN' } };
 const eur = (amount: number) => ({ amount, currency: 'EUR' });
 
 const dashboard: Dashboard = {

@@ -13,7 +13,7 @@ import { AdminInventoryPage } from './AdminInventoryPage';
 import { AdminProductCreatePage, AdminProductEditPage } from './AdminProductEditPage';
 import { AdminProductsPage } from './AdminProductsPage';
 
-const owner: Session = { authenticated: true, user: { ...anna.user!, role: 'ADMIN' } };
+const owner: Session = { ...anna, user: { ...anna.user!, role: 'ADMIN' } };
 const money = (amount: number) => ({ amount, currency: 'EUR' });
 
 const category: AdminCategory = {

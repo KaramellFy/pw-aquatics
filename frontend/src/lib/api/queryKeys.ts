@@ -8,6 +8,8 @@ export const queryKeys = {
   account: ['account'] as const,
   profile: ['account', 'profile'] as const,
   addresses: ['account', 'addresses'] as const,
+  /** Two-step sign-in of an administrator. */
+  twoFactor: ['account', 'two-factor'] as const,
   orders: (page: number) => ['account', 'orders', 'list', page] as const,
   order: (orderNumber: string) => ['account', 'orders', 'detail', orderNumber] as const,
   /** Prefix of all order queries. */

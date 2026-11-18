@@ -8,7 +8,12 @@ export type Profile = Schemas['ProfileView'];
 export type Address = Schemas['AddressView'];
 export type AddressInput = Schemas['AddressRequest'];
 
-const ANONYMOUS: Schemas['SessionView'] = { authenticated: false, user: null };
+const ANONYMOUS: Schemas['SessionView'] = {
+  authenticated: false,
+  user: null,
+  twoFactorRequired: false,
+  twoFactorSetupRequired: false,
+};
 
 export function useProfile() {
   return useQuery({

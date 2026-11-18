@@ -1,13 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { api } from '@/lib/api/client';
+import { ApiError, api } from '@/lib/api/client';
 import { queryKeys } from '@/lib/api/queryKeys';
 import type { Schemas } from '@/lib/api/types';
 
 export type Session = Schemas['SessionView'];
 export type CurrentUser = Schemas['CurrentUserView'];
 
-const ANONYMOUS: Session = { authenticated: false, user: null };
+const ANONYMOUS: Session = {
+  authenticated: false,
+  user: null,
+  twoFactorRequired: false,
+  twoFactorSetupRequired: false,
+};
 
 /** Who is signed in. The server session is the source of truth; nothing is kept in browser storage. */
 export function useSession() {
@@ -29,17 +34,47 @@ export function useSignInOptions() {
   });
 }
 
+/**
+ * Signs in with email and password. For an administrator with two-step sign-in the answer is
+ * not signed in yet but `twoFactorRequired`; {@link useSecondStep} finishes it.
+ */
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: Schemas['LoginRequest']) => api.post<Session>('/auth/login', request),
-    onSuccess: (session) => {
-      queryClient.removeQueries({ queryKey: queryKeys.account });
-      queryClient.setQueryData(queryKeys.session, session);
-      // The server merges the guest cart into the account's cart on the next cart request.
-      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+    onSuccess: (session) => signedIn(queryClient, session),
+  });
+}
+
+/** The second step of signing in: a code from the authenticator app or a recovery code. */
+export function useSecondStep() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.post<Session>('/auth/login/two-factor', { code }),
+    onSuccess: (session) => signedIn(queryClient, session),
+    onError: (error) => {
+      // Too many wrong codes, or too slow: the sign-in starts again with the password.
+      if (error instanceof ApiError && error.code === 'TWO_FACTOR_EXPIRED') {
+        queryClient.setQueryData(queryKeys.session, ANONYMOUS);
+      }
     },
   });
+}
+
+/** Gives up a sign-in that waits for its code (to sign in with another account). */
+export function useCancelSignIn() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<void>('/auth/logout'),
+    onSettled: () => queryClient.setQueryData(queryKeys.session, ANONYMOUS),
+  });
+}
+
+function signedIn(queryClient: QueryClient, session: Session) {
+  queryClient.removeQueries({ queryKey: queryKeys.account });
+  queryClient.setQueryData(queryKeys.session, session);
+  // The server merges the guest cart into the account's cart on the next cart request.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
 }
 
 /**

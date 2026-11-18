@@ -75,6 +75,16 @@ and some species may not be traded legally.
   account; `DELETE /api/v1/account/google` to disconnect). Optional: without
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` it is not offered. Not yet tried against Google.
   Apple: later.
+- **Two-step sign-in for administrators** (security pass; ADR-015) is built: the admin area needs
+  the password and a code from an authenticator app (TOTP) or a recovery code
+  (`POST /api/v1/auth/login/two-factor`); administrators without it are sent to its setup
+  (`/account/two-factor`, `/api/v1/account/two-factor/**`). Keys are encrypted with
+  `APP_ENCRYPTION_KEY`.
+- **Production setup** (from Phase 10, brought forward) is built: `docker-compose.prod.yml` with an
+  edge Caddy that gets HTTPS certificates itself (`infra/caddy/Caddyfile`), nightly backups of the
+  database and photos with a restore service (`infra/backup`), `/health` for uptime monitoring,
+  Dependabot, and a CI job that starts the production stack and restores a backup. How to run it:
+  docs/OPERATIONS.md.
 - **Phase 8 (coupons & statistics)** is built end to end: coupon field in the cart
   (`PUT`/`DELETE /api/v1/cart/coupon`), discount in the quote, order, emails and order pages,
   redemption in the order transaction (released on cancellation), admin coupons under
@@ -245,6 +255,12 @@ working around them.
   changes take the password or a recent confirmation with Google (`SessionManager.confirmation`,
   `AccountService.CONFIRMATION_WINDOW`). The `returnTo` of a Google round trip must be a path on
   this site (`GoogleSignInController.origin`). Tests use `FakeGoogle`, never Google.
+- **Two-step sign-in** (ADR-015): a session gets the `ADMIN` role only through
+  `SessionManager.login(…, secondStepPassed = true)` — after a code at sign-in or right after
+  setting up the app. Never grant it elsewhere. Codes are checked only in `TwoFactorService`
+  (rate limited, each app code once, under a row lock); keys go through `common.crypto.SecretBox`
+  (never stored or logged in plain text), recovery codes are stored as hashes. Tests sign
+  administrators in with `AuthFixture.adminSession` / `adminLogin`, which use the real endpoints.
 - **Cart rules:** a module reads catalog data only through `CatalogLookup`
   (never the catalog repositories). Money arithmetic happens only in
   `pricing.domain.PriceCalculator`. Random tokens and their hashes come from
@@ -332,6 +348,10 @@ working around them.
   in browser storage. Wrap signed-in pages in `RequireAuth`. When an action signs the
   user out, navigate away first and clear the session afterwards (see `useLogout`),
   otherwise the guard redirects to the login page.
+- **Two-step sign-in:** a sign-in may answer `twoFactorRequired` (not signed in yet): `LoginPage`
+  then shows `TwoFactorStep`. `RequireAdmin` sends administrators with `twoFactorSetupRequired` to
+  `/account/two-factor`. The QR code is drawn by `QrCode` (`uqr`) in the browser; never send the
+  `otpauth://` link or the key anywhere. Recovery codes are shown once and only kept in memory.
 - **All HTTP via `src/lib/api/client.ts`** (credentials, CSRF header, Problem
   Details → `ApiError`). Use the generated types in `src/lib/api/schema.d.ts`;
   never hand-write API types that the spec already defines. Never edit generated files.

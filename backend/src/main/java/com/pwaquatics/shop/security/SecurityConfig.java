@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -33,7 +35,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  *       Payment provider webhooks are exempt: they carry no cookies and prove their origin with a
  *       signature instead.
  *   <li>Access: secure by default — every endpoint is denied unless explicitly opened below.
- *       Admin endpoints additionally use method security.
+ *       Admin endpoints need the {@code ADMIN} role and the second sign-in step, and additionally
+ *       use method security.
  *   <li>Errors: delegated to {@link com.pwaquatics.shop.common.api.ApiExceptionHandler} so 401/403
  *       responses use the same Problem Details format as everything else.
  * </ul>
@@ -67,7 +70,7 @@ public class SecurityConfig {
     /** Callable without a session. Each is rate limited in its service. */
     static final String[] PUBLIC_POST = {
         "/api/v1/contact",
-        "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/logout",
+        "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/two-factor", "/api/v1/auth/logout",
         "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",
         "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
         "/api/v1/webhooks/stripe", "/api/v1/webhooks/paypal",
@@ -98,7 +101,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/account/**").authenticated()
                         .requestMatchers("/api/v1/checkout/**").authenticated()
                         .requestMatchers("/api/v1/payments/**").authenticated()
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        // Administrators have the role only after both sign-in steps (SessionManager);
+                        // the factor is checked as well, so the rule says so on its own.
+                        .requestMatchers("/api/v1/admin/**").access(AuthorizationManagers.allOf(
+                                AuthorityAuthorizationManager.hasRole("ADMIN"),
+                                AuthorityAuthorizationManager.hasAuthority(SessionManager.SECOND_FACTOR)))
                         .anyRequest().denyAll())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)

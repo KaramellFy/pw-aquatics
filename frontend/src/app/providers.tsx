@@ -9,7 +9,12 @@ export function createQueryClient(): QueryClient {
   // mark the user as signed out; route guards then send them to the login page.
   const handleError = (error: unknown) => {
     if (error instanceof ApiError && error.status === 401 && error.code === 'UNAUTHENTICATED') {
-      client.setQueryData(queryKeys.session, { authenticated: false, user: null });
+      client.setQueryData(queryKeys.session, {
+        authenticated: false,
+        user: null,
+        twoFactorRequired: false,
+        twoFactorSetupRequired: false,
+      });
     }
   };
   const client: QueryClient = new QueryClient({

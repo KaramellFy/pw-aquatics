@@ -7,6 +7,9 @@ spring:
 app:
   cookies:
     secure: false
+  # A fixed key for local development only; production sets APP_ENCRYPTION_KEY.
+  security:
+    encryption-key: ${APP_ENCRYPTION_KEY:w22N/ft1kSSJTXSFxDG2Pa1LFsD6Jp+YjulRgVGgNLo=}
   # Obviously fake account for local development; never a real one.
   bank-transfer:
     account-holder: ${BANK_ACCOUNT_HOLDER:PW Aquatics (dev)}

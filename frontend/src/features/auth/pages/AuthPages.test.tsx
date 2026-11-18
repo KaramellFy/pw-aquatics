@@ -4,7 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RequireAuth } from '@/app/guards/RequireAuth';
 import { lastBody, mockApi, problem } from '@/test/mockApi';
 import { renderRoutes } from '@/test/render';
-import { anna, anonymous } from '../test/fixtures';
+import { anna, anonymous, awaitingCode, owner } from '../test/fixtures';
 import { LoginPage } from './LoginPage';
 import { RegisterPage } from './RegisterPage';
 import { ResetPasswordPage } from './ResetPasswordPage';
@@ -23,6 +23,87 @@ beforeAll(() => {
   window.scrollTo = () => {};
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe('two-step sign-in', () => {
+  it('asks administrators for the code from their app after the password', async () => {
+    let session = anonymous;
+    const fetchMock = mockApi({
+      '/auth/me': () => session,
+      'POST /auth/login': () => (session = awaitingCode),
+      'POST /auth/login/two-factor': () => (session = owner),
+    });
+    const { router } = renderRoutes(routes, { path: '/login?redirect=%2Faccount%2Forders' });
+
+    await userEvent.type(await screen.findByLabelText('Email address'), 'owner@example.com');
+    await userEvent.type(screen.getByLabelText('Password'), 'correct-horse-battery');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByRole('heading', { name: 'Enter your sign-in code' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/login');
+    const code = screen.getByLabelText('Code from the app');
+    expect(code).toHaveAttribute('autocomplete', 'one-time-code');
+    await userEvent.type(code, '12345');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Please enter the six digits from the app.')).toBeInTheDocument();
+
+    await userEvent.type(code, '6');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Account area' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/account/orders');
+    expect(lastBody(fetchMock, 'POST', '/auth/login/two-factor')).toEqual({ code: '123456' });
+  });
+
+  it('shows a wrong code and accepts a recovery code instead', async () => {
+    let answer: unknown = problem(401, 'TWO_FACTOR_CODE_INVALID');
+    const fetchMock = mockApi({
+      '/auth/me': awaitingCode,
+      'POST /auth/login/two-factor': () => answer,
+    });
+    renderRoutes(routes, { path: '/login?redirect=%2Faccount%2Forders' });
+
+    await userEvent.type(await screen.findByLabelText('Code from the app'), '000 000');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('This code is not correct.');
+    expect(screen.getByLabelText('Code from the app')).toHaveValue('');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use a recovery code instead' }));
+    answer = owner;
+    await userEvent.type(screen.getByLabelText(/Recovery code/), 'ABCD-efgh-2345');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Account area' })).toBeInTheDocument();
+    expect(lastBody(fetchMock, 'POST', '/auth/login/two-factor')).toEqual({ code: 'ABCDefgh2345' });
+  });
+
+  it('starts again with the password after too many wrong codes', async () => {
+    mockApi({
+      '/auth/me': awaitingCode,
+      'POST /auth/login/two-factor': () => problem(401, 'TWO_FACTOR_EXPIRED'),
+    });
+    renderRoutes(routes, { path: '/login' });
+
+    await userEvent.type(await screen.findByLabelText('Code from the app'), '111111');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(screen.getByText(/the code was not entered in time, or was wrong too often/)).toBeInTheDocument();
+  });
+
+  it('lets the visitor give up the code step and use another account', async () => {
+    let session = awaitingCode;
+    const fetchMock = mockApi({
+      '/auth/me': () => session,
+      'POST /auth/logout': () => {
+        session = anonymous;
+      },
+    });
+    renderRoutes(routes, { path: '/login' });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign in with a different account' }));
+
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/v1/auth/logout')).toBe(true);
+  });
+});
 
 describe('sign in', () => {
   it('signs in and returns to the page the visitor wanted', async () => {

@@ -4,4 +4,4 @@ export { PasswordField } from './components/PasswordField';
 export { GoogleButton } from './components/GoogleButton';
 export { googleProblem } from './google';
 export { useForgotPassword, useSignInOptions } from './api/auth';
-export { loginPathFor } from './redirect';
+export { loginPathFor, safeRedirectTarget } from './redirect';

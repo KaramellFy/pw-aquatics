@@ -114,6 +114,7 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | API types | `openapi-typescript` | Generated from the backend OpenAPI spec |
 | i18n | react-i18next | English default at `/…`, German at `/de/…`; the link decides the language (ADR-012) |
 | Charts (admin) | Own SVG/HTML components | No chart library (see "Dashboard and statistics") |
+| QR code (two-step setup) | `uqr` | Turns the `otpauth://` link into modules the app draws as SVG; no dependencies, loaded only on the setup page, the key never leaves the browser (ADR-015) |
 | Testing | JUnit 5, Testcontainers, MockMvc; Vitest, Testing Library, Playwright | |
 | Infra | Docker, Docker Compose, Caddy, GitHub Actions | |
 
@@ -162,7 +163,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 |---|---|
 | `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation, `ContentLanguage` (language of owner-written texts per request), `SiteLinks` |
 | `security` | Spring Security config, session/CSRF setup, current-user resolution, rate limiting |
-| `identity` | Users, registration, login, sign in with Google (`user_identities`, ADR-014), email verification, password reset, roles |
+| `identity` | Users, registration, login, sign in with Google (`user_identities`, ADR-014), two-step sign-in for administrators (`user_two_factor`, ADR-015), email verification, password reset, roles |
 | `customer` | Profile, saved addresses, account deletion/anonymisation |
 | `catalog` | Products, variants, species, categories, colours, grades, images, search & filters |
 | `inventory` | Stock levels, reservations, stock movements, low-stock alerts |
@@ -526,20 +527,20 @@ payment module                                 order module
 
 | Concern | Approach |
 |---|---|
-| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. Sign in with Google (ADR-014): OpenID Connect code flow with PKCE run by the server; accounts are linked by Google's subject id, connected to an existing account only for a Google-verified address; administrators use their password only. |
+| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. Sign in with Google (ADR-014): OpenID Connect code flow with PKCE run by the server; accounts are linked by Google's subject id, connected to an existing account only for a Google-verified address; administrators use their password only. Administrators sign in in two steps (ADR-015): password, then a TOTP code from an authenticator app or a one-time recovery code. |
 | Why sessions, not JWT | Same-origin SPA; sessions are revocable instantly (logout, password change, admin lock), nothing sensitive is in browser storage, and Spring Security supports them natively. |
 | CSRF | Spring Security CSRF with cookie-to-header pattern (`XSRF-TOKEN` cookie → `X-XSRF-TOKEN` header) for all state-changing requests. |
 | Passwords | `DelegatingPasswordEncoder` with Argon2id; hashes carry an algorithm prefix and are upgraded on login if the algorithm changes. 10–128 characters, no composition rules, a small deny-list of obvious passwords. A check against a breached-password service is a possible later addition. |
-| Authorisation | Roles `CUSTOMER`, `ADMIN`. URL rules (`/api/v1/admin/**` → `ADMIN`) **and** method security (`@PreAuthorize`) on admin services. Ownership checks on every customer resource (no IDOR). |
-| Brute force | Rate limiting per IP and per email address on login; per IP on registration, password reset and the contact form; per user on password confirmations. 15-minute account lock after 10 wrong passwords in a row, reported as a rate limit so it does not reveal that the account exists. |
+| Authorisation | Roles `CUSTOMER`, `ADMIN`. URL rules (`/api/v1/admin/**` → `ADMIN` and the second sign-in step) **and** method security (`@PreAuthorize`) on admin services. A session gets the `ADMIN` role only after both sign-in steps (`SessionManager`), so every `hasRole('ADMIN')` check needs them too. Ownership checks on every customer resource (no IDOR). |
+| Brute force | Rate limiting per IP and per email address on login; per IP on registration, password reset and the contact form; per user on password confirmations and two-step codes (5 per 15 minutes; 5 wrong codes end a sign-in and email the administrator). 15-minute account lock after 10 wrong passwords in a row, reported as a rate limit so it does not reveal that the account exists. |
 | Account enumeration | Registration, login, password-reset and email-change responses do not reveal whether an email exists; "not verified" and "locked by an admin" are only shown after the correct password. A dummy hash comparison keeps login timing similar for unknown addresses. |
 | Input | Bean Validation on all DTOs; size limits on everything; Markdown in descriptions rendered with a sanitiser. |
 | Uploads | Admin only; size limit; MIME type detected from content, not the filename; images re-encoded (strips EXIF and payloads); random storage keys. |
 | Headers | HSTS, CSP (no inline scripts), `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`. Set by Caddy and Spring Security. |
-| Secrets | Environment variables only; `.env` git-ignored; `.env.example` documents them. |
+| Secrets | Environment variables only; `.env` git-ignored; `.env.example` and `.env.production.example` document them. Secrets the shop must read again (the administrators' TOTP keys) are encrypted with AES-256-GCM under `APP_ENCRYPTION_KEY` (`common.crypto.SecretBox`); recovery codes and emailed tokens are stored as SHA-256 hashes only. |
 | Payment data | Never stored. We keep only provider references, amounts and status; webhook payloads are reduced before storing. Webhooks are verified by signature (`Stripe-Signature`, 5 min tolerance) and are the only way an order becomes paid. |
-| Admin hardening | Audit log of every admin write; TOTP two-factor auth for admins (Phase 10). |
-| Dependencies | Dependabot, OWASP dependency check / `npm audit` in CI. |
+| Admin hardening | Audit log of every admin write; two-step sign-in (TOTP, RFC 6238) required for the admin area, with recovery codes, replay protection and email notices (ADR-015). |
+| Dependencies | Dependabot (npm, Gradle, Docker images, GitHub Actions); `npm audit` and a check of the Java dependencies against the OSV database before releases (docs/OPERATIONS.md). |
 | Privacy | Minimal personal data; self-hosted fonts (no Google Fonts CDN); no tracking without consent; only strictly necessary cookies; account deletion anonymises the user while keeping legally required order records. Scheduled jobs remove data without a retention duty: email text right after sending, outbox rows after 30 days, audit IP addresses after 90 days, contact messages after a year (`app.retention.*`). Newsletter consent changes are recorded in the audit log. Inventory, legal bases and periods: docs/DATABASE.md §6. |
 
 ---
@@ -858,8 +859,9 @@ endpoint (403).
 | ADR-012 | Language in the link: English at `/…`, German at `/de/…` with the same path words | Language only in the browser, `?lang=`, a `.de` domain, German path words |
 | ADR-013 | Public pages filled in by the backend from the frontend build's `index.html` (Caddy asks `/_pages/**`, falls back to the plain file) | Node.js SSR or prerender service, build-time prerendering, head tags only |
 | ADR-014 | Sign in with Google: server-side OIDC code flow with PKCE from Spring Security's OAuth 2 client parts; linked by Google's subject id | `oauth2Login()` filter, Google's script in the browser, a hand-written OIDC client |
+| ADR-015 | Two-step sign-in (TOTP) required for administrators; admin role granted only after both steps; key encrypted with `APP_ENCRYPTION_KEY`; recovery codes | Spring Security's multi-factor filters, codes by email or SMS, a TOTP library, plain-text keys |
 
-Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-014).
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-015).
 
 ---
 

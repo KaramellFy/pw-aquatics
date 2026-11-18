@@ -76,11 +76,11 @@ stable `code` the frontend can switch on:
 | HTTP | Typical `code` values |
 |---|---|
 | 400 | `VALIDATION_FAILED`, `MALFORMED_REQUEST`, `WEBHOOK_SIGNATURE_INVALID`, `WEBHOOK_INVALID` |
-| 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS` |
-| 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED` |
+| 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `TWO_FACTOR_CODE_INVALID`, `TWO_FACTOR_EXPIRED` |
+| 403 | `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_NOT_VERIFIED`, `TWO_FACTOR_ADMINS_ONLY` |
 | 404 | `NOT_FOUND` |
 | 409 | `SLUG_TAKEN`, `SKU_TAKEN`, `SCIENTIFIC_NAME_TAKEN`, `IN_USE`, `INSUFFICIENT_STOCK`, `PRODUCT_UNAVAILABLE`, `CART_EMPTY`, `CART_CHANGED`, `PRICE_CHANGED`, `SHIPPING_PAUSED`, `SHIPPING_METHOD_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_CANCELLABLE`, `ORDER_ALREADY_PAID`, `ORDER_NOT_PAYABLE`, `INVALID_STATUS_TRANSITION`, `PAID_BY_PROVIDER`, `ACCOUNT_NOT_LOCKABLE`, `CODE_TAKEN`, `COUPON_IN_USE`, `NOT_REFUNDABLE`, `REFUNDS_CHANGED`, `IDEMPOTENCY_KEY_REUSED`, `CONFLICT` (optimistic lock), `DUPLICATE` |
-| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `CONFIRMATION_REQUIRED`, `LAST_SIGN_IN_METHOD`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED`, `REFUND_AMOUNT_INVALID`, `REFUND_REFUSED` |
+| 422 | `CART_FULL`, `VERSION_REQUIRED`, `SLUG_INVALID`, `NO_ACTIVE_VARIANT`, `NO_IMAGE`, `SPECIES_RESTRICTED`, `LAST_IMAGE`, `IMAGE_TYPE_UNSUPPORTED`, `IMAGE_INVALID`, `IMAGE_TOO_LARGE`, `IMAGE_TOO_SMALL`, `IMAGE_LIMIT_REACHED`, `IMAGE_ORDER_INVALID`, `COMPARE_AT_PRICE_INVALID`, `VARIANT_INVALID`, `CATEGORY_CYCLE`, `RANGE_INVALID`, `ADJUSTMENT_INVALID`, `STOCK_NEGATIVE`, `STATS_RANGE_INVALID`, `TOKEN_INVALID`, `PASSWORD_TOO_WEAK`, `CURRENT_PASSWORD_INVALID`, `CONFIRMATION_REQUIRED`, `LAST_SIGN_IN_METHOD`, `EMAIL_TAKEN`, `EMAIL_UNCHANGED`, `ADDRESS_LIMIT_REACHED`, `COUNTRY_INVALID`, `DATE_INVALID`, `LAST_SHIPMENT`, `CARRIER_UNKNOWN`, `DELIVERY_ESTIMATE_INVALID`, `COUPON_INVALID`, `COUPON_EXPIRED`, `COUPON_MIN_ORDER_NOT_MET`, `COUPON_USAGE_LIMIT_REACHED`, `COUPON_ALREADY_USED`, `COUPON_NOT_APPLICABLE`, `COUPON_VALUE_INVALID`, `ORDER_TOTAL_ZERO`, `LIVE_ANIMAL_CONDITIONS_REQUIRED`, `REFUND_AMOUNT_INVALID`, `REFUND_REFUSED`, `TWO_FACTOR_CODE_INVALID`, `TWO_FACTOR_CODE_REQUIRED`, `TWO_FACTOR_SETUP_NOT_STARTED`, `TWO_FACTOR_NOT_ENABLED` |
 | 413 | `FILE_TOO_LARGE` (uploads over 15 MB) |
 | 423 | `ACCOUNT_LOCKED` |
 | 429 | `RATE_LIMITED` (with `Retry-After` header) |
@@ -131,9 +131,10 @@ optional `…De` fields with the same length limits; blank values are stored as 
 |---|---|---|---|
 | GET | `/auth/csrf` | public | Ensures the `XSRF-TOKEN` cookie is set (called on app start) |
 | POST | `/auth/register` | public | `{ email, password, firstName, lastName, marketingOptIn? }`. Sends a verification email. Always `202` |
-| POST | `/auth/login` | public | `{ email, password }` → `200` session view + `SESSION` cookie (new session id on every login). The guest cart is merged on the next cart request (§2.4) |
-| POST | `/auth/logout` | public | Ends the session; `204` even without one |
-| GET | `/auth/me` | public | `{ "authenticated": true, "user": { id, email, firstName, lastName, role } }` or `{ "authenticated": false, "user": null }` |
+| POST | `/auth/login` | public | `{ email, password }` → `200` session view + `SESSION` cookie (new session id on every login). The guest cart is merged on the next cart request (§2.4). An administrator with two-step sign-in gets `{ "authenticated": false, "twoFactorRequired": true }` instead: not signed in until the code follows |
+| POST | `/auth/login/two-factor` | public | `{ code }`: the six digits from the authenticator app or a recovery code → `200` session view (signed in, new session id). See "Two-step sign-in" below |
+| POST | `/auth/logout` | public | Ends the session (also a sign-in waiting for its code); `204` even without one |
+| GET | `/auth/me` | public | `{ "authenticated": true, "user": { id, email, firstName, lastName, role }, "twoFactorRequired": false, "twoFactorSetupRequired": false }` or `{ "authenticated": false, "user": null, … }` |
 | POST | `/auth/verify-email` | public | `{ token }` from a registration **or** email-change email → `204` |
 | POST | `/auth/resend-verification` | public | `{ email }` → always `202` |
 | POST | `/auth/forgot-password` | public | `{ email }` → always `202` |
@@ -159,6 +160,25 @@ optional `…De` fields with the same length limits; blank values are stored as 
 - Emailed links are single-use (`422 TOKEN_INVALID` otherwise): verification
   and email change 48 h, password reset 1 h. Only a SHA-256 hash is stored.
 - Emails are sent in the language of the request (`Accept-Language`: `en`/`de`).
+
+**Two-step sign-in for administrators** (ADR-015; TOTP, RFC 6238)
+
+- The admin area needs both steps: the password, then a six-digit code from an authenticator app
+  (or one of ten one-time recovery codes). `/api/v1/admin/**` and every admin service answer
+  `403` to a session that passed only the password. Customers sign in with one step.
+- **Not set up yet:** the password alone signs the administrator in, but `twoFactorSetupRequired`
+  is `true` and the admin area stays closed until the app is set up (§2.6). The app sends the
+  administrator to the setup page.
+- **Set up:** `/auth/login` answers `twoFactorRequired: true` and keeps the sign-in in the session
+  for 5 minutes (new session id; whoever was signed in in this browser is signed out). Nothing is
+  granted before the code: `/auth/me` reports `authenticated: false, twoFactorRequired: true`.
+  `POST /auth/login/two-factor` then signs in.
+- **Wrong code** → `401 TWO_FACTOR_CODE_INVALID`. After 5 wrong codes the sign-in is dropped
+  (`401 TWO_FACTOR_EXPIRED`, also when nothing waits or 5 minutes passed) and the administrator
+  gets an email ("Several wrong sign-in codes": whoever tried knew the password). Code checks are
+  limited to 5 per 15 minutes per account (`429`), whichever way they come in.
+- Each app code is accepted once; codes from 30 seconds before and after count (clock drift). A
+  used recovery code is announced by email with the number left.
 
 **Sign in with Google** (ADR-014; OpenID Connect, authorization code flow)
 
@@ -573,6 +593,18 @@ it, the order is kept and the webhook marks it as paid.
 
 Wrong current password → `422 CURRENT_PASSWORD_INVALID` (not `401`, which means
 "no session").
+
+**Two-step sign-in** (administrators only; customers get `403 TWO_FACTOR_ADMINS_ONLY`, ADR-015):
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/two-factor` | `{ enabled, enabledAt, recoveryCodesLeft }` |
+| POST | `/account/two-factor/setup` | `{ code? }` → `{ secret, otpauthUri }`: a new key (Base32) and the same as `otpauth://` link for a QR code, drawn by the browser. Nothing changes until it is confirmed. Replacing a working app needs `code` from it or a recovery code (`422 TWO_FACTOR_CODE_REQUIRED` / `TWO_FACTOR_CODE_INVALID`) |
+| POST | `/account/two-factor/confirm` | `{ code }` from the new key → `{ recoveryCodes: [10] }`, shown once. The new key replaces the old one, old recovery codes stop working, the account's other sessions end and this one may use the admin area (new session id). An email confirms it. No setup started → `422 TWO_FACTOR_SETUP_NOT_STARTED`; wrong code → `422 TWO_FACTOR_CODE_INVALID` |
+| POST | `/account/two-factor/recovery-codes` | `{ code }` (app or recovery code) → `{ recoveryCodes: [10] }`; the old ones stop working. Not set up → `422 TWO_FACTOR_NOT_ENABLED` |
+
+There is no way to turn it off: an administrator who lost both the phone and the recovery codes is
+reset by the server's operator (docs/OPERATIONS.md, "Lost access to two-step sign-in").
 
 **Without a password** (customers who signed up with Google): `hasPassword` is `false` and
 `googleEmail` names the connected Google account. Changing the email address and deleting the
@@ -1044,6 +1076,7 @@ calculated on the server.
 | `POST /auth/register`, `/auth/forgot-password`, `/auth/resend-verification` | 5/hour per IP |
 | `POST /contact` | 3/hour per IP |
 | Password confirmations (`/account/password`, `/account/email`, `DELETE /account`) | 10 per 15 min per user |
+| Two-step sign-in codes (`/auth/login/two-factor`, `/account/two-factor/…`) | 5 per 15 min per account; 5 wrong codes end a sign-in |
 | `GET /auth/google`, `/auth/google/callback` | 20/min per IP |
 | Cart changes (`POST`/`PATCH`/`DELETE /cart…`) | 120/min per IP |
 | `PUT /cart/coupon` | 10/min per IP (so codes cannot be guessed by trying) |
