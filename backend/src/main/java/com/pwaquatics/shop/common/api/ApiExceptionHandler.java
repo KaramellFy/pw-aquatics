@@ -13,6 +13,7 @@ import com.pwaquatics.shop.common.error.UnauthorizedException;
 import com.pwaquatics.shop.common.web.RequestIdFilter;
 import java.util.List;
 import java.util.Locale;
+import org.apache.tomcat.util.http.InvalidParameterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -97,6 +98,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ResponseEntity<Object> handleDataIntegrity(DataIntegrityViolationException ex, WebRequest request) {
         log.warn("Database constraint violated: {}", ex.getClass().getSimpleName());
         return problem(ex, HttpStatus.CONFLICT, "CONFLICT", "The change conflicts with existing data.", request);
+    }
+
+    /**
+     * A query string the server cannot read, such as a parameter without a name ({@code ?=x}):
+     * the caller's mistake, not ours (found by the ZAP API scan, docs/CHECKS.md).
+     */
+    @ExceptionHandler(InvalidParameterException.class)
+    ResponseEntity<Object> handleUnreadableParameters(InvalidParameterException ex, WebRequest request) {
+        return problem(ex, HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "Malformed query string.", request);
     }
 
     @ExceptionHandler(Exception.class)

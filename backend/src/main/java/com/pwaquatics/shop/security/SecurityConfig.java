@@ -5,12 +5,15 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
@@ -54,7 +57,6 @@ public class SecurityConfig {
         "/api/v1/categories", "/api/v1/species", "/api/v1/species/**",
         "/api/v1/colours", "/api/v1/grades",
         "/api/v1/gallery", "/api/v1/shop-info",
-        "/media/**",
         // Pages filled in for the first page load, sitemap and robots.txt (pages module); the
         // frontend's Caddy calls them.
         "/_pages", "/_pages/**", "/_site/sitemap.xml", "/_site/robots.txt",
@@ -79,7 +81,37 @@ public class SecurityConfig {
     /** Only reachable when springdoc is enabled (dev/staging); disabled in production. */
     static final String[] API_DOCS = {"/api/v3/api-docs", "/api/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"};
 
+    /**
+     * Photos ({@code /media/**}, MediaConfig): public files that browsers and any cache in front of
+     * the shop keep for a year. Their own chain has no CSRF and no session, so these responses
+     * never set a cookie: a shared cache could otherwise hand one visitor's XSRF-TOKEN to others.
+     * They are only read; anything else is refused.
+     */
     @Bean
+    @Order(1)
+    SecurityFilterChain mediaSecurity(
+            HttpSecurity http, @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver)
+            throws Exception {
+        http.securityMatcher("/media/**")
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/media/**").permitAll()
+                        .anyRequest().denyAll())
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .exceptionHandling(errors -> problemDetails(errors, exceptionResolver))
+                .headers(headers -> headers
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .frameOptions(frame -> frame.deny()));
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain apiSecurity(
             HttpSecurity http,
             CsrfTokenRepository csrfTokenRepository,
@@ -111,15 +143,20 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .exceptionHandling(errors -> errors
-                        .authenticationEntryPoint((request, response, ex) ->
-                                exceptionResolver.resolveException(request, response, null, ex))
-                        .accessDeniedHandler((request, response, ex) ->
-                                exceptionResolver.resolveException(request, response, null, ex)))
+                .exceptionHandling(errors -> problemDetails(errors, exceptionResolver))
                 .headers(headers -> headers
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                         .frameOptions(frame -> frame.deny()));
         return http.build();
+    }
+
+    /** Refusals are answered like every other error: Problem Details (ApiExceptionHandler). */
+    private static void problemDetails(
+            ExceptionHandlingConfigurer<HttpSecurity> errors, HandlerExceptionResolver exceptionResolver) {
+        errors.authenticationEntryPoint((request, response, ex) ->
+                        exceptionResolver.resolveException(request, response, null, ex))
+                .accessDeniedHandler((request, response, ex) ->
+                        exceptionResolver.resolveException(request, response, null, ex));
     }
 
     /** The CSRF token lives in a cookie the SPA can read (it is not a secret from our own pages). */

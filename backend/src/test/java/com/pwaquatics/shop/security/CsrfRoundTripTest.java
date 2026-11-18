@@ -50,6 +50,36 @@ class CsrfRoundTripTest {
         assertThat(withoutHeader.body()).contains("\"code\":\"CSRF_INVALID\"");
     }
 
+    /**
+     * Photos are cached publicly for a year, so they must never carry a visitor's token (a
+     * real server: spring-security-test's {@code csrf()} replaces the token store in the
+     * shared MockMvc context, so cookies cannot be checked there).
+     */
+    @Test
+    void photosNeverSetCookiesAndCanOnlyBeRead() throws Exception {
+        HttpResponse<String> photo = http.send(
+                HttpRequest.newBuilder(uri("/media/products/missing/400.webp")).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(photo.statusCode()).isEqualTo(404);
+        assertThat(photo.headers().allValues("Set-Cookie")).isEmpty();
+        assertThat(photo.headers().firstValue("X-Content-Type-Options")).hasValue("nosniff");
+
+        // The API next to it does hand out the token, so the check above means something.
+        HttpResponse<String> api = http.send(
+                HttpRequest.newBuilder(uri("/api/v1/shop-info")).GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(api.statusCode()).isEqualTo(200);
+        assertThat(api.headers().allValues("Set-Cookie")).anyMatch(cookie -> cookie.startsWith("XSRF-TOKEN="));
+
+        HttpResponse<String> write = http.send(
+                HttpRequest.newBuilder(uri("/media/products/missing/400.webp"))
+                        .POST(HttpRequest.BodyPublishers.noBody())
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(write.statusCode()).isEqualTo(401);
+        assertThat(write.body()).contains("\"code\":\"UNAUTHENTICATED\"");
+        assertThat(write.headers().allValues("Set-Cookie")).isEmpty();
+    }
+
     private HttpRequest post(String token, boolean sendHeader) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri("/api/v1/contact"))
                 .header("Content-Type", "application/json")
