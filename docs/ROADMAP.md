@@ -314,10 +314,13 @@ webhooks are harmless, no card data is stored or logged anywhere.
 - **Performance:** Lighthouse ≥ 90 on mobile for key pages, image CDN/caching
   headers, database index review with realistic data.
 - **Accessibility:** WCAG 2.2 AA audit, keyboard and screen-reader testing.
-- **Operations:** production Compose with Caddy (HTTPS), backups with tested
-  restore, monitoring and alerting, log retention (short, no personal data),
-  email SPF/DKIM/DMARC, Dependabot or equivalent dependency alerts,
-  runbook in `docs/OPERATIONS.md`.
+- **Operations** ✅ (brought forward): production Compose with an edge Caddy (automatic HTTPS,
+  HSTS), nightly backups of database and photos with a restore command tested in CI, `/health`
+  for uptime monitoring and a heartbeat per backup, log rotation (5 × 10 MB, no access log, no
+  personal data), Dependabot, and the runbook `docs/OPERATIONS.md` (server, first start,
+  SPF/DKIM/DMARC, payments go-live, backups off the server, updates, incidents, go-live
+  checklist). At launch: the server, the mail provider's DNS records, an uptime monitor and the
+  off-site backup copy, set up by following the runbook.
 - Final end-to-end test suite run on staging; owner acceptance test.
 
 **Done when:** owner signs off and the go-live checklist is complete.

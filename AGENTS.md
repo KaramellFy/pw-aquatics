@@ -19,6 +19,7 @@ and some species may not be traded legally.
 | [docs/DATABASE.md](docs/DATABASE.md) | Schema, conventions, migrations |
 | [docs/API.md](docs/API.md) | REST conventions and endpoints |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and what belongs in each |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Running the shop on a server: setup, backups, monitoring, incidents |
 
 ## 2. Current status
 
@@ -158,6 +159,15 @@ npm run generate:api   # regenerate src/lib/api/schema.d.ts from the running bac
 ```
 
 Behind a Docker Hub rate limit, run tests with `TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX=mirror.gcr.io/`.
+
+**Production** (on the server; docs/OPERATIONS.md — `.env` there sets `COMPOSE_FILE=docker-compose.prod.yml`):
+
+```bash
+cp .env.production.example .env      # fill in, chmod 600
+docker compose up -d --build         # edge (HTTPS), frontend, backend, postgres, backup
+docker compose exec backup sh /opt/backup/backup.sh       # a backup now
+docker compose run --rm restore <backup> --yes            # restore one (stop backend and backup first)
+```
 
 **Full stack** (repository root):
 
@@ -481,6 +491,7 @@ Update the docs in the same change when you:
 - change architecture, a module boundary or a dependency → `docs/ARCHITECTURE.md` (+ ADR in `docs/adr/`)
 - finish or re-scope roadmap items → `docs/ROADMAP.md`
 - change commands or setup → this file and `README.md`
+- change the production stack, backups or what the operator must do → `docs/OPERATIONS.md`
 
 ## 14. Definition of done
 

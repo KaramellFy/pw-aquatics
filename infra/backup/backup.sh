@@ -4,7 +4,7 @@
 # are deleted. If BACKUP_PING_URL is set (e.g. a healthchecks.io check), it is called on
 # success and "<url>/fail" on failure, so a missed or failed backup raises an alert.
 #
-# Run one by hand: docker compose -f docker-compose.prod.yml exec backup sh /opt/backup/backup.sh
+# Run one by hand: docker compose exec backup sh /opt/backup/backup.sh
 set -eu
 
 ping() {

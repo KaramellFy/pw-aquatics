@@ -1,7 +1,7 @@
 # Production stack on one server (docs/OPERATIONS.md):
 #
 #   cp .env.production.example .env    # fill in; the file stays on the server, never in git
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose up -d --build       # .env sets COMPOSE_FILE to this file
 #
 # Only the edge proxy is reachable from outside (ports 80 and 443). The database and the API
 # have no published ports. Backups are written nightly to ./backups (BACKUP_DIR).
@@ -132,7 +132,7 @@ services:
     logging: *logging
 
   # Restores one backup; never started on its own (docs/OPERATIONS.md, "Restore a backup"):
-  #   docker compose -f docker-compose.prod.yml run --rm restore <backup name> --yes
+  #   docker compose run --rm restore <backup name> --yes
   restore:
     image: postgres:18-alpine
     profiles: ["restore"]

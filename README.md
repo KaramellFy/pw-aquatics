@@ -58,10 +58,21 @@ and put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` into `.env`. While the con
 "Testing", only the test users listed there can sign in. See
 [ADR-014](docs/adr/014-sign-in-with-google.md).
 
+**Administrators** sign in in two steps: after the password, a code from an authenticator app
+(the shop asks them to set it up on their first visit to `/admin`). Locally, scan the QR code
+with any authenticator app on your phone. See
+[ADR-015](docs/adr/015-two-step-sign-in-for-administrators.md).
+
 **Pages for search engines:** in production the frontend's Caddy asks the backend to fill in
 public pages (title, language links, text) before JavaScript runs, see
 [ADR-013](docs/adr/013-pages-filled-in-by-the-backend.md). Nothing to set up for `npm run dev`:
 the Vite dev server serves pages as before.
+
+## Run it on a server
+
+`docker-compose.prod.yml` runs the whole shop on one server with automatic HTTPS, nightly
+backups and a restore command. Setup, email (SPF/DKIM/DMARC), payments, backups, monitoring,
+updates and what to do when something goes wrong: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## Documentation
 
@@ -69,6 +80,7 @@ the Vite dev server serves pages as before.
 - [Database](docs/DATABASE.md) — schema, conventions, migrations
 - [API](docs/API.md) — REST conventions and endpoints
 - [Roadmap](docs/ROADMAP.md) — development phases
+- [Operations](docs/OPERATIONS.md) — running the shop on a server: setup, backups, monitoring, incidents
 - [Website gallery](docs/gallery/README.md) — screenshots, animation clips and a video tour
 - [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) — rules for coding agents and developers
 

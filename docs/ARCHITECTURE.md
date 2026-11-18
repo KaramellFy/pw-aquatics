@@ -126,13 +126,14 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 wakupwirbellose/                 # repository name (brand: PW Aquatics)
 ├── AGENTS.md / CLAUDE.md        # Instructions for coding agents
 ├── README.md
-├── docker-compose.yml           # Full local stack
-├── docker-compose.prod.yml      # Production overrides
-├── .env.example                 # Every variable documented, no real secrets
-├── docs/                        # Architecture, database, API, roadmap, ADRs
+├── docker-compose.yml           # Local stack (postgres, mailpit, API)
+├── docker-compose.prod.yml      # Production stack on one server (docs/OPERATIONS.md)
+├── .env.example                 # Every local variable documented, no real secrets
+├── .env.production.example      # The production settings, placeholders only
+├── docs/                        # Architecture, database, API, roadmap, operations, ADRs
 ├── infra/
-│   ├── caddy/Caddyfile
-│   └── postgres/                # init scripts (extensions), backup scripts
+│   ├── caddy/Caddyfile          # Edge proxy: HTTPS, HSTS, /api and /media → backend
+│   └── backup/                  # Nightly backup, restore (run.sh, backup.sh, restore.sh)
 ├── backend/
 │   ├── build.gradle.kts
 │   ├── Dockerfile
@@ -748,9 +749,10 @@ design-led studio than a pet-supply store. Tokens live in
 | `postgres` | `postgres:18` | Database, named volume | ✓ | ✓ |
 | `backend` | built from `backend/Dockerfile` (multi-stage, JRE only, non-root user) | API | ✓ | ✓ |
 | `frontend` | built from `frontend/Dockerfile` (build stage → static files) | SPA assets; sends page requests to the backend to be filled in (ADR-013, `PAGES_BACKEND`, default `backend:8080`) | — (Vite dev server) | ✓ |
-| `caddy` | `caddy:2` | Reverse proxy, automatic HTTPS, static files, `/media` | optional | ✓ |
+| `edge` | `caddy:2-alpine` with `infra/caddy/Caddyfile` | The only public entry: automatic HTTPS (Let's Encrypt), HTTP → HTTPS, HSTS; `/api`, `/media` → backend, the rest → frontend; `/health` for uptime monitors; no access log | — | ✓ |
+| `backup` | `postgres:18-alpine` with `infra/backup` | Nightly `pg_dump` (custom format, checked) and photo archive into `BACKUP_DIR`, kept `BACKUP_KEEP_DAYS`, heartbeat ping | — | ✓ |
+| `restore` | same | Replaces database and photos with one backup; started by hand only (profile `restore`) | — | ✓ |
 | `mailpit` | `axllent/mailpit` | Catches all outgoing email in development | ✓ | — |
-| `minio` | `minio/minio` | S3-compatible storage (only if we choose S3) | optional | — |
 
 In development the Vite dev server proxies `/api` and `/media` to the backend,
 so the browser sees one origin exactly as in production.
@@ -771,9 +773,13 @@ BANK_ACCOUNT_HOLDER, BANK_IBAN, BANK_BIC, BANK_NAME
 ORDER_BANK_TRANSFER_PAYMENT_DAYS=7, SHIPPING_HANDLING_DAYS=1
 APP_ADMIN_BOOTSTRAP_EMAIL, APP_ADMIN_BOOTSTRAP_PASSWORD   # first admin, used once
 # Mail
-SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM
+SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_AUTH, SMTP_STARTTLS, MAIL_FROM, SHOP_INBOX_EMAIL
+# Security
+APP_ENCRYPTION_KEY    # 32 random bytes, Base64: encrypts the administrators' two-step sign-in keys (ADR-015)
+# Production only (docker-compose.prod.yml, .env.production.example)
+SHOP_DOMAIN, ACME_EMAIL, BACKUP_TIME, BACKUP_KEEP_DAYS, BACKUP_DIR, BACKUP_PING_URL
 # Media
-MEDIA_STORAGE=local|s3, MEDIA_LOCAL_PATH, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
+MEDIA_LOCAL_PATH      # photos on a local volume (S3 storage would be a later option)
 # Card payments (all three or none; test and live keys must not be mixed)
 STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, ORDER_CARD_PAYMENT_MINUTES=60
 # The publishable key reaches the browser through the API, so the frontend build needs no Stripe variable.
@@ -790,11 +796,17 @@ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 - **production** — a single VM (EU region, GDPR) with Docker Compose is enough
   at launch; managed PostgreSQL is a good upgrade if budget allows.
 - **CI (GitHub Actions):** on every PR — backend build + tests (Testcontainers),
-  frontend lint + type-check + unit tests, OpenAPI type drift check, Docker
-  build. On `main` — build and push images; deploy is a manual approval step.
-- **Backups:** nightly `pg_dump` + WAL archiving (or managed backups), media
-  volume backups, restore tested before launch.
-- **Monitoring:** uptime check on `/actuator/health`, error alerting, disk usage.
+  frontend lint + type-check + unit tests and build; when the stack changes
+  (`production.yml`) — the real images are built, `docker-compose.prod.yml` is started, checked
+  through the edge proxy, and a backup is made and restored. Deploying is done by hand on the
+  server (`git pull && docker compose up -d --build`, docs/OPERATIONS.md §8).
+- **Backups:** nightly `pg_dump` and photo archive on the server (14 days), an encrypted copy
+  off the server (restic or similar), a heartbeat ping per backup, restore practised every three
+  months (docs/OPERATIONS.md §6). Point-in-time recovery (WAL archiving) is a later option.
+- **Monitoring:** an external uptime check on `https://<domain>/health` (readiness: API and
+  database), the backup heartbeat, disk usage, Let's Encrypt's expiry emails. Logs rotate at
+  5 × 10 MB per service.
+- **Dependencies:** Dependabot for npm, Gradle, Docker images and GitHub Actions.
 
 ---
 

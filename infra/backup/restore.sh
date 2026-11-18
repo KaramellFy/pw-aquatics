@@ -2,9 +2,9 @@
 # Restores one backup made by backup.sh: replaces the whole database and all uploaded photos.
 # Stop the backend first, so nothing writes in between (docs/OPERATIONS.md, "Restore a backup"):
 #
-#   docker compose -f docker-compose.prod.yml stop backend backup
-#   docker compose -f docker-compose.prod.yml run --rm restore 2026-11-18_03-30-00 --yes
-#   docker compose -f docker-compose.prod.yml start backend backup
+#   docker compose stop backend backup
+#   docker compose run --rm restore 2026-11-18_03-30-00 --yes
+#   docker compose up -d
 set -eu
 
 name="${1:-}"
