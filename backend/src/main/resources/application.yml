@@ -28,6 +28,15 @@ spring:
     port: ${SMTP_PORT:1025}
     username: ${SMTP_USERNAME:}
     password: ${SMTP_PASSWORD:}
+    # Production: a mail provider on port 587 with login and STARTTLS (docker-compose.prod.yml);
+    # Mailpit locally needs neither. A slow server must not hold up the outbox worker.
+    properties:
+      "[mail.smtp.auth]": ${SMTP_AUTH:false}
+      "[mail.smtp.starttls.enable]": ${SMTP_STARTTLS:false}
+      "[mail.smtp.starttls.required]": ${SMTP_STARTTLS:false}
+      "[mail.smtp.connectiontimeout]": 10000
+      "[mail.smtp.timeout]": 10000
+      "[mail.smtp.writetimeout]": 10000
   mvc:
     problemdetails:
       enabled: true
@@ -101,6 +110,9 @@ app:
     lock-duration: PT15M
     verification-token-ttl: PT48H
     password-reset-token-ttl: PT1H
+    # 32 random bytes, Base64 (openssl rand -base64 32). Encrypts the administrators' two-step
+    # sign-in keys; without the same key they must set up two-step sign-in again.
+    encryption-key: ${APP_ENCRYPTION_KEY:}
   shipping:
     # Days needed before a parcel can leave: an order placed today ships on the
     # first dispatch weekday that is at least this many days away.
@@ -216,4 +228,8 @@ app:
     # Password confirmations inside a session (change password/email, delete account).
     password-check:
       capacity: 10
+      period: PT15M
+    # Codes from the authenticator app or recovery codes, per account (sign-in and settings).
+    two-factor:
+      capacity: 5
       period: PT15M

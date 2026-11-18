@@ -16,7 +16,7 @@ import { AdminGalleryPage } from './AdminGalleryPage';
 import { AdminInboxPage } from './AdminInboxPage';
 import { AdminShippingPage } from './AdminShippingPage';
 
-const owner: Session = { authenticated: true, user: { ...anna.user!, role: 'ADMIN' } };
+const owner: Session = { ...anna, user: { ...anna.user!, role: 'ADMIN' } };
 const money = (amount: number) => ({ amount, currency: 'EUR' });
 
 const routes = [

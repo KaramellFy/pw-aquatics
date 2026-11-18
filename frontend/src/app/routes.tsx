@@ -118,6 +118,13 @@ export const routes: RouteObject[] = [
                   Component: (await import('@/features/account/pages/ProfilePage')).ProfilePage,
                 }),
               },
+              {
+                // Two-step sign-in for administrators (the QR code library loads only here).
+                path: 'two-factor',
+                lazy: async () => ({
+                  Component: (await import('@/features/account/pages/TwoFactorSetupPage')).TwoFactorSetupPage,
+                }),
+              },
             ],
           },
         ],

@@ -27,6 +27,7 @@ export const ROUTE_PATHS = [
   '/account/orders/:orderNumber',
   '/account/addresses',
   '/account/profile',
+  '/account/two-factor',
   '/cart',
   '/checkout',
   '/checkout/pay/:orderNumber',

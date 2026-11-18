@@ -26,7 +26,6 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             hrefLang={language}
             lang={language}
             aria-current={active ? 'true' : undefined}
-            aria-label={t(`common.languages.${language}`)}
             onClick={(event) => {
               if (active) {
                 event.preventDefault();
@@ -47,7 +46,9 @@ export function LanguageSwitcher({ className }: { className?: string }) {
                 markClassName="bg-current/12"
               />
             )}
-            <span className="relative z-10">{language}</span>
+            {/* The name read out starts with the visible "EN"/"DE" (WCAG 2.5.3), then the full name. */}
+            <span className="relative z-10">{language}</span>{' '}
+            <span className="sr-only">{t(`common.languages.${language}`)}</span>
           </a>
         );
       })}

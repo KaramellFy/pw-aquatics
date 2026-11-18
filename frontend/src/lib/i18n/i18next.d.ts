@@ -1,10 +1,10 @@
 import 'i18next';
-import type { resources } from './index';
+import type { Messages } from './locales/en';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
     defaultNS: 'translation';
-    resources: (typeof resources)['en'];
+    resources: { translation: Messages };
     returnNull: false;
   }
 }

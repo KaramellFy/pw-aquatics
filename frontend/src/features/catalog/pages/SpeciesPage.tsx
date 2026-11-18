@@ -33,10 +33,7 @@ export function SpeciesPage() {
         />
       )}
       <Container className="pt-10 pb-24 sm:pt-14">
-        <Breadcrumbs
-          label={t('nav.shop')}
-          items={[{ label: t('nav.shop'), to: '/shop' }, { label: title || '…' }]}
-        />
+        <Breadcrumbs items={[{ label: t('nav.shop'), to: '/shop' }, { label: title || '…' }]} />
         {data ? (
           <div className="mt-8 grid gap-12 lg:grid-cols-12 lg:gap-16">
             <header className="lg:col-span-7">

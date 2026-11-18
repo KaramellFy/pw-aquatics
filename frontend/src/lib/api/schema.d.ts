@@ -519,8 +519,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sign in with email and password; sets the session cookie */
+        /** Sign in with email and password; sets the session cookie, or asks for the second step (twoFactorRequired) */
         post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login/two-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Second step of signing in: a code from the authenticator app or a recovery code */
+        post: operations["loginSecondStep"];
         delete?: never;
         options?: never;
         head?: never;
@@ -937,6 +954,57 @@ export interface paths {
         put?: never;
         /** Create a category */
         post: operations["createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/two-factor/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A new key for the authenticator app; replacing a working app needs a current code */
+        post: operations["startTwoFactorSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/two-factor/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ten new recovery codes for a current code; the old ones stop working */
+        post: operations["renewRecoveryCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/two-factor/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turn on the new key with its first code; returns ten recovery codes once and signs out the account's other sessions */
+        post: operations["confirmTwoFactorSetup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1637,6 +1705,23 @@ export interface paths {
         };
         /** Number of messages per status */
         get: operations["counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/two-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether two-step sign-in is set up, and how many recovery codes are left */
+        get: operations["twoFactorStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2579,6 +2664,11 @@ export interface components {
         SessionView: {
             authenticated: boolean;
             user: components["schemas"]["CurrentUserView"] | null;
+            twoFactorRequired: boolean;
+            twoFactorSetupRequired: boolean;
+        };
+        TwoFactorCodeRequest: {
+            code: string;
         };
         OrderStatusRequest: {
             /** @enum {string} */
@@ -2689,6 +2779,16 @@ export interface components {
         };
         LockRequest: {
             reason?: string;
+        };
+        TwoFactorSetupRequest: {
+            code?: string;
+        };
+        TwoFactorSetupView: {
+            secret: string;
+            otpauthUri: string;
+        };
+        RecoveryCodesView: {
+            recoveryCodes: string[];
         };
         UpdateCartItemRequest: {
             /** Format: int32 */
@@ -3289,6 +3389,13 @@ export interface components {
             totalItems: number;
             /** Format: int32 */
             totalPages: number;
+        };
+        TwoFactorStatusView: {
+            enabled: boolean;
+            /** Format: date-time */
+            enabledAt: string | null;
+            /** Format: int32 */
+            recoveryCodesLeft: number;
         };
         OrderSummaryView: {
             orderNumber: string;
@@ -4331,6 +4438,30 @@ export interface operations {
             };
         };
     };
+    loginSecondStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SessionView"];
+                };
+            };
+        };
+    };
     forgotPassword: {
         parameters: {
             query?: never;
@@ -5098,6 +5229,78 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminCategoryView"];
+                };
+            };
+        };
+    };
+    startTwoFactorSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorSetupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TwoFactorSetupView"];
+                };
+            };
+        };
+    };
+    renewRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecoveryCodesView"];
+                };
+            };
+        };
+    };
+    confirmTwoFactorSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecoveryCodesView"];
                 };
             };
         };
@@ -6158,6 +6361,26 @@ export interface operations {
                     "*/*": {
                         [key: string]: number;
                     };
+                };
+            };
+        };
+    };
+    twoFactorStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TwoFactorStatusView"];
                 };
             };
         };

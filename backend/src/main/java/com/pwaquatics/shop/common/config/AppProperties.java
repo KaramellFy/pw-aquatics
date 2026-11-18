@@ -51,12 +51,45 @@ public record AppProperties(
     /** Media storage: local directory served under {@code publicPath}. */
     public record Media(@NotBlank String localPath, @NotBlank String publicPath) {}
 
-    /** Login protection and lifetimes of emailed one-time links. */
+    /**
+     * Login protection, lifetimes of emailed one-time links and the key for secrets the shop
+     * stores encrypted.
+     *
+     * @param encryptionKey 32 random bytes, Base64 ({@code APP_ENCRYPTION_KEY}); encrypts the
+     *     administrators' two-step sign-in keys ({@code SecretBox})
+     */
     public record Security(
             @Min(1) int maxFailedLogins,
             @NotNull Duration lockDuration,
             @NotNull Duration verificationTokenTtl,
-            @NotNull Duration passwordResetTokenTtl) {}
+            @NotNull Duration passwordResetTokenTtl,
+            String encryptionKey) {
+
+        /**
+         * Checked here rather than with {@code @NotBlank}, so a startup error never prints the key.
+         */
+        @AssertTrue(message = "APP_ENCRYPTION_KEY must be 32 random bytes in Base64 (openssl rand -base64 32)")
+        public boolean isEncryptionKeyValid() {
+            try {
+                return encryptionKeyBytes().length == 32;
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
+        }
+
+        public byte[] encryptionKeyBytes() {
+            if (encryptionKey == null) {
+                throw new IllegalArgumentException("No encryption key");
+            }
+            return java.util.Base64.getDecoder().decode(encryptionKey.strip());
+        }
+
+        @Override
+        public String toString() {
+            return "Security[maxFailedLogins=%d, lockDuration=%s, verificationTokenTtl=%s, passwordResetTokenTtl=%s]"
+                    .formatted(maxFailedLogins, lockDuration, verificationTokenTtl, passwordResetTokenTtl);
+        }
+    }
 
     /**
      * @param handlingDays days needed before a parcel can leave (0 = orders can ship the same day)

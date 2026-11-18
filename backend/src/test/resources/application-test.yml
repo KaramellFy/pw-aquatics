@@ -1,6 +1,8 @@
 app:
   cookies:
     secure: false
+  security:
+    encryption-key: /CItzREQ27Q+/IL0bmdEFEK1/ST+AzHSBuccvj8TTP0=
   outbox:
     scheduler-enabled: false
   mail:
@@ -49,4 +51,8 @@ app:
       period: PT15M
     password-check:
       capacity: 4
+      period: PT15M
+    # Setup takes one check; the tests then need a full sign-in's worth of wrong codes.
+    two-factor:
+      capacity: 8
       period: PT15M

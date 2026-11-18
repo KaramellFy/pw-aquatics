@@ -59,6 +59,8 @@ public class PageService {
     /** The home page's featured products (frontend Hero.tsx FEATURED_QUERY). */
     static final int FEATURED_SIZE = 4;
     static final int GALLERY_PAGE_SIZE = 24;
+    static final String GALLERY_SIZES = "(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw";
+    static final int GALLERY_PRIORITY_PHOTOS = 2;
 
     private static final Pattern SLUG = Pattern.compile("[a-z0-9][a-z0-9-]{0,199}");
     private static final int DESCRIPTION_LENGTH = 160;
@@ -181,9 +183,10 @@ public class PageService {
             throw new NotFoundException("Category not found.");
         }
         CategoryNodeView category = path.isEmpty() ? null : path.getLast();
-        Page<ProductSummaryView> products = catalog.searchProducts(new ProductSearch(
+        ProductSearch search = new ProductSearch(
                 null, categorySlug, null, null, null, null, null, null, false, ProductSort.RELEVANCE,
-                listPage - 1, SHOP_PAGE_SIZE));
+                listPage - 1, SHOP_PAGE_SIZE);
+        Page<ProductSummaryView> products = catalog.searchProducts(search);
         if (listPage > 1 && products.isEmpty()) {
             throw new NotFoundException("Page not found.");
         }
@@ -218,12 +221,17 @@ public class PageService {
         String list = categorySlug == null ? "/shop" : "/shop/" + categorySlug;
         writer.pagination(body, page, list, listPage, products.getTotalPages());
 
-        // The app's query for this list (frontend shopFilters.ts toProductQuery).
+        // The app's queries for this list (frontend shopFilters.ts toProductQuery and
+        // toFacetQuery) and the filter panel's lists, so the first render needs no request.
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("/categories", tree);
         data.put("/products?" + (categorySlug == null ? "" : "category=" + categorySlug + "&")
                         + (listPage > 1 ? "page=" + (listPage - 1) + "&" : "") + "size=" + SHOP_PAGE_SIZE,
                 PageResponse.of(products));
+        data.put("/products/facets" + (categorySlug == null ? "" : "?category=" + categorySlug), catalog.facets(search));
+        data.put("/species", catalog.species());
+        data.put("/colours", catalog.colours());
+        data.put("/grades", catalog.grades());
         List<Map<String, Object>> structured = category == null
                 ? List.of()
                 : List.of(breadcrumbData(Stream.concat(
@@ -253,7 +261,8 @@ public class PageService {
             body.append("<p><i>").append(Html.text(product.species().scientificName())).append("</i></p>");
         }
         if (photo != null) {
-            writer.image(body, photo, "(min-width: 1024px) 50vw, 100vw");
+            // The app's sizes (frontend catalog ProductGallery).
+            writer.image(body, photo, "(min-width: 1024px) 55vw, 100vw", true);
         }
         writer.paragraph(body, product.shortDescription());
         if (!product.variants().isEmpty()) {
@@ -322,9 +331,12 @@ public class PageService {
         Page<GalleryImageView> photos = gallery.published(0, GALLERY_PAGE_SIZE);
         StringBuilder body = open(page);
         writer.heading(body, page.text("pages.gallery.heading"), page.text("pages.gallery.lead"));
-        for (GalleryImageView photo : photos.getContent()) {
+        List<GalleryImageView> content = photos.getContent();
+        for (int index = 0; index < content.size(); index++) {
+            GalleryImageView photo = content.get(index);
             body.append("<figure>");
-            writer.image(body, photo.image(), "(min-width: 768px) 33vw, 100vw");
+            // The app's sizes and first photos (frontend content GalleryGrid).
+            writer.image(body, photo.image(), GALLERY_SIZES, index < GALLERY_PRIORITY_PHOTOS);
             String caption = Stream.of(photo.title(), photo.caption())
                     .filter(text -> text != null && !text.isBlank())
                     .collect(Collectors.joining(" – "));
@@ -333,11 +345,12 @@ public class PageService {
             }
             body.append("</figure>");
         }
+        // The app's first page of the gallery (frontend content/api/gallery.ts).
         return new FilledPage(
                 200,
                 PageHead.of(page.text("pages.gallery.title"), page.text("pages.gallery.description"), "/gallery"),
                 close(body),
-                Map.of());
+                Map.of("/gallery?page=0&size=" + GALLERY_PAGE_SIZE, PageResponse.of(photos)));
     }
 
     private FilledPage notFound(PageContext page) {

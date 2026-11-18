@@ -1,8 +1,8 @@
 # PW Aquatics — Development Roadmap
 
 > Status: **Approved and in progress.** Phases 0–8 are built, Phase 9 (payments) is built
-> apart from going live, and the SEO part of Phase 10 was brought forward (see the progress
-> table). Work starts on the owner's go-ahead; each step ends with a demo and review.
+> apart from going live, and the SEO, operations and security/quality parts of Phase 10 were
+> brought forward (see the progress table). Work starts on the owner's go-ahead; each step ends with a demo and review.
 
 Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [API.md](API.md)
 
@@ -38,6 +38,8 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md) · [AP
 | 3 (addition) Sign in with Google | ✅ "Continue with Google" on the sign-in and registration pages (shown once the owner sets it up), messages when Google sign-in did not work, account page shows the connected Google account with "disconnect" (while there is a password) and "email me a link" to set a password; changing the email address and deleting the account confirm with Google instead of a password; EN/DE | ✅ `user_identities` (Google's subject id), OpenID Connect code flow with PKCE run by the server (Spring Security's OAuth 2 client parts), automatic linking only for addresses Google has verified (with a notice email), unconfirmed accounts lose their password when linked, administrators password-only, confirmation with Google for 10 minutes and one change; tested against a local stand-in for Google that signs real ID tokens, and in a browser behind Caddy up to Google's sign-in page (which accepted the request and only rejected the placeholder client id; the server's code exchange with Google is not reachable from the build environment). Apple: later, same flow (ADR-014) |
 | 8 Coupons & statistics | ✅ coupon field in the cart summary (apply, remove, the server's reason when a code does not or no longer applies), discount in the cart, checkout, confirmation, order pages and emails; admin coupon list with status tabs, coupon dialog (percent or euros typed as „12,5“), coupon page with what it brought, orders that used it, switch on/off, delete while unused; coupon section on the dashboard. Dashboard: right-now tiles (awaiting payment, to ship, low stock, sold out), period filter (presets and custom), key figures compared with the previous period, sales over time (paid vs. awaiting payment; revenue, orders, animals), best sellers, revenue by category/species/country, orders by weekday and status, stock changes with loss rate, latest orders, running-low list, table view for every chart, CSV download | ✅ `coupons`, `coupon_redemptions`, `carts.coupon_id`; coupon terms in `pricing` (percentage with cap, fixed amount, free shipping; minimum order; reduced products excluded; largest-remainder allocation, VAT per rate after the discount); validity in `coupon` (dates, active, total and per-customer limits); redemption in the order transaction with a conditional counter update, released on cancellation; admin coupon API with audit log; read model in `admin` (`/admin/dashboard`, `/admin/stats/{sales,products,stock,coupons}`, coupon usage and redemptions, CSV export), periods in shop time with automatic day/week/month buckets, tested against hand-counted data |
 | 10 (part) SEO, brought forward | 🚧 step 1 ✅ German links: every page also under `/de/…` (same path words), language switch as links to the same page, canonical and `hreflang` per page, returning German visitors land on `/de/`, `robots.txt` for both languages. Step 2 ✅ German texts in the admin next to the English ones (products, pack sizes, photo descriptions, categories, species, colours, grades, shipping methods, gallery, coupon notes); German pages show them and fall back to English; a German product or species page stays out of Google (`noindex`) until its German text is written. Step 3 ✅ public pages (home, shop, categories, products, species, gallery, about, contact) arrive with their title, description, language links, structured data and text before JavaScript runs; the app takes over without a loading state. Step 4 ✅ `sitemap.xml` in both languages, `robots.txt` names it, each page of the shop list is its own page (`?page=2`), filtered views point to the plain list, structured data (product with a price per pack size, breadcrumbs, shop name and logo) comes from the backend. Open for launch: return policy and shipping in the product data (after the legal texts), Search Console | ✅ step 1: email links in the customer's language (`SiteLinks`). Step 2 ✅ `…_de` columns, API answers in the request's language (`ContentLanguage`), search in both languages, `languages` on product and species details, orders keep names in the customer's language. Step 3 ✅ `pages` module: Caddy asks `GET /_pages/**`, the backend fills the frontend build's `index.html` (head, text, first API responses), 404 for unknown addresses, products, species and categories (the app’s route list comes with the build), plain `index.html` as fallback (ADR-013). Step 4 ✅ `GET /_site/sitemap.xml` and `/_site/robots.txt` (Caddy serves them as `/sitemap.xml`, `/robots.txt`), `?page=N` on shop pages, structured data only from the backend (`Product` with `Offer` per pack size, `BreadcrumbList`, `Organization`, `WebSite`) |
+| 10 (part) Operations, brought forward | — | ✅ production Compose with an edge Caddy (automatic HTTPS, HSTS), nightly backups of database and photos with a restore command tested in CI, `/health` for uptime monitoring and a heartbeat per backup, log rotation without personal data, Dependabot, runbook `docs/OPERATIONS.md` (server, first start, SPF/DKIM/DMARC, payments go-live, backups, updates, incidents, go-live checklist) |
+| 10 (part) Security, performance & accessibility | ✅ two-step sign-in for administrators: code step after the password, setup page with QR code and recovery codes, recovery codes renewable on the profile page; Lighthouse mobile 88–95 on the ten main pages (before 66–91) (texts loaded per language, first render split, shop and gallery arrive with their data, no layout shifts, matching photo sizes); accessibility 100 and 0 axe findings on 64 views, keyboard pass; fixed label in name, heading order, contact list, breadcrumb name, packing-slip landmark | ✅ two-step sign-in (TOTP with replay protection, encrypted keys, hashed recovery codes, rate limits, email notices; ADR-015); OWASP ZAP baseline and active API scan without failures (fixed: cookie on publicly cached photos, 500 for query parameters without a name); npm, Java and image audits; shop and gallery pages embed their first API answers; results, accepted findings and how to repeat: `docs/CHECKS.md` |
 
 Open in Phase 7: a packing slip as PDF (with invoices in Phase 10; the print page covers it
 until then), the audit-log page, the orders CSV export, the real carrier list and tracking
@@ -308,16 +310,22 @@ webhooks are harmless, no card data is stored or logged anywhere.
   tax adviser (then build the order anonymisation job).
 - **Invoices:** sequential invoice numbers, PDF invoices attached to emails,
   downloadable in the account.
-- **Security:** OWASP Top 10 review, dependency audit, CSP finalised,
-  admin TOTP two-factor authentication, penetration test (at least an automated
-  scan with OWASP ZAP).
-- **Performance:** Lighthouse ≥ 90 on mobile for key pages, image CDN/caching
-  headers, database index review with realistic data.
-- **Accessibility:** WCAG 2.2 AA audit, keyboard and screen-reader testing.
-- **Operations:** production Compose with Caddy (HTTPS), backups with tested
-  restore, monitoring and alerting, log retention (short, no personal data),
-  email SPF/DKIM/DMARC, Dependabot or equivalent dependency alerts,
-  runbook in `docs/OPERATIONS.md`.
+- **Security** (results and how to repeat: docs/CHECKS.md): dependency audit ✅, CSP finalised ✅
+  (inline styles accepted), admin TOTP two-factor authentication ✅ (ADR-015), automated scan
+  with OWASP ZAP ✅ (baseline and active API scan). Open: OWASP Top 10 review of the code, a
+  signed-in scan and a manual penetration test against the real server.
+- **Performance:** Lighthouse ≥ 90 on mobile for key pages ✅ (the product page scores 88–90
+  with placeholder art; measure again with real photos), caching headers ✅ (photos are cached
+  for a year; a CDN is optional). Open: database index review with realistic data.
+- **Accessibility:** WCAG 2.2 AA audit ✅ (axe-core and Lighthouse on all page types, 0 findings),
+  keyboard testing ✅. Open: screen-reader testing by a person.
+- **Operations** ✅ (brought forward): production Compose with an edge Caddy (automatic HTTPS,
+  HSTS), nightly backups of database and photos with a restore command tested in CI, `/health`
+  for uptime monitoring and a heartbeat per backup, log rotation (5 × 10 MB, no access log, no
+  personal data), Dependabot, and the runbook `docs/OPERATIONS.md` (server, first start,
+  SPF/DKIM/DMARC, payments go-live, backups off the server, updates, incidents, go-live
+  checklist). At launch: the server, the mail provider's DNS records, an uptime monitor and the
+  off-site backup copy, set up by following the runbook.
 - Final end-to-end test suite run on staging; owner acceptance test.
 
 **Done when:** owner signs off and the go-live checklist is complete.

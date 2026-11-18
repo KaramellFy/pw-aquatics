@@ -2,9 +2,9 @@ import '@fontsource-variable/outfit';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/inter/wght-italic.css';
 import './styles/index.css';
-import './lib/i18n';
+import { i18nReady } from './lib/i18n';
 
-import { StrictMode } from 'react';
+import { StrictMode, startTransition } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { createQueryClient } from './app/providers';
@@ -19,10 +19,15 @@ takeOverServerPage(queryClient);
 dropStructuredDataOnLeave(router);
 
 // The backend's text of this page stays visible until the app can show the page itself.
-void whenRouterReady(router).then(() => {
-  createRoot(container).render(
-    <StrictMode>
-      <App queryClient={queryClient} />
-    </StrictMode>,
-  );
+// The first render is a transition, so React renders in small pieces and the page stays
+// responsive (one long task would block taps and scrolling meanwhile).
+void Promise.all([whenRouterReady(router), i18nReady]).then(() => {
+  const root = createRoot(container);
+  startTransition(() => {
+    root.render(
+      <StrictMode>
+        <App queryClient={queryClient} />
+      </StrictMode>,
+    );
+  });
 });

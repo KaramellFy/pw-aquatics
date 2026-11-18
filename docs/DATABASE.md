@@ -132,6 +132,31 @@ CREATE TABLE user_identities (
     UNIQUE (user_id, provider)                -- one Google account per shop account; also the index on user_id
 );
 
+-- Two-step sign-in for administrators (ADR-015): the key shared with the authenticator app,
+-- encrypted with APP_ENCRYPTION_KEY (AES-256-GCM, bound to the user id). Deleted with the account.
+CREATE TABLE user_two_factor (
+    id                         uuid PRIMARY KEY,
+    user_id                    uuid        NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    secret_ciphertext          text,                -- the key in use; NULL until its first code was entered
+    pending_secret_ciphertext  text,                -- a new key during setup, waiting for its first code
+    enabled_at                 timestamptz,
+    last_used_step             bigint      NOT NULL DEFAULT 0,   -- 30-second step of the last accepted code (no reuse)
+    created_at                 timestamptz NOT NULL DEFAULT now(),
+    updated_at                 timestamptz NOT NULL DEFAULT now(),
+    version                    bigint      NOT NULL DEFAULT 0,
+    CHECK ((secret_ciphertext IS NULL) = (enabled_at IS NULL))
+);
+
+-- Ten one-time recovery codes per administrator; only SHA-256 hashes (60 random bits each).
+CREATE TABLE two_factor_recovery_codes (
+    id          uuid PRIMARY KEY,
+    user_id     uuid        NOT NULL REFERENCES user_two_factor(user_id) ON DELETE CASCADE,
+    code_hash   char(64)    NOT NULL,
+    used_at     timestamptz,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, code_hash)                 -- also the index on user_id
+);
+
 -- One-time tokens for email verification, password reset and email change.
 -- Only a SHA-256 hash of the token is stored; the raw token is only in the email.
 CREATE TABLE user_tokens (
@@ -185,7 +210,14 @@ Flyway migration that copies Spring Session's official PostgreSQL schema.
   `users`); `country_code` is upper-case ISO 3166-1 alpha-2 (`CHECK`).
 - `audit_log` also has an index on `actor_user_id`. Actions written so far:
   `USER_REGISTERED`, `USER_LOCKED_AFTER_FAILED_LOGINS`, `USER_PASSWORD_CHANGED`,
-  `USER_PASSWORD_RESET`, `USER_EMAIL_CHANGED`, `USER_ACCOUNT_DELETED`.
+  `USER_PASSWORD_RESET`, `USER_EMAIL_CHANGED`, `USER_ACCOUNT_DELETED`, and for two-step sign-in
+  `USER_TWO_FACTOR_ENABLED`, `USER_TWO_FACTOR_APP_CHANGED`, `USER_TWO_FACTOR_RECOVERY_CODES_RENEWED`,
+  `USER_TWO_FACTOR_RECOVERY_CODE_USED`, `USER_TWO_FACTOR_CODE_REJECTED`,
+  `USER_TWO_FACTOR_TOO_MANY_WRONG_CODES`.
+- Two-step sign-in: the migration that created its tables also signed out every administrator
+  once (`spring_session` rows), so the admin area asks for the second step from then on. An
+  administrator who lost phone and recovery codes is reset by deleting their `user_two_factor`
+  row (docs/OPERATIONS.md); the recovery codes go with it.
 - Expired `user_tokens` are purged daily, one week after expiry.
 
 ### 3.2 Catalog
@@ -951,7 +983,7 @@ redemption per order, coupon usage never above its limit (conditional update).
 | 7 | `shipments`, `order_notes`, `gallery_images`, `shipping_methods.version` |
 | 8 | `coupons`, `coupon_redemptions`, `carts.coupon_id` |
 | 9 | `payments`, `payment_webhook_events`, `payment_refunds` |
-| 10 | `invoices`; German texts (`…_de` columns, brought forward with SEO, §3) |
+| 10 | `invoices`; German texts (`…_de` columns, brought forward with SEO, §3); `user_two_factor`, `two_factor_recovery_codes` (brought forward with the security pass) |
 
 A foreign key that points to a table created in a later phase is added by
 that later phase's migration.
@@ -970,6 +1002,7 @@ adviser.
 | Account: email, name, phone (optional), language, password hash (Argon2id), login state | `users` | Customer account, Art. 6(1)(b) | Account deletion → row anonymised at once |
 | Connected Google account: Google's subject id, its address, when it was connected and last used (name and address of a new account come from Google) | `user_identities` | Signing in with Google at the customer's request, Art. 6(1)(b) | Deleted when the customer disconnects Google or deletes the account |
 | Confirmation with Google in the current session (time only) | `spring_session` attribute | Allowing a sensitive change without a password, Art. 6(1)(b) | With the session; counts 10 minutes and one change |
+| Two-step sign-in of administrators: the authenticator key (encrypted), when it was set up, the step of the last code, hashes of recovery codes and when each was used | `user_two_factor`, `two_factor_recovery_codes`; a sign-in waiting for its code as `spring_session` attribute (user id, role, expiry, attempts left) | Protecting the shop's admin area, Art. 6(1)(b)/(f) and Art. 32 | With the account (deleted on account deletion), or when an operator resets it; the waiting sign-in after 5 minutes |
 | Newsletter consent | `users.marketing_opt_in` + audit entries `MARKETING_CONSENT_GIVEN/WITHDRAWN` (time, source) | Consent, Art. 6(1)(a); proof per Art. 7(1) | Until withdrawn; no newsletter is sent yet |
 | Saved addresses | `addresses` | Faster checkout, Art. 6(1)(b) | Deleted by the customer or with the account |
 | Cart | `carts`, `cart_items` (variant ids only); guest carts via a random cookie, only its hash stored | Art. 6(1)(b) | Guest: 30 days after the last change; customer: with the account |
@@ -1038,4 +1071,7 @@ month, with the admin customer view (`/admin/customers`) as the tool: it shows t
 profile, saved addresses and orders, and can lock an account. Locking ends the customer's
 sessions at once; administrator accounts cannot be locked there.
 
-Backups are encrypted and follow the same retention.
+**Backups** (docs/OPERATIONS.md) hold the database and the photos: kept 14 days on the server
+(`BACKUP_KEEP_DAYS`), where they are as protected as the database itself; the off-site copy must
+be encrypted before it leaves the server. Deleted data disappears from backups when they expire.
+The two-step sign-in keys in a backup stay encrypted: `APP_ENCRYPTION_KEY` is not part of it.

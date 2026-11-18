@@ -74,7 +74,6 @@ function ProductView({ product }: { product: ProductDetail }) {
 
       <Container className="pt-10 pb-20 sm:pt-14">
         <Breadcrumbs
-          label={t('nav.shop')}
           items={[
             { label: t('nav.shop'), to: '/shop' },
             ...product.categoryPath.map((c) => ({ label: c.name, to: `/shop/${c.slug}` })),

@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
+
+# Backups written by docker-compose.prod.yml
+backups/
 
 # OS / editors
 .DS_Store

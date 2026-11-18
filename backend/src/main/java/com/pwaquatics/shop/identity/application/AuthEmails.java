@@ -171,7 +171,7 @@ class AuthEmails {
 
     /** Security notice: from now on the account can also be used by signing in with this Google account. */
     EmailMessage googleConnected(User user, String googleEmail) {
-        String security = links.page(user.getLocale(), "/account/security");
+        String security = links.page(user.getLocale(), "/account/profile");
         return german(user)
                 ? mail(user.getEmail(), "Anmeldung mit Google hinzugefügt", """
                         Hallo %s,
@@ -206,6 +206,83 @@ class AuthEmails {
 
                         Wasn't you? Please contact us.
                         """.formatted(user.getFirstName()));
+    }
+
+    /** Security notice: sign-in now asks for a code from this authenticator app. */
+    EmailMessage twoFactorEnabled(User user, boolean changed) {
+        String security = links.page(user.getLocale(), "/account/profile");
+        if (german(user)) {
+            return mail(user.getEmail(), changed ? "Neue App für die Anmeldung in zwei Schritten" : "Anmeldung in zwei Schritten ist aktiv", """
+                    Hallo %s,
+
+                    %s Bei jeder Anmeldung fragen wir nach deinem Passwort nach einem Code aus dieser App.
+
+                    Bewahre deine Wiederherstellungscodes sicher auf: Mit ihnen kommst du in dein Konto, wenn du dein Handy verlierst. Neue Codes bekommst du unter %s.
+
+                    Warst du das nicht? Dann ändere sofort dein Passwort und melde dich bei uns.
+                    """.formatted(user.getFirstName(),
+                    changed
+                            ? "für dein PW Aquatics Konto wurde gerade eine neue Authenticator-App eingerichtet; die bisherige funktioniert nicht mehr."
+                            : "für dein PW Aquatics Konto ist jetzt die Anmeldung in zwei Schritten eingerichtet.",
+                    security));
+        }
+        return mail(user.getEmail(), changed ? "New app for two-step sign-in" : "Two-step sign-in is on", """
+                Hello %s,
+
+                %s Every sign-in now asks for a code from this app after your password.
+
+                Keep your recovery codes somewhere safe: they get you into your account if you lose your phone. You can get new ones at %s.
+
+                Wasn't you? Change your password immediately and contact us.
+                """.formatted(user.getFirstName(),
+                changed
+                        ? "a new authenticator app was just set up for your PW Aquatics account; the previous one no longer works."
+                        : "two-step sign-in is now set up for your PW Aquatics account.",
+                security));
+    }
+
+    /** Security notice: a recovery code was used instead of the app. */
+    EmailMessage recoveryCodeUsed(User user, int left) {
+        String security = links.page(user.getLocale(), "/account/profile");
+        return german(user)
+                ? mail(user.getEmail(), "Ein Wiederherstellungscode wurde verwendet", """
+                        Hallo %s,
+
+                        für dein PW Aquatics Konto wurde gerade ein Wiederherstellungscode statt eines Codes aus der App verwendet. Übrig: %d.
+
+                        Hast du dein Handy verloren? Richte unter %s die App neu ein und hole dir neue Wiederherstellungscodes.
+
+                        Warst du das nicht? Dann ändere sofort dein Passwort und melde dich bei uns.
+                        """.formatted(user.getFirstName(), left, security))
+                : mail(user.getEmail(), "A recovery code was used", """
+                        Hello %s,
+
+                        a recovery code was just used instead of a code from the app for your PW Aquatics account. Left: %d.
+
+                        Lost your phone? Set up the app again at %s and get new recovery codes.
+
+                        Wasn't you? Change your password immediately and contact us.
+                        """.formatted(user.getFirstName(), left, security));
+    }
+
+    /** Security notice: the password was right, but several codes after it were wrong. */
+    EmailMessage twoFactorWrongCodes(User user) {
+        String reset = links.page(user.getLocale(), "/forgot-password");
+        return german(user)
+                ? mail(user.getEmail(), "Mehrere falsche Anmeldecodes", """
+                        Hallo %s,
+
+                        bei einer Anmeldung in dein PW Aquatics Konto wurde das richtige Passwort eingegeben, danach aber mehrmals ein falscher Code. Die Anmeldung wurde abgebrochen.
+
+                        Warst du das nicht, kennt jemand dein Passwort. Bitte ändere es sofort: %s
+                        """.formatted(user.getFirstName(), reset))
+                : mail(user.getEmail(), "Several wrong sign-in codes", """
+                        Hello %s,
+
+                        someone signing in to your PW Aquatics account entered the correct password, but then several wrong codes. The sign-in was stopped.
+
+                        If this wasn't you, someone knows your password. Please change it immediately: %s
+                        """.formatted(user.getFirstName(), reset));
     }
 
     /** A one-time link in the user's language. */

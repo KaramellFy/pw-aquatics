@@ -11,7 +11,7 @@ import type { AdminCoupon } from '../api/coupons';
 import { AdminCouponDetailPage } from './AdminCouponDetailPage';
 import { AdminCouponsPage } from './AdminCouponsPage';
 
-const owner: Session = { authenticated: true, user: { ...anna.user!, role: 'ADMIN' } };
+const owner: Session = { ...anna, user: { ...anna.user!, role: 'ADMIN' } };
 const money = (amount: number) => ({ amount, currency: 'EUR' });
 
 const spring: AdminCoupon = {

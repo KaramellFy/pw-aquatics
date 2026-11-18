@@ -112,8 +112,9 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 | UI primitives | Radix UI (headless) | Accessible dialogs, menus, popovers |
 | Motion | CSS transitions + `motion` (Motion for React, via `LazyMotion`) | CSS for hover, press and scroll reveals; Motion for exits, shared layout and drag. Respects `prefers-reduced-motion` (ADR-011) |
 | API types | `openapi-typescript` | Generated from the backend OpenAPI spec |
-| i18n | react-i18next | English default at `/…`, German at `/de/…`; the link decides the language (ADR-012) |
+| i18n | react-i18next | English default at `/…`, German at `/de/…`; the link decides the language (ADR-012). Each language's texts are their own chunk: a page loads only its language before the first render (`lib/i18n`) |
 | Charts (admin) | Own SVG/HTML components | No chart library (see "Dashboard and statistics") |
+| QR code (two-step setup) | `uqr` | Turns the `otpauth://` link into modules the app draws as SVG; no dependencies, loaded only on the setup page, the key never leaves the browser (ADR-015) |
 | Testing | JUnit 5, Testcontainers, MockMvc; Vitest, Testing Library, Playwright | |
 | Infra | Docker, Docker Compose, Caddy, GitHub Actions | |
 
@@ -125,13 +126,14 @@ Exact versions are pinned in Phase 0 (latest stable at that time). Targets:
 wakupwirbellose/                 # repository name (brand: PW Aquatics)
 ├── AGENTS.md / CLAUDE.md        # Instructions for coding agents
 ├── README.md
-├── docker-compose.yml           # Full local stack
-├── docker-compose.prod.yml      # Production overrides
-├── .env.example                 # Every variable documented, no real secrets
-├── docs/                        # Architecture, database, API, roadmap, ADRs
+├── docker-compose.yml           # Local stack (postgres, mailpit, API)
+├── docker-compose.prod.yml      # Production stack on one server (docs/OPERATIONS.md)
+├── .env.example                 # Every local variable documented, no real secrets
+├── .env.production.example      # The production settings, placeholders only
+├── docs/                        # Architecture, database, API, roadmap, operations, ADRs
 ├── infra/
-│   ├── caddy/Caddyfile
-│   └── postgres/                # init scripts (extensions), backup scripts
+│   ├── caddy/Caddyfile          # Edge proxy: HTTPS, HSTS, /api and /media → backend
+│   └── backup/                  # Nightly backup, restore (run.sh, backup.sh, restore.sh)
 ├── backend/
 │   ├── build.gradle.kts
 │   ├── Dockerfile
@@ -162,7 +164,7 @@ Root package: `com.pwaquatics.shop` (to be confirmed).
 |---|---|
 | `common` | Shared kernel: `Money`, error handling, base entity, pagination, clock, ID generation, `ContentLanguage` (language of owner-written texts per request), `SiteLinks` |
 | `security` | Spring Security config, session/CSRF setup, current-user resolution, rate limiting |
-| `identity` | Users, registration, login, sign in with Google (`user_identities`, ADR-014), email verification, password reset, roles |
+| `identity` | Users, registration, login, sign in with Google (`user_identities`, ADR-014), two-step sign-in for administrators (`user_two_factor`, ADR-015), email verification, password reset, roles |
 | `customer` | Profile, saved addresses, account deletion/anonymisation |
 | `catalog` | Products, variants, species, categories, colours, grades, images, search & filters |
 | `inventory` | Stock levels, reservations, stock movements, low-stock alerts |
@@ -526,20 +528,20 @@ payment module                                 order module
 
 | Concern | Approach |
 |---|---|
-| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. Sign in with Google (ADR-014): OpenID Connect code flow with PKCE run by the server; accounts are linked by Google's subject id, connected to an existing account only for a Google-verified address; administrators use their password only. |
+| Authentication | Email + password; login requires a verified email address. Server-side session (Spring Session JDBC, 14 days idle timeout), cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Session ID and CSRF token rotated on login. The session holds only the user id and role. Password change/reset and account deletion end the user's other sessions. Sign in with Google (ADR-014): OpenID Connect code flow with PKCE run by the server; accounts are linked by Google's subject id, connected to an existing account only for a Google-verified address; administrators use their password only. Administrators sign in in two steps (ADR-015): password, then a TOTP code from an authenticator app or a one-time recovery code. |
 | Why sessions, not JWT | Same-origin SPA; sessions are revocable instantly (logout, password change, admin lock), nothing sensitive is in browser storage, and Spring Security supports them natively. |
-| CSRF | Spring Security CSRF with cookie-to-header pattern (`XSRF-TOKEN` cookie → `X-XSRF-TOKEN` header) for all state-changing requests. |
+| CSRF | Spring Security CSRF with cookie-to-header pattern (`XSRF-TOKEN` cookie → `X-XSRF-TOKEN` header) for all state-changing requests. Photos (`/media/**`) have their own filter chain without CSRF or session: they are cached publicly for a year, so their responses never set a cookie (read-only; anything but GET/HEAD is refused). |
 | Passwords | `DelegatingPasswordEncoder` with Argon2id; hashes carry an algorithm prefix and are upgraded on login if the algorithm changes. 10–128 characters, no composition rules, a small deny-list of obvious passwords. A check against a breached-password service is a possible later addition. |
-| Authorisation | Roles `CUSTOMER`, `ADMIN`. URL rules (`/api/v1/admin/**` → `ADMIN`) **and** method security (`@PreAuthorize`) on admin services. Ownership checks on every customer resource (no IDOR). |
-| Brute force | Rate limiting per IP and per email address on login; per IP on registration, password reset and the contact form; per user on password confirmations. 15-minute account lock after 10 wrong passwords in a row, reported as a rate limit so it does not reveal that the account exists. |
+| Authorisation | Roles `CUSTOMER`, `ADMIN`. URL rules (`/api/v1/admin/**` → `ADMIN` and the second sign-in step) **and** method security (`@PreAuthorize`) on admin services. A session gets the `ADMIN` role only after both sign-in steps (`SessionManager`), so every `hasRole('ADMIN')` check needs them too. Ownership checks on every customer resource (no IDOR). |
+| Brute force | Rate limiting per IP and per email address on login; per IP on registration, password reset and the contact form; per user on password confirmations and two-step codes (5 per 15 minutes; 5 wrong codes end a sign-in and email the administrator). 15-minute account lock after 10 wrong passwords in a row, reported as a rate limit so it does not reveal that the account exists. |
 | Account enumeration | Registration, login, password-reset and email-change responses do not reveal whether an email exists; "not verified" and "locked by an admin" are only shown after the correct password. A dummy hash comparison keeps login timing similar for unknown addresses. |
 | Input | Bean Validation on all DTOs; size limits on everything; Markdown in descriptions rendered with a sanitiser. |
 | Uploads | Admin only; size limit; MIME type detected from content, not the filename; images re-encoded (strips EXIF and payloads); random storage keys. |
-| Headers | HSTS, CSP (no inline scripts), `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`. Set by Caddy and Spring Security. |
-| Secrets | Environment variables only; `.env` git-ignored; `.env.example` documents them. |
+| Headers | HSTS, CSP (no inline scripts, no `eval`; inline styles allowed because Radix dialogs and PayPal's buttons add `<style>` elements at run time — docs/CHECKS.md), `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`. Set by Caddy and Spring Security. |
+| Secrets | Environment variables only; `.env` git-ignored; `.env.example` and `.env.production.example` document them. Secrets the shop must read again (the administrators' TOTP keys) are encrypted with AES-256-GCM under `APP_ENCRYPTION_KEY` (`common.crypto.SecretBox`); recovery codes and emailed tokens are stored as SHA-256 hashes only. |
 | Payment data | Never stored. We keep only provider references, amounts and status; webhook payloads are reduced before storing. Webhooks are verified by signature (`Stripe-Signature`, 5 min tolerance) and are the only way an order becomes paid. |
-| Admin hardening | Audit log of every admin write; TOTP two-factor auth for admins (Phase 10). |
-| Dependencies | Dependabot, OWASP dependency check / `npm audit` in CI. |
+| Admin hardening | Audit log of every admin write; two-step sign-in (TOTP, RFC 6238) required for the admin area, with recovery codes, replay protection and email notices (ADR-015). |
+| Dependencies | Dependabot (npm, Gradle, Docker images, GitHub Actions); `npm audit` and Trivy on the images (including the backend's Java libraries) before releases; OWASP ZAP baseline and API scans; results and accepted findings in docs/CHECKS.md. |
 | Privacy | Minimal personal data; self-hosted fonts (no Google Fonts CDN); no tracking without consent; only strictly necessary cookies; account deletion anonymises the user while keeping legally required order records. Scheduled jobs remove data without a retention duty: email text right after sending, outbox rows after 30 days, audit IP addresses after 90 days, contact messages after a year (`app.retention.*`). Newsletter consent changes are recorded in the audit log. Inventory, legal bases and periods: docs/DATABASE.md §6. |
 
 ---
@@ -747,9 +749,10 @@ design-led studio than a pet-supply store. Tokens live in
 | `postgres` | `postgres:18` | Database, named volume | ✓ | ✓ |
 | `backend` | built from `backend/Dockerfile` (multi-stage, JRE only, non-root user) | API | ✓ | ✓ |
 | `frontend` | built from `frontend/Dockerfile` (build stage → static files) | SPA assets; sends page requests to the backend to be filled in (ADR-013, `PAGES_BACKEND`, default `backend:8080`) | — (Vite dev server) | ✓ |
-| `caddy` | `caddy:2` | Reverse proxy, automatic HTTPS, static files, `/media` | optional | ✓ |
+| `edge` | `caddy:2-alpine` with `infra/caddy/Caddyfile` | The only public entry: automatic HTTPS (Let's Encrypt), HTTP → HTTPS, HSTS; `/api`, `/media` → backend, the rest → frontend; `/health` for uptime monitors; no access log | — | ✓ |
+| `backup` | `postgres:18-alpine` with `infra/backup` | Nightly `pg_dump` (custom format, checked) and photo archive into `BACKUP_DIR`, kept `BACKUP_KEEP_DAYS`, heartbeat ping | — | ✓ |
+| `restore` | same | Replaces database and photos with one backup; started by hand only (profile `restore`) | — | ✓ |
 | `mailpit` | `axllent/mailpit` | Catches all outgoing email in development | ✓ | — |
-| `minio` | `minio/minio` | S3-compatible storage (only if we choose S3) | optional | — |
 
 In development the Vite dev server proxies `/api` and `/media` to the backend,
 so the browser sees one origin exactly as in production.
@@ -770,9 +773,13 @@ BANK_ACCOUNT_HOLDER, BANK_IBAN, BANK_BIC, BANK_NAME
 ORDER_BANK_TRANSFER_PAYMENT_DAYS=7, SHIPPING_HANDLING_DAYS=1
 APP_ADMIN_BOOTSTRAP_EMAIL, APP_ADMIN_BOOTSTRAP_PASSWORD   # first admin, used once
 # Mail
-SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM
+SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_AUTH, SMTP_STARTTLS, MAIL_FROM, SHOP_INBOX_EMAIL
+# Security
+APP_ENCRYPTION_KEY    # 32 random bytes, Base64: encrypts the administrators' two-step sign-in keys (ADR-015)
+# Production only (docker-compose.prod.yml, .env.production.example)
+SHOP_DOMAIN, ACME_EMAIL, BACKUP_TIME, BACKUP_KEEP_DAYS, BACKUP_DIR, BACKUP_PING_URL
 # Media
-MEDIA_STORAGE=local|s3, MEDIA_LOCAL_PATH, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
+MEDIA_LOCAL_PATH      # photos on a local volume (S3 storage would be a later option)
 # Card payments (all three or none; test and live keys must not be mixed)
 STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, ORDER_CARD_PAYMENT_MINUTES=60
 # The publishable key reaches the browser through the API, so the frontend build needs no Stripe variable.
@@ -789,11 +796,17 @@ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 - **production** — a single VM (EU region, GDPR) with Docker Compose is enough
   at launch; managed PostgreSQL is a good upgrade if budget allows.
 - **CI (GitHub Actions):** on every PR — backend build + tests (Testcontainers),
-  frontend lint + type-check + unit tests, OpenAPI type drift check, Docker
-  build. On `main` — build and push images; deploy is a manual approval step.
-- **Backups:** nightly `pg_dump` + WAL archiving (or managed backups), media
-  volume backups, restore tested before launch.
-- **Monitoring:** uptime check on `/actuator/health`, error alerting, disk usage.
+  frontend lint + type-check + unit tests and build; when the stack changes
+  (`production.yml`) — the real images are built, `docker-compose.prod.yml` is started, checked
+  through the edge proxy, and a backup is made and restored. Deploying is done by hand on the
+  server (`git pull && docker compose up -d --build`, docs/OPERATIONS.md §8).
+- **Backups:** nightly `pg_dump` and photo archive on the server (14 days), an encrypted copy
+  off the server (restic or similar), a heartbeat ping per backup, restore practised every three
+  months (docs/OPERATIONS.md §6). Point-in-time recovery (WAL archiving) is a later option.
+- **Monitoring:** an external uptime check on `https://<domain>/health` (readiness: API and
+  database), the backup heartbeat, disk usage, Let's Encrypt's expiry emails. Logs rotate at
+  5 × 10 MB per service.
+- **Dependencies:** Dependabot for npm, Gradle, Docker images and GitHub Actions.
 
 ---
 
@@ -858,8 +871,9 @@ endpoint (403).
 | ADR-012 | Language in the link: English at `/…`, German at `/de/…` with the same path words | Language only in the browser, `?lang=`, a `.de` domain, German path words |
 | ADR-013 | Public pages filled in by the backend from the frontend build's `index.html` (Caddy asks `/_pages/**`, falls back to the plain file) | Node.js SSR or prerender service, build-time prerendering, head tags only |
 | ADR-014 | Sign in with Google: server-side OIDC code flow with PKCE from Spring Security's OAuth 2 client parts; linked by Google's subject id | `oauth2Login()` filter, Google's script in the browser, a hand-written OIDC client |
+| ADR-015 | Two-step sign-in (TOTP) required for administrators; admin role granted only after both steps; key encrypted with `APP_ENCRYPTION_KEY`; recovery codes | Spring Security's multi-factor filters, codes by email or SMS, a TOTP library, plain-text keys |
 
-Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-014).
+Each ADR gets its own file under `docs/adr/` when implemented (so far ADR-010 to ADR-015).
 
 ---
 

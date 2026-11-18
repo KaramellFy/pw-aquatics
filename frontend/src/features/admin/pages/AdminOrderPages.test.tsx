@@ -12,7 +12,7 @@ import { AdminOrderDetailPage } from './AdminOrderDetailPage';
 import { AdminOrdersPage } from './AdminOrdersPage';
 import { AdminPackingSlipPage } from './AdminPackingSlipPage';
 
-const owner: Session = { authenticated: true, user: { ...anna.user!, role: 'ADMIN' } };
+const owner: Session = { ...anna, user: { ...anna.user!, role: 'ADMIN' } };
 const money = (amount: number) => ({ amount, currency: 'EUR' });
 const address = {
   firstName: 'Anna',

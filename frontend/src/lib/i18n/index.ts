@@ -1,7 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next, useTranslation } from 'react-i18next';
-import { de } from './locales/de';
-import { en } from './locales/en';
+import type { Messages } from './locales/en';
 
 export const SUPPORTED_LANGUAGES = ['en', 'de'] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
@@ -12,10 +11,14 @@ const STORAGE_KEY = 'pwa.language';
 /** Intl locale per UI language (used for money and date formatting). */
 const INTL_LOCALES: Record<Language, string> = { en: 'en-GB', de: 'de-DE' };
 
-export const resources = {
-  en: { translation: en },
-  de: { translation: de },
-} as const;
+/**
+ * Each language's texts are a chunk of their own: a page shows one language (switching
+ * loads the page's link in the other language), so a visitor downloads only that one.
+ */
+const loaders: Record<Language, () => Promise<Messages>> = {
+  en: () => import('./locales/en').then((module) => module.en),
+  de: () => import('./locales/de').then((module) => module.de),
+};
 
 function isLanguage(value: unknown): value is Language {
   return typeof value === 'string' && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
@@ -85,20 +88,36 @@ function languageOfThisPage(): Language {
   return languageOfPath(pathname);
 }
 
-void i18n.use(initReactI18next).init({
-  resources,
-  lng: languageOfThisPage(),
-  fallbackLng: DEFAULT_LANGUAGE,
-  supportedLngs: SUPPORTED_LANGUAGES,
-  interpolation: { escapeValue: false }, // React already escapes
-  returnNull: false,
-});
-
 function syncDocumentLanguage(language: string) {
   document.documentElement.lang = language;
 }
-syncDocumentLanguage(i18n.language);
-i18n.on('languageChanged', syncDocumentLanguage);
+
+/**
+ * Loads the texts of this page's language, then starts i18next with them. The app renders
+ * once this has finished (main.tsx); the request starts as soon as this module runs, while
+ * the rest of the app's code is still being evaluated.
+ */
+export const i18nReady: Promise<unknown> = (async () => {
+  const language = languageOfThisPage();
+  const texts = await loaders[language]();
+  await i18n.use(initReactI18next).init({
+    resources: { [language]: { translation: texts } },
+    lng: language,
+    fallbackLng: DEFAULT_LANGUAGE,
+    supportedLngs: SUPPORTED_LANGUAGES,
+    interpolation: { escapeValue: false }, // React already escapes
+    returnNull: false,
+  });
+  syncDocumentLanguage(i18n.language);
+  i18n.on('languageChanged', syncDocumentLanguage);
+})();
+
+/** Adds a language's texts (tests switch languages within one page; the app never does). */
+export async function loadLanguage(language: Language): Promise<void> {
+  if (!i18n.hasResourceBundle(language, 'translation')) {
+    i18n.addResourceBundle(language, 'translation', await loaders[language]());
+  }
+}
 
 export function currentLanguage(): Language {
   return isLanguage(i18n.resolvedLanguage) ? i18n.resolvedLanguage : DEFAULT_LANGUAGE;

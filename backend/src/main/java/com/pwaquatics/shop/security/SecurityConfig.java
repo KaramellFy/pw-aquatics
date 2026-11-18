@@ -5,10 +5,15 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
@@ -33,7 +38,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  *       Payment provider webhooks are exempt: they carry no cookies and prove their origin with a
  *       signature instead.
  *   <li>Access: secure by default — every endpoint is denied unless explicitly opened below.
- *       Admin endpoints additionally use method security.
+ *       Admin endpoints need the {@code ADMIN} role and the second sign-in step, and additionally
+ *       use method security.
  *   <li>Errors: delegated to {@link com.pwaquatics.shop.common.api.ApiExceptionHandler} so 401/403
  *       responses use the same Problem Details format as everything else.
  * </ul>
@@ -51,7 +57,6 @@ public class SecurityConfig {
         "/api/v1/categories", "/api/v1/species", "/api/v1/species/**",
         "/api/v1/colours", "/api/v1/grades",
         "/api/v1/gallery", "/api/v1/shop-info",
-        "/media/**",
         // Pages filled in for the first page load, sitemap and robots.txt (pages module); the
         // frontend's Caddy calls them.
         "/_pages", "/_pages/**", "/_site/sitemap.xml", "/_site/robots.txt",
@@ -67,7 +72,7 @@ public class SecurityConfig {
     /** Callable without a session. Each is rate limited in its service. */
     static final String[] PUBLIC_POST = {
         "/api/v1/contact",
-        "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/logout",
+        "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/two-factor", "/api/v1/auth/logout",
         "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",
         "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
         "/api/v1/webhooks/stripe", "/api/v1/webhooks/paypal",
@@ -76,7 +81,37 @@ public class SecurityConfig {
     /** Only reachable when springdoc is enabled (dev/staging); disabled in production. */
     static final String[] API_DOCS = {"/api/v3/api-docs", "/api/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"};
 
+    /**
+     * Photos ({@code /media/**}, MediaConfig): public files that browsers and any cache in front of
+     * the shop keep for a year. Their own chain has no CSRF and no session, so these responses
+     * never set a cookie: a shared cache could otherwise hand one visitor's XSRF-TOKEN to others.
+     * They are only read; anything else is refused.
+     */
     @Bean
+    @Order(1)
+    SecurityFilterChain mediaSecurity(
+            HttpSecurity http, @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver)
+            throws Exception {
+        http.securityMatcher("/media/**")
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/media/**").permitAll()
+                        .anyRequest().denyAll())
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .exceptionHandling(errors -> problemDetails(errors, exceptionResolver))
+                .headers(headers -> headers
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .frameOptions(frame -> frame.deny()));
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain apiSecurity(
             HttpSecurity http,
             CsrfTokenRepository csrfTokenRepository,
@@ -89,6 +124,8 @@ public class SecurityConfig {
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
+                        // HEAD is GET without the body; uptime monitors and link checkers use it.
+                        .requestMatchers(HttpMethod.HEAD, PUBLIC_GET).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
                         .requestMatchers(API_DOCS).permitAll()
                         // Cart: guests and customers alike (the service scopes it to the caller).
@@ -96,21 +133,30 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/account/**").authenticated()
                         .requestMatchers("/api/v1/checkout/**").authenticated()
                         .requestMatchers("/api/v1/payments/**").authenticated()
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        // Administrators have the role only after both sign-in steps (SessionManager);
+                        // the factor is checked as well, so the rule says so on its own.
+                        .requestMatchers("/api/v1/admin/**").access(AuthorizationManagers.allOf(
+                                AuthorityAuthorizationManager.hasRole("ADMIN"),
+                                AuthorityAuthorizationManager.hasAuthority(SessionManager.SECOND_FACTOR)))
                         .anyRequest().denyAll())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .exceptionHandling(errors -> errors
-                        .authenticationEntryPoint((request, response, ex) ->
-                                exceptionResolver.resolveException(request, response, null, ex))
-                        .accessDeniedHandler((request, response, ex) ->
-                                exceptionResolver.resolveException(request, response, null, ex)))
+                .exceptionHandling(errors -> problemDetails(errors, exceptionResolver))
                 .headers(headers -> headers
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                         .frameOptions(frame -> frame.deny()));
         return http.build();
+    }
+
+    /** Refusals are answered like every other error: Problem Details (ApiExceptionHandler). */
+    private static void problemDetails(
+            ExceptionHandlingConfigurer<HttpSecurity> errors, HandlerExceptionResolver exceptionResolver) {
+        errors.authenticationEntryPoint((request, response, ex) ->
+                        exceptionResolver.resolveException(request, response, null, ex))
+                .accessDeniedHandler((request, response, ex) ->
+                        exceptionResolver.resolveException(request, response, null, ex));
     }
 
     /** The CSRF token lives in a cookie the SPA can read (it is not a secret from our own pages). */

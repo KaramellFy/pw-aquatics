@@ -7,7 +7,9 @@ import { useTranslation } from 'react-i18next';
 /**
  * Shows the admin area only to administrators. Visitors who are not signed in go to the
  * login page; signed-in customers see "not found", so the admin area is not advertised.
- * This is a convenience for the UI only — every admin endpoint checks the role itself.
+ * Administrators who have not set up two-step sign-in yet are sent to its setup first (and come
+ * back here afterwards). This is a convenience for the UI only — every admin endpoint checks the
+ * role and the second step itself.
  */
 export function RequireAdmin() {
   const { t } = useTranslation();
@@ -28,6 +30,10 @@ export function RequireAdmin() {
   }
   if (session.data.user?.role !== 'ADMIN') {
     return <NotFoundPage />;
+  }
+  if (session.data.twoFactorSetupRequired) {
+    const back = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/account/two-factor?redirect=${back}`} replace />;
   }
   return <Outlet />;
 }

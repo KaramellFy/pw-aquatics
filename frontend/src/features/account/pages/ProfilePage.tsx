@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { Alert } from '@/components/ui/Alert';
-import { googleProblem, useSignInOptions } from '@/features/auth';
+import { googleProblem, useSession, useSignInOptions } from '@/features/auth';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
 import { formatLocalTime } from '@/lib/format/date';
 import { useProfile } from '../api/account';
@@ -11,6 +11,7 @@ import { ChangePasswordForm } from '../components/ChangePasswordForm';
 import { DeleteAccountSection } from '../components/DeleteAccountSection';
 import { ProfileDetailsForm } from '../components/ProfileDetailsForm';
 import { SignInSection } from '../components/SignInSection';
+import { TwoFactorSection } from '../components/TwoFactorSection';
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -25,6 +26,7 @@ export function ProfilePage() {
   const { t, i18n } = useTranslation();
   const profile = useProfile();
   const options = useSignInOptions();
+  const session = useSession();
   const errorMessage = useApiErrorMessage();
   // Back from confirming with Google: the server added ?google=confirmed or a problem.
   const [searchParams] = useSearchParams();
@@ -69,6 +71,11 @@ export function ProfilePage() {
             {(options.data?.google || profile.data.googleEmail || !profile.data.hasPassword) && (
               <Panel title={t('account.profile.signInTitle')}>
                 <SignInSection profile={profile.data} />
+              </Panel>
+            )}
+            {session.data?.user?.role === 'ADMIN' && (
+              <Panel title={t('account.twoFactor.title')}>
+                <TwoFactorSection />
               </Panel>
             )}
             {profile.data.hasPassword && (

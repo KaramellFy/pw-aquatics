@@ -19,6 +19,8 @@ and some species may not be traded legally.
 | [docs/DATABASE.md](docs/DATABASE.md) | Schema, conventions, migrations |
 | [docs/API.md](docs/API.md) | REST conventions and endpoints |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and what belongs in each |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Running the shop on a server: setup, backups, monitoring, incidents |
+| [docs/CHECKS.md](docs/CHECKS.md) | Security, performance and accessibility checks: results, accepted findings, how to repeat |
 
 ## 2. Current status
 
@@ -75,6 +77,16 @@ and some species may not be traded legally.
   account; `DELETE /api/v1/account/google` to disconnect). Optional: without
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` it is not offered. Not yet tried against Google.
   Apple: later.
+- **Two-step sign-in for administrators** (security pass; ADR-015) is built: the admin area needs
+  the password and a code from an authenticator app (TOTP) or a recovery code
+  (`POST /api/v1/auth/login/two-factor`); administrators without it are sent to its setup
+  (`/account/two-factor`, `/api/v1/account/two-factor/**`). Keys are encrypted with
+  `APP_ENCRYPTION_KEY`.
+- **Production setup** (from Phase 10, brought forward) is built: `docker-compose.prod.yml` with an
+  edge Caddy that gets HTTPS certificates itself (`infra/caddy/Caddyfile`), nightly backups of the
+  database and photos with a restore service (`infra/backup`), `/health` for uptime monitoring,
+  Dependabot, and a CI job that starts the production stack and restores a backup. How to run it:
+  docs/OPERATIONS.md.
 - **Phase 8 (coupons & statistics)** is built end to end: coupon field in the cart
   (`PUT`/`DELETE /api/v1/cart/coupon`), discount in the quote, order, emails and order pages,
   redemption in the order transaction (released on cancellation), admin coupons under
@@ -83,6 +95,9 @@ and some species may not be traded legally.
   (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Defaults pending the owner's
   confirmation: one code per order, whole shop, reduced products excluded, free shipping
   for every method.
+- **Security, performance and accessibility pass** (from Phase 10, brought forward): OWASP ZAP
+  baseline and API scans, npm/Java/image audits, Lighthouse mobile on the main pages, axe-core
+  and keyboard checks; results, accepted findings and how to repeat them in docs/CHECKS.md.
 
 - **SEO** (from Phase 10, brought forward; ADR-012) is in progress: German pages live under
   `/de/…` with the same path words, the link decides the language, pages carry canonical and
@@ -148,6 +163,15 @@ npm run generate:api   # regenerate src/lib/api/schema.d.ts from the running bac
 ```
 
 Behind a Docker Hub rate limit, run tests with `TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX=mirror.gcr.io/`.
+
+**Production** (on the server; docs/OPERATIONS.md — `.env` there sets `COMPOSE_FILE=docker-compose.prod.yml`):
+
+```bash
+cp .env.production.example .env      # fill in, chmod 600
+docker compose up -d --build         # edge (HTTPS), frontend, backend, postgres, backup
+docker compose exec backup sh /opt/backup/backup.sh       # a backup now
+docker compose run --rm restore <backup> --yes            # restore one (stop backend and backup first)
+```
 
 **Full stack** (repository root):
 
@@ -226,6 +250,8 @@ working around them.
   everything with `Html` except sanitised HTML from the API. A new public page or a change to
   the API paths and page sizes the app requests first means updating `PageService` too, and a
   new indexable page without catalog data belongs in `CrawlerFiles.FIXED_PAGES` (sitemap).
+  Photos it writes use the app's `sizes` and first-photo priority for the same picture
+  (`PageWriter.image`), so the browser fetches one file that the app then reuses.
   Structured data (schema.org) is written only here, never by the app.
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
@@ -245,6 +271,12 @@ working around them.
   changes take the password or a recent confirmation with Google (`SessionManager.confirmation`,
   `AccountService.CONFIRMATION_WINDOW`). The `returnTo` of a Google round trip must be a path on
   this site (`GoogleSignInController.origin`). Tests use `FakeGoogle`, never Google.
+- **Two-step sign-in** (ADR-015): a session gets the `ADMIN` role only through
+  `SessionManager.login(…, secondStepPassed = true)` — after a code at sign-in or right after
+  setting up the app. Never grant it elsewhere. Codes are checked only in `TwoFactorService`
+  (rate limited, each app code once, under a row lock); keys go through `common.crypto.SecretBox`
+  (never stored or logged in plain text), recovery codes are stored as hashes. Tests sign
+  administrators in with `AuthFixture.adminSession` / `adminLogin`, which use the real endpoints.
 - **Cart rules:** a module reads catalog data only through `CatalogLookup`
   (never the catalog repositories). Money arithmetic happens only in
   `pricing.domain.PriceCalculator`. Random tokens and their hashes come from
@@ -321,7 +353,8 @@ working around them.
   it); texts the backend needs go through `lib/seo/pageTexts.ts` and every route is listed in
   `app/routePaths.ts` (a test compares it with the route tree); the build writes both to
   `pages.json`. Files that vite.config.ts imports use relative imports with `.ts` extensions. On start the app takes the page's data (`app/serverPage.ts`, `lib/api/preload.ts` maps
-  API paths to query keys) and waits for the router before rendering. Style the backend's text
+  API paths to query keys; a list loaded page by page, like the gallery, gets the first page of
+  its infinite query) and waits for the router and its language's texts before rendering. Style the backend's text
   only through the `.page-preview` classes. The app writes no structured data (JSON-LD): the
   backend's stays until the app shows another page. `public/robots.txt` goes into `pages.json`
   (the backend adds the sitemap link). A paged list passes its page to `PageMeta` (`page`; the
@@ -332,6 +365,10 @@ working around them.
   in browser storage. Wrap signed-in pages in `RequireAuth`. When an action signs the
   user out, navigate away first and clear the session afterwards (see `useLogout`),
   otherwise the guard redirects to the login page.
+- **Two-step sign-in:** a sign-in may answer `twoFactorRequired` (not signed in yet): `LoginPage`
+  then shows `TwoFactorStep`. `RequireAdmin` sends administrators with `twoFactorSetupRequired` to
+  `/account/two-factor`. The QR code is drawn by `QrCode` (`uqr`) in the browser; never send the
+  `otpauth://` link or the key anywhere. Recovery codes are shown once and only kept in memory.
 - **All HTTP via `src/lib/api/client.ts`** (credentials, CSRF header, Problem
   Details → `ApiError`). Use the generated types in `src/lib/api/schema.d.ts`;
   never hand-write API types that the spec already defines. Never edit generated files.
@@ -461,6 +498,7 @@ Update the docs in the same change when you:
 - change architecture, a module boundary or a dependency → `docs/ARCHITECTURE.md` (+ ADR in `docs/adr/`)
 - finish or re-scope roadmap items → `docs/ROADMAP.md`
 - change commands or setup → this file and `README.md`
+- change the production stack, backups or what the operator must do → `docs/OPERATIONS.md`
 
 ## 14. Definition of done
 

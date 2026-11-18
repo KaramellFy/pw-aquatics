@@ -2,7 +2,11 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
 import { MotionGlobalConfig } from 'motion/react';
 import { afterEach } from 'vitest';
-import '@/lib/i18n';
+import { i18nReady, loadLanguage } from '@/lib/i18n';
+
+// The app loads one language per page; tests switch between them, so both are loaded.
+await i18nReady;
+await loadLanguage('de');
 
 // Journeys with several requests (sign out, checkout) need more than the default second
 // when all test files run in parallel on a busy machine.

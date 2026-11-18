@@ -1,0 +1,155 @@
+# Production stack on one server (docs/OPERATIONS.md):
+#
+#   cp .env.production.example .env    # fill in; the file stays on the server, never in git
+#   docker compose up -d --build       # .env sets COMPOSE_FILE to this file
+#
+# Only the edge proxy is reachable from outside (ports 80 and 443). The database and the API
+# have no published ports. Backups are written nightly to ./backups (BACKUP_DIR).
+name: pw-aquatics
+
+# Logs are rotated: at most 5 files of 10 MB per service. The application logs no personal data.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-database: &database
+  POSTGRES_DB: ${POSTGRES_DB:-pwaquatics}
+  POSTGRES_USER: ${POSTGRES_USER:-pwaquatics}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+
+services:
+  edge:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      SHOP_DOMAIN: ${SHOP_DOMAIN:?Set SHOP_DOMAIN in .env, e.g. pw-aquatics.de}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env (Let's Encrypt writes there about certificates)}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # certificates: keep this volume, or Let's Encrypt limits may bite
+      - caddy-config:/config
+    logging: *logging
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    logging: *logging
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pwaquatics}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-pwaquatics}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_BASE_URL: https://${SHOP_DOMAIN}
+      APP_PAGES_SHELL_URL: http://frontend:8080/
+      APP_COOKIE_SECURE: "true"
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set APP_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
+      # Email through the provider's SMTP server (port 587 with STARTTLS).
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME in .env}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in .env}
+      SMTP_AUTH: "true"
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env, e.g. PW Aquatics <shop@pw-aquatics.de>}
+      SHOP_INBOX_EMAIL: ${SHOP_INBOX_EMAIL:?Set SHOP_INBOX_EMAIL in .env}
+      APP_ADMIN_BOOTSTRAP_EMAIL: ${APP_ADMIN_BOOTSTRAP_EMAIL:-}
+      APP_ADMIN_BOOTSTRAP_PASSWORD: ${APP_ADMIN_BOOTSTRAP_PASSWORD:-}
+      BANK_ACCOUNT_HOLDER:
+      BANK_IBAN:
+      BANK_BIC:
+      BANK_NAME:
+      ORDER_BANK_TRANSFER_PAYMENT_DAYS:
+      ORDER_CARD_PAYMENT_MINUTES:
+      SHIPPING_HANDLING_DAYS:
+      STRIPE_SECRET_KEY:
+      STRIPE_PUBLISHABLE_KEY:
+      STRIPE_WEBHOOK_SECRET:
+      PAYPAL_ENVIRONMENT:
+      PAYPAL_CLIENT_ID:
+      PAYPAL_CLIENT_SECRET:
+      PAYPAL_WEBHOOK_ID:
+      GOOGLE_CLIENT_ID:
+      GOOGLE_CLIENT_SECRET:
+    volumes:
+      - media:/app/media
+    healthcheck:
+      # The runtime image has no curl or wget; bash can speak HTTP well enough for this.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    logging: *logging
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment: *database
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging: *logging
+
+  # Nightly backup of the database and the uploaded photos (infra/backup/backup.sh).
+  backup:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["sh", "/opt/backup/run.sh"]
+    environment:
+      <<: *database
+      TZ: Europe/Berlin
+      BACKUP_TIME: ${BACKUP_TIME:-03:30}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_PING_URL: ${BACKUP_PING_URL:-}
+    volumes:
+      - ./infra/backup:/opt/backup:ro
+      - media:/media:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    logging: *logging
+
+  # Restores one backup; never started on its own (docs/OPERATIONS.md, "Restore a backup"):
+  #   docker compose run --rm restore <backup name> --yes
+  restore:
+    image: postgres:18-alpine
+    profiles: ["restore"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["sh", "/opt/backup/restore.sh"]
+    environment:
+      <<: *database
+      TZ: Europe/Berlin
+    volumes:
+      - ./infra/backup:/opt/backup:ro
+      - media:/media
+      - ${BACKUP_DIR:-./backups}:/backups:ro
+
+volumes:
+  postgres-data:
+  media:
+  caddy-data:
+  caddy-config:

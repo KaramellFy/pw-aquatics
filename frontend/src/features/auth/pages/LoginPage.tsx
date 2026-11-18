@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { TFunction } from 'i18next';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
@@ -12,6 +12,7 @@ import { ApiError } from '@/lib/api/client';
 import { useApiErrorMessage } from '@/lib/api/useApiErrorMessage';
 import { PageMeta } from '@/lib/seo/PageMeta';
 import { useLogin, useResendVerification, useSession } from '../api/auth';
+import { TwoFactorStep } from '../components/TwoFactorStep';
 import { AuthCard } from '../components/AuthCard';
 import { GoogleSignIn } from '../components/GoogleSignIn';
 import { googleProblem } from '../google';
@@ -35,6 +36,9 @@ export function LoginPage() {
   const resend = useResendVerification();
   const errorMessage = useApiErrorMessage();
   const target = safeRedirectTarget(searchParams.get('redirect'));
+  // Set when a sign-in that waited for its code ended (too slow or too many wrong codes).
+  const [codeStepEnded, setCodeStepEnded] = useState(false);
+  const awaitingCode = session.data?.twoFactorRequired ?? false;
   // Signing in with Google failed or was cancelled: the server sent the browser back here.
   const google = googleProblem(searchParams.get('google'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,9 +54,29 @@ export function LoginPage() {
     return <Navigate to={target} replace />;
   }
 
+  if (awaitingCode) {
+    return (
+      <>
+        <PageMeta title={t('auth.twoFactor.metaTitle')} noIndex />
+        <AuthCard title={t('auth.twoFactor.title')} lead={t('auth.twoFactor.lead')}>
+          <TwoFactorStep
+            onSignedIn={() => navigate(target, { replace: true })}
+            onEnded={() => setCodeStepEnded(true)}
+          />
+        </AuthCard>
+      </>
+    );
+  }
+
   const onSubmit = handleSubmit((values) => {
     resend.reset();
-    login.mutate(values, { onSuccess: () => navigate(target, { replace: true }) });
+    setCodeStepEnded(false);
+    login.mutate(values, {
+      // An administrator with two-step sign-in is not signed in yet: the code step follows.
+      onSuccess: (signedIn) => {
+        if (signedIn.authenticated) void navigate(target, { replace: true });
+      },
+    });
   });
   const notVerified = login.error instanceof ApiError && login.error.code === 'EMAIL_NOT_VERIFIED';
 
@@ -71,6 +95,11 @@ export function LoginPage() {
           </>
         }
       >
+        {codeStepEnded && (
+          <Alert tone="info" className="mb-6">
+            {t('auth.twoFactor.ended')}
+          </Alert>
+        )}
         {google && (
           <Alert tone="error" className="mb-6">
             {t(google)}
