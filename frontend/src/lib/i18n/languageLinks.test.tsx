@@ -30,8 +30,8 @@ describe('language links', () => {
   it('switches with real links to the same page and remembers the choice', async () => {
     renderWithProviders(<LanguageSwitcher />, { path: '/shop/neocaridina?grade=high' });
 
-    const english = screen.getByRole('link', { name: 'English' });
-    const german = screen.getByRole('link', { name: 'Deutsch' });
+    const english = screen.getByRole('link', { name: 'en English' });
+    const german = screen.getByRole('link', { name: 'de Deutsch' });
     expect(english).toHaveAttribute('aria-current', 'true');
     expect(german).toHaveAttribute('href', '/de/shop/neocaridina?grade=high');
     expect(german).toHaveAttribute('hreflang', 'de');

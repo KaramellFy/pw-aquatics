@@ -11,6 +11,7 @@ export const de: Messages = {
     backToHome: 'Zur Startseite',
     language: 'Sprache',
     languages: { en: 'English', de: 'Deutsch' },
+    breadcrumb: 'Brotkrümelnavigation',
     imagePlaceholder: 'Platzhalter – Foto folgt',
     previousPrice: 'Statt',
     opensInNewTab: '(öffnet in neuem Tab)',
@@ -231,6 +232,8 @@ export const de: Messages = {
     },
     allAnimals: 'Alle Tiere',
     lead: 'Gesunde Tiere aus stabilen Becken, ehrlich eingestuft und sorgfältig versendet.',
+    /** Heading of the results list for screen readers. */
+    animalsTitle: 'Tiere',
     results_one: '{{count}} Tier',
     results_other: '{{count}} Tiere',
     searchLabel: 'Im Shop suchen',

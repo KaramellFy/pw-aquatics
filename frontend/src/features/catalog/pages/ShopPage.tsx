@@ -84,7 +84,6 @@ export function ShopPage() {
       />
       <Container className="pt-10 pb-24 sm:pt-14 lg:pb-32">
         <Breadcrumbs
-          label={t('nav.shop')}
           items={[
             { label: t('nav.shop'), to: '/shop' },
             ...categoryPath.map((node) => ({ label: node.name, to: `/shop/${node.slug}` })),
@@ -101,6 +100,7 @@ export function ShopPage() {
           <aside className="hidden lg:col-span-3 lg:block" aria-label={t('shop.filters.title')}>
             {/* Scrolls on its own when taller than the screen, so every filter stays reachable. */}
             <div className="sticky top-28 -mx-2 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain px-2 pb-8">
+              <h2 className="sr-only">{t('shop.filters.title')}</h2>
               {panel}
             </div>
           </aside>
@@ -128,6 +128,7 @@ export function ShopPage() {
             />
 
             <div className="mt-8">
+              <h2 className="sr-only">{t('shop.animalsTitle')}</h2>
               <Results
                 filters={filters}
                 state={products}

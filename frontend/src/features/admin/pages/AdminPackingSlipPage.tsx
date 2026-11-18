@@ -24,7 +24,8 @@ export function AdminPackingSlipPage() {
   return (
     <div className="min-h-dvh bg-mist print:bg-white">
       <PageMeta title={t('admin.packingSlip.metaTitle', { number: orderNumber })} noIndex />
-      <div className="mx-auto max-w-3xl px-5 py-6 sm:px-8 print:max-w-none print:p-0">
+      {/* The whole page is the main content (it sits outside the admin layout, for printing). */}
+      <main className="mx-auto max-w-3xl px-5 py-6 sm:px-8 print:max-w-none print:p-0">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <Link
             to={`/admin/orders/${orderNumber}`}
@@ -47,7 +48,7 @@ export function AdminPackingSlipPage() {
         />
 
         {detail && (
-          <main className="rounded-card border border-line bg-surface p-6 sm:p-10 print:rounded-none print:border-0 print:p-0">
+          <article className="rounded-card border border-line bg-surface p-6 sm:p-10 print:rounded-none print:border-0 print:p-0">
             <header className="flex flex-wrap items-start justify-between gap-6 border-b border-line pb-6">
               <Logo />
               <div className="text-right">
@@ -143,9 +144,9 @@ export function AdminPackingSlipPage() {
               </p>
             )}
             <p className="mt-6 text-sm text-ink-soft">{t('admin.packingSlip.thanks')}</p>
-          </main>
+          </article>
         )}
-      </div>
+      </main>
     </div>
   );
 }

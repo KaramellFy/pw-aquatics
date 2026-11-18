@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { cn } from '@/lib/cn';
 
@@ -7,17 +8,11 @@ export interface Crumb {
   to?: string;
 }
 
-export function Breadcrumbs({
-  items,
-  label,
-  className,
-}: {
-  items: Crumb[];
-  label: string;
-  className?: string;
-}) {
+/** The trail to the current page; named "Breadcrumb" like the pattern in the ARIA guide. */
+export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: string }) {
+  const { t } = useTranslation();
   return (
-    <nav aria-label={label} className={cn('text-sm text-muted', className)}>
+    <nav aria-label={t('common.breadcrumb')} className={cn('text-sm text-muted', className)}>
       <ol className="flex flex-wrap items-center gap-1.5">
         {items.map((item, index) => {
           const last = index === items.length - 1;

@@ -32,12 +32,17 @@ export function ContactPage() {
             <SectionHeading as="h1" title={t('contact.title')} lead={t('contact.lead')} />
             <dl className="mt-12 space-y-6 border-t border-line pt-10">
               {info.map(({ Icon, title, value }) => (
-                <div key={title} className="flex gap-4">
-                  <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-brand-700" strokeWidth={1.5} />
-                  <div>
-                    <dt className="text-sm text-muted">{title}</dt>
-                    <dd className="mt-1 text-lg">{value}</dd>
-                  </div>
+                // A <dl> group may hold only <dt> and <dd>, so the icon sits inside the term.
+                <div key={title} className="relative pl-9">
+                  <dt className="text-sm text-muted">
+                    <Icon
+                      aria-hidden
+                      className="absolute top-0.5 left-0 size-5 text-brand-700"
+                      strokeWidth={1.5}
+                    />
+                    {title}
+                  </dt>
+                  <dd className="mt-1 text-lg">{value}</dd>
                 </div>
               ))}
             </dl>

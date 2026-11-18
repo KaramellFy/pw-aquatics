@@ -13,6 +13,7 @@ export const en = {
     backToHome: 'Back to home',
     language: 'Language',
     languages: { en: 'English', de: 'Deutsch' },
+    breadcrumb: 'Breadcrumb',
     imagePlaceholder: 'Placeholder – photo coming soon',
     previousPrice: 'Was',
     opensInNewTab: '(opens in a new tab)',
@@ -228,6 +229,8 @@ export const en = {
     },
     allAnimals: 'All animals',
     lead: 'Healthy animals from stable tanks, graded honestly and shipped with care.',
+    /** Heading of the results list for screen readers. */
+    animalsTitle: 'Animals',
     results_one: '{{count}} animal',
     results_other: '{{count}} animals',
     searchLabel: 'Search the shop',
