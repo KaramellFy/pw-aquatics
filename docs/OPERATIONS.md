@@ -333,13 +333,22 @@ the previous version **and** restore the backup made just before the update (§6
 git checkout <previous tag or commit> && docker compose up -d --build
 ```
 
-**Base images and dependencies:** Dependabot opens pull requests for npm, Gradle, the Docker
-images and GitHub Actions (`.github/dependabot.yml`); security fixes arrive as soon as an advisory
-is published. Merge them when CI is green, then update the server as above (`--build` picks up
-new base images: add `--pull` once a month).
+**Images:** Caddy and PostgreSQL run from published images (`caddy:2-alpine`,
+`postgres:18-alpine`) that are rebuilt upstream with security fixes under the same tag, and the
+shop's own images start from such images too. Neither `git pull` nor `--build` fetches the new
+ones; this does (once a month, and when an advisory concerns one of them):
 
-**Monthly routine (15 minutes):** merge Dependabot's pull requests and update; check the backup
-heartbeat and run `ls backups`; look at disk space; glance at the error log.
+```bash
+docker compose build --pull && docker compose up -d --pull always
+```
+
+**Dependencies:** Dependabot opens pull requests for npm, Gradle, the Dockerfiles' base images
+and GitHub Actions (`.github/dependabot.yml`); security fixes arrive as soon as an advisory is
+published. Merge them when CI is green, then update the server as above.
+
+**Monthly routine (15 minutes):** merge Dependabot's pull requests and update; refresh the images
+(above); check the backup heartbeat and run `ls backups`; look at disk space; glance at the error
+log; `docker image prune -f`.
 
 ---
 
@@ -395,3 +404,6 @@ customer reports their data elsewhere):
 - [ ] Uptime monitor and backup heartbeat set up; the first night's backup arrived; the off-site
       copy runs; one restore practised.
 - [ ] Demo data not loaded (the server runs without the `dev` profile, so it never is).
+- [ ] Security, performance and accessibility checks repeated against the server
+      (docs/CHECKS.md §2): ZAP baseline without failures, Lighthouse on the main pages with real
+      photos, and the open points of docs/CHECKS.md §1.4 settled with the owner.

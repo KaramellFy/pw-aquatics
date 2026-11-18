@@ -81,6 +81,7 @@ updates and what to do when something goes wrong: [docs/OPERATIONS.md](docs/OPER
 - [API](docs/API.md) — REST conventions and endpoints
 - [Roadmap](docs/ROADMAP.md) — development phases
 - [Operations](docs/OPERATIONS.md) — running the shop on a server: setup, backups, monitoring, incidents
+- [Checks](docs/CHECKS.md) — security, performance and accessibility checks: results, accepted findings, how to repeat them
 - [Website gallery](docs/gallery/README.md) — screenshots, animation clips and a video tour
 - [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) — rules for coding agents and developers
 

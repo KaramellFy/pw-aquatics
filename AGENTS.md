@@ -20,6 +20,7 @@ and some species may not be traded legally.
 | [docs/API.md](docs/API.md) | REST conventions and endpoints |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and what belongs in each |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Running the shop on a server: setup, backups, monitoring, incidents |
+| [docs/CHECKS.md](docs/CHECKS.md) | Security, performance and accessibility checks: results, accepted findings, how to repeat |
 
 ## 2. Current status
 
@@ -94,6 +95,9 @@ and some species may not be traded legally.
   (`/api/v1/admin/dashboard`, `/api/v1/admin/stats/**`). Defaults pending the owner's
   confirmation: one code per order, whole shop, reduced products excluded, free shipping
   for every method.
+- **Security, performance and accessibility pass** (from Phase 10, brought forward): OWASP ZAP
+  baseline and API scans, npm/Java/image audits, Lighthouse mobile on the main pages, axe-core
+  and keyboard checks; results, accepted findings and how to repeat them in docs/CHECKS.md.
 
 - **SEO** (from Phase 10, brought forward; ADR-012) is in progress: German pages live under
   `/de/…` with the same path words, the link decides the language, pages carry canonical and
@@ -246,6 +250,8 @@ working around them.
   everything with `Html` except sanitised HTML from the API. A new public page or a change to
   the API paths and page sizes the app requests first means updating `PageService` too, and a
   new indexable page without catalog data belongs in `CrawlerFiles.FIXED_PAGES` (sitemap).
+  Photos it writes use the app's `sizes` and first-photo priority for the same picture
+  (`PageWriter.image`), so the browser fetches one file that the app then reuses.
   Structured data (schema.org) is written only here, never by the app.
 - **Personal data:** every new place that stores personal data gets a row in
   docs/DATABASE.md §6 (purpose, legal basis, retention) and, unless a law requires
@@ -347,7 +353,8 @@ working around them.
   it); texts the backend needs go through `lib/seo/pageTexts.ts` and every route is listed in
   `app/routePaths.ts` (a test compares it with the route tree); the build writes both to
   `pages.json`. Files that vite.config.ts imports use relative imports with `.ts` extensions. On start the app takes the page's data (`app/serverPage.ts`, `lib/api/preload.ts` maps
-  API paths to query keys) and waits for the router before rendering. Style the backend's text
+  API paths to query keys; a list loaded page by page, like the gallery, gets the first page of
+  its infinite query) and waits for the router and its language's texts before rendering. Style the backend's text
   only through the `.page-preview` classes. The app writes no structured data (JSON-LD): the
   backend's stays until the app shows another page. `public/robots.txt` goes into `pages.json`
   (the backend adds the sitemap link). A paged list passes its page to `PageMeta` (`page`; the
